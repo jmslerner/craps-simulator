@@ -111,7 +111,7 @@ export function checkStart(rest: RestState, params: PhysicsParams = DEFAULT_PARA
   return { valid: reasons.size === 0, reasons: [...reasons] }
 }
 
-/** Every value finite, and a quaternion with a length to normalize: neither zero nor overflowing. */
+/** Finite values, and a quaternion with a length to divide by: neither zero nor overflowing. */
 function usable({ p, q }: Pose): boolean {
   const squared = q[0] * q[0] + q[1] * q[1] + q[2] * q[2] + q[3] * q[3]
   return [...p, ...q].every(Number.isFinite) && squared > 0 && Number.isFinite(squared)

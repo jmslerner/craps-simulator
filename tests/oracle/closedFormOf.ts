@@ -58,10 +58,18 @@ export function machineBets(facts: MachineFacts, amount: number): MachineBet[] {
  * behind come and don't come bets that are OFF on the come-out, which are returned (a push) when
  * their bet is decided there. Every other bet is decided only on rolls it works, each one the same
  * against the others (rules spec §1.2, §2.2), so when it is OFF does not change its price.
+ *
+ * `paid: 'exact'` settles every payout and commission exactly, minimums kept: the nominal edge
+ * (plan §5.1), against which breakage is measured.
  */
-export function closedFormOf(facts: MachineFacts, bet: MachineBet): CfBet | null {
+export function closedFormOf(
+  facts: MachineFacts,
+  bet: MachineBet,
+  paid: 'asPaid' | 'exact' = 'asPaid',
+): CfBet | null {
   const type = typeFacts(facts, bet.typeId)
-  const rounding = payoutRoundingOf(type, bet.number)
+  const exact = paid === 'exact'
+  const rounding = exact ? null : payoutRoundingOf(type, bet.number)
   const stake = bet.amount
   switch (type.family) {
     case 'line':
@@ -97,7 +105,7 @@ export function closedFormOf(facts: MachineFacts, bet: MachineBet): CfBet | null
         pays,
         stake,
         rounding,
-        commission: commission === undefined ? null : cfCommission(commission),
+        commission: commission === undefined ? null : cfCommission(commission, exact),
         afterWin: type.afterWin,
       })
     }
@@ -130,12 +138,12 @@ export function closedFormOf(facts: MachineFacts, bet: MachineBet): CfBet | null
   }
 }
 
-function cfCommission(c: CommissionFacts): CfCommission {
+function cfCommission(c: CommissionFacts, exact: boolean): CfCommission {
   return {
     rate: c.rate,
     basis: c.basis,
     timing: c.timing,
-    rounding: c.rounding,
+    rounding: exact ? null : c.rounding,
     minimum: c.minimum,
     refundOnTakeDown: c.refundOnTakeDown,
     rearm: c.rearm,

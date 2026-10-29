@@ -84,3 +84,51 @@ export type { Ledger } from './table/ledger.ts'
 export { applyAction, validateAction } from './table/reducer.ts'
 export type { ActionResult, ApplyOptions } from './table/reducer.ts'
 export { InvariantError, assertInvariants, invariantViolations } from './table/invariants.ts'
+
+// The session: the betting window, macros, replay and the session log (M5).
+export {
+  clearWindow,
+  dispatchBetting,
+  lastWindowOf,
+  newSession,
+  rollWindow,
+  undo,
+} from './session/window.ts'
+export type {
+  BettingResult,
+  RollResult,
+  SessionHeader,
+  WindowRecord,
+  WindowedSession,
+} from './session/window.ts'
+export {
+  doubleBets,
+  maxOutOdds,
+  pressBet,
+  repeatBets,
+  takeDownAll,
+  winsOf,
+} from './session/macros.ts'
+export {
+  ReplayError,
+  headerConfig,
+  replay,
+  replayHistory,
+  resumeSession,
+} from './session/replay.ts'
+export type {
+  ReplayFailure,
+  ReplayOptions,
+  ReplayedWindow,
+  ResumeOptions,
+} from './session/replay.ts'
+export {
+  SESSION_LOG_FORMAT,
+  SESSION_LOG_VERSION,
+  deserializeSession,
+  parseSessionLog,
+  serializeSession,
+  sessionFromLog,
+  toSessionLog,
+} from './session/serialize.ts'
+export type { LoadResult, ParseResult, SessionLog, SessionLogError } from './session/serialize.ts'

@@ -215,7 +215,9 @@ export function assumedPaths(spec: BetSpec, cfg: MachineConfig): readonly string
   return configPathsOf(spec, cfg).filter(
     (path) =>
       statusAt(cfg.provenance, path) === 'assumed' ||
-      entries.some(([pointer, entry]) => pointer.startsWith(`${path}/`) && entry.status === 'assumed'),
+      entries.some(
+        ([pointer, entry]) => pointer.startsWith(`${path}/`) && entry.status === 'assumed',
+      ),
   )
 }
 
@@ -247,7 +249,11 @@ export interface CombinedEdge {
   /** E[odds wagered per decision], in cents. */
   readonly oddsWagered: Fraction
   /** The odds placed behind the flat on each point. */
-  readonly odds: readonly { readonly number: PointNumber; readonly amount: Cents; readonly chance: Fraction }[]
+  readonly odds: readonly {
+    readonly number: PointNumber
+    readonly amount: Cents
+    readonly chance: Fraction
+  }[]
 }
 
 /**

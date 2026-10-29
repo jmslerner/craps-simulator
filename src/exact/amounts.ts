@@ -73,7 +73,11 @@ export function smallestAmount(spec: BetSpec, cfg: MachineConfig): Cents | null 
 export function largestAmount(spec: BetSpec, cfg: MachineConfig): Cents | null {
   const { max, increment } = typeLimits(cfg, spec.typeId)
   const placement = placementFor(spec, cfg)
-  for (let amount: number = max, tries = 0; amount > 0 && tries < 400; amount -= increment, tries++) {
+  for (
+    let amount: number = max, tries = 0;
+    amount > 0 && tries < 400;
+    amount -= increment, tries++
+  ) {
     const stake = cents(amount)
     if (validateAction(placement.state, placement.action(stake), cfg) === null) return stake
   }
@@ -211,7 +215,10 @@ function placementFor(spec: BetSpec, cfg: MachineConfig): Placement {
     case 'line': {
       const phase: Phase =
         type.window === 'comeOut' ? COME_OUT : { kind: 'point', point: firstPoint(cfg) }
-      return { state: on(phase, []), action: (amount) => ({ type: 'place', typeId: type.typeId, amount }) }
+      return {
+        state: on(phase, []),
+        action: (amount) => ({ type: 'place', typeId: type.typeId, amount }),
+      }
     }
     case 'odds': {
       const parent = cfg.catalog.get(type.parent)
@@ -232,7 +239,12 @@ function placementFor(spec: BetSpec, cfg: MachineConfig): Placement {
       const phase: Phase = parent.window === 'comeOut' ? { kind: 'point', point: n } : COME_OUT
       return {
         state: on(phase, [parentBet]),
-        action: (amount) => ({ type: 'place', typeId: type.typeId, parentId: parentBet.id, amount }),
+        action: (amount) => ({
+          type: 'place',
+          typeId: type.typeId,
+          parentId: parentBet.id,
+          amount,
+        }),
       }
     }
     case 'numberVsSeven':
@@ -244,7 +256,10 @@ function placementFor(spec: BetSpec, cfg: MachineConfig): Placement {
       }
     case 'oneRoll':
     case 'composite':
-      return { state: on(COME_OUT, []), action: (amount) => ({ type: 'place', typeId: type.typeId, amount }) }
+      return {
+        state: on(COME_OUT, []),
+        action: (amount) => ({ type: 'place', typeId: type.typeId, amount }),
+      }
   }
 }
 

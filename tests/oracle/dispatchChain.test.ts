@@ -1,27 +1,30 @@
+import fc from 'fast-check'
 import { describe, expect, it } from 'vitest'
 import { compileConfig, type MachineConfig } from '../../src/engine/index.ts'
 import { PRESETS, PRESET_IDS, type PresetId } from '../../src/engine/config/presets/index.ts'
 import type { MachineConfigInput } from '../../src/engine/config/schema.ts'
 import { Fraction } from '../../src/engine/core/rational.ts'
-import { analyze } from './closedForm.ts'
-import { closedFormOf, machineBets, type MachineBet } from './closedFormOf.ts'
+import { machineBets } from './closedFormOf.ts'
 import {
   buildChain,
+  checkAgainstClosedForm,
   dispatchAnalysis,
   dispatchVariant,
   startTable,
   type DispatchBet,
 } from './dispatchChain.ts'
-import { factsFrom, typeFacts, type MachineFacts } from './machineFacts.ts'
+import { factsFrom } from './machineFacts.ts'
+import { edited, editArb } from './randomMachine.ts'
 
+const SEED = 20261028
 const same = (actual: Fraction | undefined, expected: string) =>
   expect(actual?.toString()).toBe(expected)
 
-/** A preset loosened for dispatch (1¢ steps, no minimum total), compiled, with its facts. */
+/** A preset loosened for dispatch (1¢ steps, no minimum total), compiled. */
 function machine(id: PresetId, edit: (input: MachineConfigInput) => void = () => undefined) {
   const input = dispatchVariant(PRESETS[id])
   edit(input)
-  return { cfg: compileConfig(input), facts: factsFrom(input) }
+  return { cfg: compileConfig(input) }
 }
 
 const crapless = machine('craplessBubble')
@@ -32,30 +35,6 @@ const live = machine('traditionalLive345')
 const lifetime = (cfg: MachineConfig, bet: DispatchBet) => dispatchAnalysis(cfg, bet, 'lifetime')
 const decision = (cfg: MachineConfig, bet: DispatchBet) => dispatchAnalysis(cfg, bet, 'decision')
 const edgeOf = (cfg: MachineConfig, bet: DispatchBet) => lifetime(cfg, bet).edge.toString()
-
-/** Where a bet of the machine goes on a dispatch table: its window and, for odds, its parent. */
-function dispatchSpec(facts: MachineFacts, bet: MachineBet): DispatchBet {
-  const type = typeFacts(facts, bet.typeId)
-  const awayFrom = (n: number | null) => (n === 6 ? 8 : 6)
-  if (type.family === 'line') {
-    return type.window === 'point'
-      ? { typeId: bet.typeId, amount: bet.amount, point: 6 }
-      : { typeId: bet.typeId, amount: bet.amount }
-  }
-  if (type.family === 'odds') {
-    const parent = typeFacts(facts, type.parent)
-    const number = bet.number ?? 0
-    return {
-      typeId: bet.typeId,
-      amount: bet.amount,
-      parent: { typeId: parent.id, amount: bet.amount, number },
-      point: parent.family === 'line' && parent.window === 'point' ? awayFrom(number) : null,
-    }
-  }
-  return bet.number === null
-    ? { typeId: bet.typeId, amount: bet.amount }
-    : { typeId: bet.typeId, number: bet.number, amount: bet.amount }
-}
 
 describe('dispatchVariant (M4 → M6 hand-off)', () => {
   it('takes 1¢ steps, has no minimum total and a deep bankroll; it still compiles', () => {
@@ -102,7 +81,7 @@ describe('published values through the reducer (plan §9 item 5)', () => {
     same(once.edgePerWorkingRoll, '373/28839')
     // A pass bet left up loses only at a seven-out: it lasts a hand.
     same(lifetime(crapless.cfg, pass).expectedRolls, '57678/7303')
-    same(edgeOf(crapless.cfg, { typeId: 'come', amount: 1_000, point: 4 }) as never, '373/6930')
+    expect(edgeOf(crapless.cfg, { typeId: 'come', amount: 1_000, point: 4 })).toBe('373/6930')
   })
 
   it("traditional pass 7/495 in 557/165 rolls; don't pass bar 12 3/220", () => {
@@ -181,9 +160,9 @@ describe('published values through the reducer (plan §9 item 5)', () => {
       [5, 3_000],
       [6, 2_400],
     ]
-    expect(lays.map(([n, amount]) => edgeOf(stw.cfg, { typeId: 'lay', number: n, amount }))).toEqual(
-      ['1/60', '1/50', '1/44'],
-    )
+    expect(
+      lays.map(([n, amount]) => edgeOf(stw.cfg, { typeId: 'lay', number: n, amount })),
+    ).toEqual(['1/60', '1/50', '1/44'])
     expect(
       lays.map(([n, amount]) => edgeOf(strict.cfg, { typeId: 'lay', number: n, amount })),
     ).toEqual(['1/41', '1/31', '1/25'])
@@ -262,50 +241,35 @@ describe('the chain itself', () => {
   })
 })
 
-/**
- * The closed form and the reducer, bet by bet (plan §9 items 3 and 4): for each offered bet at
- * each stake, the lifecycle edge, loss, amount risked and edge per working roll, and the first
- * decision's chances and working rolls, must agree exactly. tests/slow runs every preset at every
- * stake of plan §9 item 4; this is the quick subset.
- */
-export function crossCheck(id: PresetId, stakes: readonly number[], filter = (_: MachineBet) => true) {
-  const { cfg, facts } = machine(id)
-  const mismatches: string[] = []
-  let checked = 0
-  for (const stake of stakes) {
-    for (const bet of machineBets(facts, stake).filter(filter)) {
-      const cf = closedFormOf(facts, bet)
-      if (cf === null) continue
-      checked++
-      const closed = analyze(cf)
-      const spec = dispatchSpec(facts, bet)
-      const life = dispatchAnalysis(cfg, spec, 'lifetime')
-      const once = dispatchAnalysis(cfg, spec, 'decision')
-      const pairs: [string, Fraction, Fraction][] = [
-        ['edge', life.edge, closed.edge],
-        ['loss', life.loss, closed.loss],
-        ['risked', life.risked, closed.risked],
-        ['edgePerWorkingRoll', life.edgePerWorkingRoll, closed.edgePerWorkingRoll],
-        ['pWin', once.outcomes.get('win') ?? Fraction.ZERO, closed.pWin],
-        ['pLose', once.outcomes.get('lose') ?? Fraction.ZERO, closed.pLose],
-        ['pPush', once.outcomes.get('push') ?? Fraction.ZERO, closed.pPush],
-        ['workingRolls', once.expectedWorkingRolls, closed.workingRollsPerDecision],
-        ['decisionLoss', once.loss, closed.perDecision.loss],
-      ]
-      for (const [what, engine, oracle] of pairs) {
-        if (!engine.equals(oracle)) {
-          mismatches.push(`${id} ${bet.typeId}@${bet.number ?? '-'} ${stake}¢ ${what}: engine ${engine} closed ${oracle}`)
-        }
-      }
-    }
-  }
-  return { mismatches, checked }
-}
-
-describe('the reducer against the closed form (quick subset)', () => {
-  it.each(PRESET_IDS)('%s: every offered bet at 101¢ and 600¢', (id) => {
-    const { mismatches, checked } = crossCheck(id, [101, 600])
+// The quick subset: one odd-cent stake, where every rounding shows. tests/slow runs every stake of
+// plan §9 item 4 and an odd-cent sweep.
+describe('the reducer against the closed form, every offered bet (quick subset)', () => {
+  it.each(PRESET_IDS)('%s at 101¢', (id) => {
+    const { mismatches, checked } = checkAgainstClosedForm(PRESETS[id], [101])
     expect(mismatches).toEqual([])
-    expect(checked).toBeGreaterThan(40)
+    expect(checked).toBeGreaterThan(20)
+  })
+})
+
+describe('random machines against the closed form (quick subset of tests/slow)', () => {
+  it('agree on a random bet at a random stake (fast-check, pinned seed)', () => {
+    fc.assert(
+      fc.property(
+        fc.constantFrom(...PRESET_IDS),
+        editArb,
+        fc.nat(),
+        fc.integer({ min: 1, max: 5_000 }),
+        (id, edit, pick, stake) => {
+          const input = edited(PRESETS[id], edit)
+          const bets = machineBets(factsFrom(dispatchVariant(input)), stake)
+          const bet = bets[pick % bets.length]
+          if (bet === undefined) return
+          const isBet = (b: { typeId: string; number: number | null }) =>
+            b.typeId === bet.typeId && b.number === bet.number
+          expect(checkAgainstClosedForm(input, [stake], isBet).mismatches).toEqual([])
+        },
+      ),
+      { seed: SEED, numRuns: 25 },
+    )
   })
 })

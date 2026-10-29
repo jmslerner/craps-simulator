@@ -1,41 +1,58 @@
 import { describe, expect, it } from 'vitest'
 import { compileConfig } from '../../src/engine/config/compile.ts'
-import { PRESETS, PRESET_IDS, type PresetId } from '../../src/engine/config/presets/index.ts'
+import { PRESETS, type PresetId } from '../../src/engine/config/presets/index.ts'
+import type { MachineConfigInput } from '../../src/engine/config/schema.ts'
 import type { BetKey, Step } from '../properties/actions.ts'
 import {
   Game,
+  codeAgreement,
   describeMismatch,
   engineSnapshot,
   expectExercised,
   runDifferential,
+  unexplainedCodePairs,
 } from '../properties/differential.ts'
+import { DIFF_MACHINES, MACHINE_VARIANTS } from '../properties/machineVariants.ts'
 import { scenario } from '../scenarios/dsl.ts'
 import { factsFrom } from './machineFacts.ts'
 import { refSnapshot } from './referenceTable.ts'
 
 // The reference differential (plan §9 item 2, §0 #17): seeded random sequences of 100 actions go
 // through the engine and the independent reference table, compared after every action
-// (tests/properties/differential.ts). The quick subset runs here; tests/slow/reference.slow.test.ts
-// runs 2,000 sequences per machine. The bar is 0 mismatches.
+// (tests/properties/differential.ts). The quick subset runs here on the four presets and on the
+// variants that turn on the knobs no preset uses (tests/properties/machineVariants.ts);
+// tests/slow/reference.slow.test.ts runs 2,000 sequences per machine. The bar is 0 mismatches,
+// every odds type placed at least 10 times, each commission event the machine has reached, and
+// refusal codes that differ only where the engine answers CONTRACT_BET first.
 //
-// The cases below are the mismatches the differential found in M4d, each replayed through both
-// models with the rules spec's answer: the side that broke the spec was fixed.
+// The cases below are the mismatches the differential found, in M4d and in the M6 reconciliation,
+// each replayed through both models with the rules spec's answer: the side that broke the spec was
+// fixed.
 
 const QUICK_RUNS = 150
 
-describe.each(PRESET_IDS)('the reference differential on %s (quick subset)', (id) => {
-  it(`finds no mismatch in ${QUICK_RUNS} sequences of 100 actions, and exercises every bet`, () => {
-    const report = runDifferential(id, QUICK_RUNS, 100)
-    expect(report.mismatches.map(describeMismatch)).toEqual([])
-    expect(report.actions).toBe(QUICK_RUNS * 100)
-    expectExercised(report, compileConfig(PRESETS[id]))
-  })
-})
+describe.each(DIFF_MACHINES.map((machine) => [machine.id, machine] as const))(
+  'the reference differential on %s (quick subset)',
+  (_, machine) => {
+    it(`finds no mismatch in ${QUICK_RUNS} sequences of 100 actions, and exercises every bet`, () => {
+      const report = runDifferential(machine.input, QUICK_RUNS, 100)
+      expect(report.mismatches.map(describeMismatch)).toEqual([])
+      expect(report.actions).toBe(QUICK_RUNS * 100)
+      expectExercised(report, compileConfig(machine.input), {
+        oddsPlaced: 10,
+        commission: machine.commission,
+        commissionCount: 1,
+      })
+      expect(unexplainedCodePairs(report), codeAgreement(report)).toEqual([])
+    })
+  },
+)
 
 /** Plays `steps` through both models; every step must agree. Returns both tables at the end. */
-function sideBySide(id: PresetId, steps: readonly Step[]) {
-  const cfg = compileConfig(PRESETS[id])
-  const facts = factsFrom(PRESETS[id])
+function sideBySide(machine: PresetId | MachineConfigInput, steps: readonly Step[]) {
+  const input = typeof machine === 'string' ? PRESETS[machine] : machine
+  const cfg = compileConfig(input)
+  const facts = factsFrom(input)
   const game = new Game(cfg, facts)
   const refused: (string | null)[] = []
   for (const step of steps) {
@@ -213,5 +230,65 @@ describe('adjudicated mismatches (M4d)', () => {
         .expectBets([])
         .expectLedger({ deposits: 5_500, bankroll: 1_500, houseNet: 4_000, vigPaid: 5_000 })
     })
+  })
+})
+
+describe('adjudicated mismatches (M6 reconciliation)', () => {
+  it("Interblock: a don't pass bet on its point blocks every wager on the buy there, one already up included; it may still be cut (§5.1 excludeLineVsLayBuy; IB221) — the engine was fixed, and the oracle's press", () => {
+    // Found on strictBubble, seed 20261028, run 1048 of 2,000 (and on every strict variant): a buy
+    // on 9 was up when the don't pass went to 9, and the engine took more on it, having checked
+    // exclusivity only for a new bet. IB221: the setting "will prevent the player from wagering on
+    // the Buy bet of the established Point". The oracle refused the addition but let the same
+    // money through as a press (`setAmount`), so it was fixed too.
+    const { engine, refused } = sideBySide('strictBubble', [
+      place('buy', 2_000, 9),
+      place('dontPass', 1_000),
+      roll(4, 5),
+      place('buy', 2_000, 9),
+      setAmount('buy', 9, 4_000),
+      setAmount('buy', 9, 1_000),
+      place('buy', 2_000, 8),
+    ])
+    expect(refused).toEqual([
+      null,
+      null,
+      null,
+      'EXCLUSIVE_CONFLICT',
+      'EXCLUSIVE_CONFLICT',
+      null,
+      null,
+    ])
+    expect(engine.bets).toMatchObject([
+      { typeId: 'buy', number: 8, amount: 2_000 },
+      { typeId: 'buy', number: 9, amount: 1_000 },
+      { typeId: 'dontPass', number: 9, amount: 1_000 },
+    ])
+  })
+
+  it('a lay held OFF after a seven-out stays held when a 7 re-enables lays; only Set bets On ends the hold (§2.4; IB §3.2) — the oracle was fixed', () => {
+    // Found on a variant no preset matches, Interblock strict holding lays as well as place and
+    // buy after a seven-out (`strict-lay-held`, seed 20261028, run 24): the oracle's lay re-enable
+    // also ended the hold. IB §3.2 gives "Lay bets become enabled after a Point is reestablished or
+    // a 7 is rolled" among the bets Set bets Off disables, and of bets held after a 7-out: "To
+    // activate them, the player is required to tap the Set bets On button"; rules spec §2.4 lists
+    // only that, and the point under `until: pointEstablished`, as ending the hold.
+    const variant = MACHINE_VARIANTS.find((machine) => machine.id === 'strict-lay-held')
+    if (variant === undefined) throw new Error('strict-lay-held is gone')
+    const held = [
+      place('pass', 1_000),
+      roll(4, 5),
+      roll(3, 4),
+      place('lay', 2_000, 4),
+      place('pass', 1_000),
+      roll(5, 2),
+    ]
+    expect(sideBySide(variant.input, held).engine.bets).toMatchObject([
+      { typeId: 'lay', number: 4, working: false },
+      { typeId: 'pass', number: null, working: true },
+    ])
+    expect(sideBySide(variant.input, [...held, button(null)]).engine.bets).toMatchObject([
+      { typeId: 'lay', number: 4, working: true },
+      { typeId: 'pass', number: null, working: true },
+    ])
   })
 })

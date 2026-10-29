@@ -196,7 +196,7 @@ describe('architecture scanner oracle independence', () => {
     }
   })
 
-  it('keeps oracle modules off config code, money.ts and engine/core beyond rational.ts and dice.ts', () => {
+  it('keeps oracle modules off config code, money.ts and the rest of engine/core', () => {
     const messages = (source: string) =>
       checkSource('tests/oracle/machineFacts.ts', source).map((violation) => violation.message)
     const CONFIG = 'oracles may take only types from src/engine/config, with import type'
@@ -222,9 +222,10 @@ describe('architecture scanner oracle independence', () => {
       'oracles round money themselves: they must not import src/engine/core/money.ts: ' +
         'src/engine/core/money.ts',
     ])
+    const CORE = 'oracles may import from src/engine/core only rational.ts and dice.ts'
     for (const path of ['rng.ts', 'hash.ts', 'rational.test.ts']) {
       expect(messages(imp(`../../src/engine/core/${path}`))).toEqual([
-        `oracles may import from src/engine/core only rational.ts and dice.ts: src/engine/core/${path}`,
+        `${CORE}: src/engine/core/${path}`,
       ])
     }
   })
@@ -451,7 +452,7 @@ describe('architecture scanner oracle reach', () => {
     ])
   })
 
-  it('keeps config modules, the presets and the scenario DSL out of reach, whatever they import', () => {
+  it('keeps config modules and the scenario DSL out of reach, whatever they import', () => {
     // On the real tree, so these hold as the tree changes. A config module is out of reach as
     // config, so nothing here depends on what the presets themselves import.
     const tree = readSources(ROOT, ['src', 'tests'])
@@ -787,6 +788,7 @@ const MATH_TYPES = [
   'export type T4 = typeof Math.random',
   'export type T5 = typeof globalThis.Math',
 ]
+/** Math in a type that names no banned member and no host: neither tool reports these. */
 const MATH_TYPE_NAMES = [
   'export type T6 = typeof Math',
   'export type T7 = typeof Math.sqrt',
@@ -1156,7 +1158,7 @@ describe('the lint mirror in eslint.config.js', () => {
       .filter((message) => MIRRORED.has(message.ruleId ?? ''))
       .map((message) => `${message.ruleId}@${message.line}`)
   }
-  /** The lines each tool reports in `code`, as `file`: the scanner's and lint's (mirrored rules). */
+  /** The lines the scanner and lint (its mirrored rules) report in `code`, linted as `file`. */
   const reportedLines = async (file: string, code: string) => ({
     scanner: [...new Set(checkSource(file, code).map((violation) => violation.line))],
     lint: [...new Set((await lint(file, code)).map((report) => Number(report.split('@')[1])))],
@@ -1205,7 +1207,7 @@ describe('the lint mirror in eslint.config.js', () => {
     expect(await selectors('src/ui/App.tsx')).toBe(false)
   }, 30_000)
 
-  it('bans the oracle imports known to reach shared rule code, config code or money.ts', async () => {
+  it('bans oracle imports of rule code, config code and money.ts, like the scanner', async () => {
     const banned = [
       '../../src/engine/round/round.ts',
       '../../src/exact/solve.ts',
@@ -1286,7 +1288,7 @@ describe('the lint mirror in eslint.config.js', () => {
     ])
   }, 30_000)
 
-  it('flags the same lines as the scanner: hosts, Math through them, and Math as a type', async () => {
+  it('flags the lines the scanner flags: hosts, Math through hosts, Math as a type', async () => {
     const file = 'tests/scenarios/hosts.test.ts'
     for (const fixture of [HOST_EVASIONS, MATH_TYPES]) {
       const { scanner, lint: linted } = await reportedLines(file, fixture.join('\n'))

@@ -219,10 +219,17 @@ describe('Interblock heads-up working policy (rules spec §2.3 step 8, §2.4; cr
     until.roll(2, 2)
     until.roll(3, 4)
     until.place('place', 600, { number: 6 })
+    until.place('place', 600, { number: 8 })
     until.place('pass', 1_000)
     expect(until.bet('place', 6)?.working).toBe(false)
-    until.roll(4, 5)
-    expect(until.bet('place', 6)?.working).toBe(true)
+    // OFF for the roll that sets the point, ON after it: the 8 sets the point and does not pay.
+    expect(settledText(until.roll(4, 4))).toEqual(['pass@- travel 0'])
+    expect([until.bet('place', 6)?.working, until.bet('place', 8)?.working]).toEqual([true, true])
+    // Set bets On ends it sooner, whatever the `until`.
+    until.roll(3, 4)
+    until.place('place', 600, { number: 5 })
+    until.apply({ type: 'setGlobalWorking', off: null })
+    expect(until.bet('place', 5)?.working).toBe(true)
 
     const anySeven = session(
       edited('craplessBubble', (input) => {
@@ -550,6 +557,7 @@ describe('rejections (plan §4.6 codes) change nothing', () => {
     const capped = session(
       edited('craplessBubble', (input) => {
         input.limits.tableMax = 2_000
+        input.limits.max = 2_000
       }),
     )
     capped.place('pass', 1_000)
@@ -688,6 +696,35 @@ describe('re-collected vig is judged after all of the roll payouts (rules spec �
     expect(s.bet('buy', 4)).toMatchObject({ amount: 2_000, vigHeld: 100 })
     expect(s.snap()).toMatchObject({ vigPaid: 100, bankroll: 51_900 })
   })
+
+  it('recollectFromCredit charges credit after the win is paid; a decline keeps the whole win', () => {
+    const fromCredit = (bankroll: number, minimum: number) =>
+      session(
+        edited('craplessBubble', (input) => {
+          input.money.startingBankroll = bankroll
+          input.limits.minTotal = null
+          const buy = input.catalog.buy
+          if (buy?.family === 'numberVsSeven' && buy.commission) {
+            buy.commission.rearm = 'recollectFromCredit'
+            buy.commission.minimum = minimum
+          }
+        }),
+      )
+    // $20 buy 4 with $1 vig and nothing else on credit: the $40 win pays the next $1.
+    const paid = fromCredit(2_100, 0)
+    paid.place('buy', 2_000, { number: 4 })
+    expect(paid.bankroll()).toBe(0)
+    expect(settledText(paid.roll(2, 2))).toEqual(['buy@4 win 4000'])
+    expect(paid.snap()).toMatchObject({ bankroll: 3_900, vigPaid: 200 })
+    expect(paid.bet('buy', 4)?.vigHeld).toBe(100)
+    // A $50 minimum on a $1 buy 6: the $1.20 win cannot pay it, so the bet comes down with its
+    // win and stake.
+    const declined = fromCredit(5_100, 5_000)
+    declined.place('buy', 100, { number: 6 })
+    const [buy] = declined.roll(3, 3)
+    expect([buy?.settlement.credited, buy?.vigDeclined]).toEqual([120, true])
+    expect(declined.snap()).toMatchObject({ bankroll: 220, vigPaid: 5_000, bets: [] })
+  })
 })
 
 describe('working-rule variants (rules spec §2.3 step 8, §2.4, §9 #6)', () => {
@@ -764,9 +801,11 @@ describe('working-rule variants (rules spec §2.3 step 8, §2.4, §9 #6)', () =>
 
 describe('limits on the table (rules spec §4.4, §4.5)', () => {
   it('the table maximum counts odds and OFF bets', () => {
+    // Validation needs the table maximum at least the per-bet maximum (rules spec §5.3 #11).
     const s = session(
       edited('craplessBubble', (input) => {
         input.limits.tableMax = 5_000
+        input.limits.max = 5_000
       }),
     )
     s.place('pass', 1_000)

@@ -75,9 +75,7 @@ export function solveChain(chain: RewardChain): ChainSolution {
     if (row.length !== columns) throw new RangeError(`State ${state} has ${row.length} rewards`)
   }
 
-  const values: (readonly Fraction[] | null)[] = new Array<readonly Fraction[] | null>(n).fill(
-    null,
-  )
+  const values: (readonly Fraction[] | null)[] = new Array<readonly Fraction[] | null>(n).fill(null)
   const solved = new Array<boolean>(n).fill(false)
   for (const component of stronglyConnected(adjacency)) {
     const inside = new Set(component)

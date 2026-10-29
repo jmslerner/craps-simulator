@@ -187,7 +187,8 @@ export function handLengthAtLeast(variant: Variant, k: number): Fraction {
   let comeOut = ONE
   let onPoint = new Map<number, Fraction>(points.map((n) => [n, ZERO]))
   for (let roll = 1; roll < k; roll++) {
-    let nextComeOut = comeOut.mul(Fraction.sum([...NATURALS[variant], ...CRAPS[variant]].map(p36)))
+    const stayComeOut = [...NATURALS[variant], ...CRAPS[variant]].map(probabilityOf)
+    let nextComeOut = comeOut.mul(Fraction.sum(stayComeOut))
     const next = new Map<number, Fraction>()
     for (const n of points) {
       const w = frac(waysOf(n), 36)
@@ -273,9 +274,13 @@ export interface CfAnalysis {
   readonly loss: Fraction
   /** E[amount risked] over the lifecycle, in cents. */
   readonly risked: Fraction
+  /** loss ÷ risked, pushes counted as decisions. */
   readonly edge: Fraction
+  /** loss ÷ (risked − the stakes of pushes). */
   readonly edgeExcludingTies: Fraction
+  /** loss ÷ (working rolls × stake) (plan §5.1). */
   readonly edgePerWorkingRoll: Fraction
+  /** edge ÷ working rolls per decision (rules spec §0.1 HE_roll). */
   readonly heRoll: Fraction
   /** The first decision on its own (the bet as placed, its upfront vig included). */
   readonly perDecision: CfDecisionView
@@ -826,10 +831,6 @@ function waysOf(number: number): number {
     throw new RangeError(`${number} is not a number bet total`)
   }
   return waysToRoll(number as Total)
-}
-
-function p36(total: Total): Fraction {
-  return probabilityOf(total)
 }
 
 function toCents(amount: number | Fraction): Fraction {

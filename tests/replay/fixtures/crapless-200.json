@@ -1,0 +1,2834 @@
+{
+  "format": "bubble-craps-session",
+  "version": 1,
+  "header": {
+    "engineVersion": 1,
+    "configHash": "4537b96ffb0ea61c",
+    "seed": "crapless-200",
+    "config": {
+      "schemaVersion": 1,
+      "id": "craplessBubble",
+      "name": "Crapless bubble craps",
+      "variant": "crapless",
+      "rules": {
+        "naturals": [7],
+        "craps": [],
+        "points": [2, 3, 4, 5, 6, 8, 9, 10, 11, 12],
+        "dontBar": null,
+        "allowPutBets": false
+      },
+      "money": {
+        "payoutRounding": { "mode": "floor", "increment": 1 },
+        "startingBankroll": 50000,
+        "betIncrement": 100
+      },
+      "limits": {
+        "min": 100,
+        "max": 50000,
+        "minTotal": {
+          "amount": 500,
+          "scope": "totalRound",
+          "countOff": false,
+          "countSideBets": false
+        }
+      },
+      "chips": [100, 500, 1000, 2500, 5000, 10000],
+      "catalog": {
+        "pass": {
+          "family": "line",
+          "label": "Pass Line",
+          "side": "do",
+          "window": "comeOut",
+          "pays": "1:1",
+          "afterWin": "stay"
+        },
+        "come": {
+          "family": "line",
+          "label": "Come",
+          "side": "do",
+          "window": "point",
+          "pays": "1:1",
+          "afterWin": "return"
+        },
+        "passOdds": {
+          "family": "odds",
+          "label": "Pass Odds",
+          "parent": "pass",
+          "pays": {
+            "2": "6:1",
+            "3": "3:1",
+            "4": "2:1",
+            "5": "3:2",
+            "6": "6:5",
+            "8": "6:5",
+            "9": "3:2",
+            "10": "2:1",
+            "11": "3:1",
+            "12": "6:1"
+          },
+          "limit": {
+            "basis": "stake",
+            "multiple": {
+              "2": 2,
+              "3": 2,
+              "4": 2,
+              "5": 2,
+              "6": 2,
+              "8": 2,
+              "9": 2,
+              "10": 2,
+              "11": 2,
+              "12": 2
+            }
+          }
+        },
+        "comeOdds": {
+          "family": "odds",
+          "label": "Come Odds",
+          "parent": "come",
+          "pays": {
+            "2": "6:1",
+            "3": "3:1",
+            "4": "2:1",
+            "5": "3:2",
+            "6": "6:5",
+            "8": "6:5",
+            "9": "3:2",
+            "10": "2:1",
+            "11": "3:1",
+            "12": "6:1"
+          },
+          "limit": {
+            "basis": "stake",
+            "multiple": {
+              "2": 2,
+              "3": 2,
+              "4": 2,
+              "5": 2,
+              "6": 2,
+              "8": 2,
+              "9": 2,
+              "10": 2,
+              "11": 2,
+              "12": 2
+            }
+          },
+          "comeOutDefault": "off"
+        },
+        "place": {
+          "family": "numberVsSeven",
+          "kind": "place",
+          "label": "Place",
+          "numbers": [2, 3, 4, 5, 6, 8, 9, 10, 11, 12],
+          "pays": {
+            "2": "11:2",
+            "3": "11:4",
+            "4": "9:5",
+            "5": "7:5",
+            "6": "7:6",
+            "8": "7:6",
+            "9": "7:5",
+            "10": "9:5",
+            "11": "11:4",
+            "12": "11:2"
+          },
+          "afterWin": "stay",
+          "comeOutDefault": "on"
+        },
+        "buy": {
+          "family": "numberVsSeven",
+          "kind": "buy",
+          "label": "Buy",
+          "numbers": [2, 3, 4, 5, 6, 8, 9, 10, 11, 12],
+          "pays": {
+            "2": "6:1",
+            "3": "3:1",
+            "4": "2:1",
+            "5": "3:2",
+            "6": "6:5",
+            "8": "6:5",
+            "9": "3:2",
+            "10": "2:1",
+            "11": "3:1",
+            "12": "6:1"
+          },
+          "commission": {
+            "rate": "1:20",
+            "basis": "stake",
+            "timing": "upfront",
+            "rounding": { "mode": "ceil", "increment": 1 },
+            "minimum": 0,
+            "refundOnTakeDown": false,
+            "rearm": "recollectFromWin"
+          },
+          "afterWin": "stay",
+          "comeOutDefault": "on"
+        },
+        "hard": {
+          "family": "hardway",
+          "label": "Hard Ways",
+          "numbers": [4, 6, 8, 10],
+          "pays": { "4": "7:1", "6": "9:1", "8": "9:1", "10": "7:1" },
+          "afterWin": "stay",
+          "comeOutDefault": "on"
+        },
+        "field": {
+          "family": "oneRoll",
+          "label": "Field",
+          "match": "total",
+          "pays": {
+            "2": "2:1",
+            "3": "1:1",
+            "4": "1:1",
+            "9": "1:1",
+            "10": "1:1",
+            "11": "1:1",
+            "12": "2:1"
+          },
+          "afterWin": "return"
+        },
+        "any7": {
+          "family": "oneRoll",
+          "label": "Seven",
+          "match": "total",
+          "pays": { "7": "5 for 1" },
+          "afterWin": "return"
+        },
+        "anyCraps": {
+          "family": "oneRoll",
+          "label": "Any Craps",
+          "match": "total",
+          "pays": { "2": "8 for 1", "3": "8 for 1", "12": "8 for 1" },
+          "afterWin": "return"
+        },
+        "c": {
+          "family": "oneRoll",
+          "label": "C",
+          "match": "total",
+          "pays": { "2": "8 for 1", "3": "8 for 1", "12": "8 for 1" },
+          "afterWin": "return"
+        },
+        "e": {
+          "family": "oneRoll",
+          "label": "E",
+          "match": "total",
+          "pays": { "11": "16 for 1" },
+          "afterWin": "return"
+        },
+        "snakeEyes": {
+          "family": "oneRoll",
+          "label": "Snake Eyes",
+          "match": "total",
+          "pays": { "2": "31 for 1" },
+          "afterWin": "return"
+        },
+        "aceDeuce": {
+          "family": "oneRoll",
+          "label": "Ace-Deuce",
+          "match": "total",
+          "pays": { "3": "16 for 1" },
+          "afterWin": "return"
+        },
+        "yo": {
+          "family": "oneRoll",
+          "label": "Yo",
+          "match": "total",
+          "pays": { "11": "16 for 1" },
+          "afterWin": "return"
+        },
+        "boxcars": {
+          "family": "oneRoll",
+          "label": "Boxcars",
+          "match": "total",
+          "pays": { "12": "31 for 1" },
+          "afterWin": "return"
+        },
+        "hop13": {
+          "family": "oneRoll",
+          "label": "Hop 1-3",
+          "match": "dice",
+          "pays": { "1-3": "16 for 1" },
+          "afterWin": "return"
+        },
+        "hop14": {
+          "family": "oneRoll",
+          "label": "Hop 1-4",
+          "match": "dice",
+          "pays": { "1-4": "16 for 1" },
+          "afterWin": "return"
+        },
+        "hop15": {
+          "family": "oneRoll",
+          "label": "Hop 1-5",
+          "match": "dice",
+          "pays": { "1-5": "16 for 1" },
+          "afterWin": "return"
+        },
+        "hop16": {
+          "family": "oneRoll",
+          "label": "Hop 1-6",
+          "match": "dice",
+          "pays": { "1-6": "16 for 1" },
+          "afterWin": "return"
+        },
+        "hop22": {
+          "family": "oneRoll",
+          "label": "Hop 2-2",
+          "match": "dice",
+          "pays": { "2-2": "31 for 1" },
+          "afterWin": "return"
+        },
+        "hop23": {
+          "family": "oneRoll",
+          "label": "Hop 2-3",
+          "match": "dice",
+          "pays": { "2-3": "16 for 1" },
+          "afterWin": "return"
+        },
+        "hop24": {
+          "family": "oneRoll",
+          "label": "Hop 2-4",
+          "match": "dice",
+          "pays": { "2-4": "16 for 1" },
+          "afterWin": "return"
+        },
+        "hop25": {
+          "family": "oneRoll",
+          "label": "Hop 2-5",
+          "match": "dice",
+          "pays": { "2-5": "16 for 1" },
+          "afterWin": "return"
+        },
+        "hop26": {
+          "family": "oneRoll",
+          "label": "Hop 2-6",
+          "match": "dice",
+          "pays": { "2-6": "16 for 1" },
+          "afterWin": "return"
+        },
+        "hop33": {
+          "family": "oneRoll",
+          "label": "Hop 3-3",
+          "match": "dice",
+          "pays": { "3-3": "31 for 1" },
+          "afterWin": "return"
+        },
+        "hop34": {
+          "family": "oneRoll",
+          "label": "Hop 3-4",
+          "match": "dice",
+          "pays": { "3-4": "16 for 1" },
+          "afterWin": "return"
+        },
+        "hop35": {
+          "family": "oneRoll",
+          "label": "Hop 3-5",
+          "match": "dice",
+          "pays": { "3-5": "16 for 1" },
+          "afterWin": "return"
+        },
+        "hop36": {
+          "family": "oneRoll",
+          "label": "Hop 3-6",
+          "match": "dice",
+          "pays": { "3-6": "16 for 1" },
+          "afterWin": "return"
+        },
+        "hop44": {
+          "family": "oneRoll",
+          "label": "Hop 4-4",
+          "match": "dice",
+          "pays": { "4-4": "31 for 1" },
+          "afterWin": "return"
+        },
+        "hop45": {
+          "family": "oneRoll",
+          "label": "Hop 4-5",
+          "match": "dice",
+          "pays": { "4-5": "16 for 1" },
+          "afterWin": "return"
+        },
+        "hop46": {
+          "family": "oneRoll",
+          "label": "Hop 4-6",
+          "match": "dice",
+          "pays": { "4-6": "16 for 1" },
+          "afterWin": "return"
+        },
+        "hop55": {
+          "family": "oneRoll",
+          "label": "Hop 5-5",
+          "match": "dice",
+          "pays": { "5-5": "31 for 1" },
+          "afterWin": "return"
+        }
+      },
+      "composites": {
+        "ce": {
+          "label": "C & E",
+          "parts": [
+            { "typeId": "c", "units": 1 },
+            { "typeId": "e", "units": 1 }
+          ]
+        },
+        "horn": {
+          "label": "Horn",
+          "parts": [
+            { "typeId": "snakeEyes", "units": 1 },
+            { "typeId": "aceDeuce", "units": 1 },
+            { "typeId": "yo", "units": 1 },
+            { "typeId": "boxcars", "units": 1 }
+          ]
+        }
+      },
+      "sideBets": {
+        "luckyRollerLow": {
+          "family": "collectSet",
+          "label": "Low Rolls",
+          "targets": [2, 3, 4, 5, 6],
+          "pays": "31 for 1",
+          "endsOn": "anySeven",
+          "placement": "afterSevenOrStart"
+        },
+        "luckyRollerHigh": {
+          "family": "collectSet",
+          "label": "High Rolls",
+          "targets": [8, 9, 10, 11, 12],
+          "pays": "31 for 1",
+          "endsOn": "anySeven",
+          "placement": "afterSevenOrStart"
+        },
+        "luckyRollerAll": {
+          "family": "collectSet",
+          "label": "Roll 'Em All",
+          "targets": [2, 3, 4, 5, 6, 8, 9, 10, 11, 12],
+          "pays": "156 for 1",
+          "endsOn": "anySeven",
+          "placement": "afterSevenOrStart"
+        }
+      },
+      "workingToggle": {
+        "global": true,
+        "perBet": false,
+        "scope": "untilChanged",
+        "types": ["place", "buy", "passOdds", "comeOdds", "hard"]
+      },
+      "comeOut": { "autoOff": null },
+      "afterSevenOut": {
+        "newPlacedOff": { "types": ["place", "buy"], "trigger": "sevenOut", "until": "playerOn" }
+      },
+      "layAutoOn": null,
+      "oddsOffReturnedAtPointMade": true,
+      "offBets": { "consumeCredit": true },
+      "exclusiveGroups": [],
+      "excludeLineVsLayBuy": false,
+      "payLabelStyle": "asWritten",
+      "flow": {
+        "shooter": { "mode": "single" },
+        "invalidRoll": "reVibrate",
+        "puckReset": 0,
+        "groupButtons": {
+          "buttons": ["press", "across"],
+          "condition": "afterComeOutWithLineOrOneRoll"
+        },
+        "historyLength": 20,
+        "macros": ["repeatLastBet", "double"]
+      },
+      "pace": { "rollsPerHour": 120, "betWindowSec": null, "shooterWindowSec": null },
+      "provenance": {
+        "/variant": {
+          "status": "verified",
+          "source": "IB §1.3.1, §5.2; G3-MOH",
+          "note": "Interblock Crapless Craps (GV 6.0+); on Las Vegas heads-up machines per VA."
+        },
+        "/rules": {
+          "status": "verified",
+          "source": "IB §2.2; WOO-CL; MD-CL",
+          "note": "Only 7 wins the come-out; 2, 3, 11 and 12 are points. No don't bets, so no bar; Pass \"can only be placed before the come-out roll\", so no put bets."
+        },
+        "/money/payoutRounding": {
+          "status": "assumed",
+          "note": "Fractional pays are floored to the cent: the conservative choice; no report exists for Interblock (rules spec §4.2, §9 #1)."
+        },
+        "/money/startingBankroll": {
+          "status": "assumed",
+          "note": "Trainer default; not a machine value."
+        },
+        "/money/betIncrement": {
+          "status": "assumed",
+          "note": "Whole-dollar bets at a $1 denomination; chip and credit values scale with denomination."
+        },
+        "/limits/min": {
+          "status": "assumed",
+          "source": "VA",
+          "note": "$1 per bet; machines report $1 to $6 minimums."
+        },
+        "/limits/max": {
+          "status": "assumed",
+          "source": "WSGC-ETG",
+          "note": "$500 per wager, the Washington tribal ETG cap; casino maximums vary."
+        },
+        "/limits/minTotal": {
+          "status": "verified",
+          "source": "IB §3.2",
+          "note": "\"BETS ARE NOT VALID YET! – Must bet N credits more!\"; OFF bets do not satisfy it."
+        },
+        "/limits/minTotal/amount": {
+          "status": "assumed",
+          "source": "VA; G3-MOH",
+          "note": "$5 total: crapless minimums are reported at $1 to $6, and $5 at Mohegan Sun."
+        },
+        "/limits/minTotal/countSideBets": {
+          "status": "assumed",
+          "note": "Whether side bets count toward the minimum is undocumented (rules spec §9 #11)."
+        },
+        "/chips": {
+          "status": "assumed",
+          "source": "IB §5.1",
+          "note": "Interblock shows seven chips whose values scale with denomination; these values are a trainer default."
+        },
+        "/catalog/pass": {
+          "status": "verified",
+          "source": "IB §2.2",
+          "note": "Placed only before the come-out roll; a contract bet once the point is set."
+        },
+        "/catalog/pass/afterWin": {
+          "status": "verified",
+          "source": "IB §2.1",
+          "note": "A resolved winning bet's chips are \"pushed\" to the next round."
+        },
+        "/catalog/come": {
+          "status": "verified",
+          "source": "IB §2.4",
+          "note": "Placed after a point is set; a contract bet once it travels."
+        },
+        "/catalog/come/window": {
+          "status": "assumed",
+          "source": "IB §2.4",
+          "note": "Taken only in the point phase (rules spec §3.1); the IB §2.4 text also allows a Come bet after the pass point is made (rules spec §9 #26)."
+        },
+        "/catalog/come/afterWin": {
+          "status": "assumed",
+          "note": "A winning come bet is paid and returned; Interblock does not say (rules spec §5.2)."
+        },
+        "/catalog/passOdds": {
+          "status": "verified",
+          "source": "IB (Odds bets)",
+          "note": "Behind the Pass Line, by multiplier pop-up or by hand; adjustable until resolved."
+        },
+        "/catalog/passOdds/pays": {
+          "status": "assumed",
+          "source": "MD-CL; WOO-CL",
+          "note": "True odds, including 6:1 on 2/12 and 3:1 on 3/11, as on live crapless tables. Interblock pays come from its par sheet, which is not public (rules spec §5.2, §9 #4)."
+        },
+        "/catalog/passOdds/limit": {
+          "status": "reported",
+          "source": "VA; LVA-CL",
+          "note": "2x on all ten points (\"mostly double\"). The cap shows only in the game's odds pop-up (rules spec §9 #4)."
+        },
+        "/catalog/comeOdds": {
+          "status": "verified",
+          "source": "IB (Odds bets)",
+          "note": "Behind a come bet on its number."
+        },
+        "/catalog/comeOdds/pays": {
+          "status": "assumed",
+          "source": "MD-CL; WOO-CL",
+          "note": "True odds, including 6:1 on 2/12 and 3:1 on 3/11, as on live crapless tables. Interblock pays come from its par sheet, which is not public (rules spec §5.2, §9 #4)."
+        },
+        "/catalog/comeOdds/limit": {
+          "status": "reported",
+          "source": "VA; LVA-CL",
+          "note": "2x on all ten points (\"mostly double\"). The cap shows only in the game's odds pop-up (rules spec §9 #4)."
+        },
+        "/catalog/comeOdds/comeOutDefault": {
+          "status": "assumed",
+          "source": "WOO-B",
+          "note": "Come odds are OFF on the come-out and returned if the come bet is decided, as on live tables; undocumented for Interblock (rules spec §9 #5)."
+        },
+        "/catalog/place": {
+          "status": "verified",
+          "source": "IB §2.6",
+          "note": "Place bets on all ten points, on any roll."
+        },
+        "/catalog/place/pays": {
+          "status": "assumed",
+          "source": "CW §17; WOO-B",
+          "note": "The standard 9:5, 7:5 and 7:6 on 4 to 10, as on Shoot To Win and live tables. Interblock v2.5.1 removed its pay tables, and its par sheet is not public (rules spec §5.2)."
+        },
+        "/catalog/place/pays/2": {
+          "status": "assumed",
+          "source": "WOO-CL; MD-CL",
+          "note": "11:2, the better of the two published crapless pays (5:1 per CROWN-CL); the Interblock par sheet is not public (rules spec §9 #4)."
+        },
+        "/catalog/place/pays/12": {
+          "status": "assumed",
+          "source": "WOO-CL; MD-CL",
+          "note": "11:2, the better of the two published crapless pays (5:1 per CROWN-CL); the Interblock par sheet is not public (rules spec §9 #4)."
+        },
+        "/catalog/place/pays/3": {
+          "status": "assumed",
+          "source": "WOO-CL; MD-CL",
+          "note": "11:4, the better of the two published crapless pays (13:5 per CROWN-CL); the Interblock par sheet is not public (rules spec §9 #4)."
+        },
+        "/catalog/place/pays/11": {
+          "status": "assumed",
+          "source": "WOO-CL; MD-CL",
+          "note": "11:4, the better of the two published crapless pays (13:5 per CROWN-CL); the Interblock par sheet is not public (rules spec §9 #4)."
+        },
+        "/catalog/place/afterWin": {
+          "status": "assumed",
+          "note": "A winning bet stays up (rules spec §5.2); Interblock does not say."
+        },
+        "/catalog/place/comeOutDefault": {
+          "status": "verified",
+          "source": "IB §2.6, §3.2; IB221",
+          "note": "Place and buy bets work on the come-out unless set OFF (rules spec §0.2 #4)."
+        },
+        "/catalog/buy": {
+          "status": "verified",
+          "source": "IB §2.6",
+          "note": "Buy bets on all ten points pay true odds with commission."
+        },
+        "/catalog/buy/pays": {
+          "status": "verified",
+          "source": "IB §2.6; WOO-CL",
+          "note": "True odds."
+        },
+        "/catalog/buy/commission": {
+          "status": "reported",
+          "source": "VA",
+          "note": "5% of the bet, paid up front: on crapless machines \"most require a 5% commission to be paid upfront on all Buy wagers\"."
+        },
+        "/catalog/buy/commission/timing": {
+          "status": "verified",
+          "source": "IB §3.3",
+          "note": "GV6.5 up-front commission pop-up; answering NO removes the bet."
+        },
+        "/catalog/buy/commission/rounding": {
+          "status": "assumed",
+          "note": "A sub-cent commission rounds up to the cent (rules spec §4.2); 5% of a whole-dollar bet never needs it."
+        },
+        "/catalog/buy/commission/minimum": {
+          "status": "assumed",
+          "note": "No minimum: machines charge an exact 5%."
+        },
+        "/catalog/buy/commission/refundOnTakeDown": {
+          "status": "assumed",
+          "note": "Not refunded on take-down: the conservative choice (rules spec §9 #3)."
+        },
+        "/catalog/buy/commission/rearm": {
+          "status": "assumed",
+          "note": "Re-collected from the win when a winning buy stays up: the conservative choice, and it decides place vs buy on 5/9 (rules spec §9 #3)."
+        },
+        "/catalog/buy/afterWin": {
+          "status": "assumed",
+          "note": "A winning bet stays up (rules spec §5.2); Interblock does not say."
+        },
+        "/catalog/buy/comeOutDefault": {
+          "status": "verified",
+          "source": "IB §2.6, §3.2; IB221",
+          "note": "Place and buy bets work on the come-out unless set OFF (rules spec §0.2 #4)."
+        },
+        "/catalog/hard": {
+          "status": "verified",
+          "source": "IB (Hard Ways bets)",
+          "note": "Hard 4, 6, 8 and 10: win on the pair, lose on the easy way or a 7."
+        },
+        "/catalog/hard/pays": {
+          "status": "assumed",
+          "source": "CW §16; WOO-B",
+          "note": "7:1 on 4/10 and 9:1 on 6/8, the standard pays; the Interblock par sheet is not public."
+        },
+        "/catalog/hard/afterWin": {
+          "status": "assumed",
+          "note": "A winning bet stays up (rules spec §5.2); Interblock does not say."
+        },
+        "/catalog/hard/comeOutDefault": {
+          "status": "assumed",
+          "note": "Hardways work on the come-out unless set OFF; undocumented for Interblock (rules spec §9 #5)."
+        },
+        "/catalog/field": {
+          "status": "verified",
+          "source": "IB §2.7",
+          "note": "Wins on 2, 3, 4, 9, 10, 11 and 12."
+        },
+        "/catalog/field/pays": {
+          "status": "reported",
+          "source": "VA; IB §2.7",
+          "note": "2:1 on 2 and 12 (\"typically ... a double payout\"); pay table EL602 pays 3:1 on 12 in standard craps only."
+        },
+        "/catalog/field/afterWin": {
+          "status": "assumed",
+          "note": "One-roll winners are paid and returned; Keep Bets On and Repeat are UI conveniences (rules spec §9 #19)."
+        },
+        "/catalog/any7": {
+          "status": "verified",
+          "source": "IB (Seven)",
+          "note": "The Seven bet: one roll, any 7."
+        },
+        "/catalog/any7/pays": {
+          "status": "reported",
+          "source": "IB (game screen)",
+          "note": "The screen shows props as \"for 1\": 5 (seven), 8 (craps), 16 (eleven, 3, easy hops) and 31 (2, 12, hard hops) for 1."
+        },
+        "/catalog/any7/afterWin": {
+          "status": "assumed",
+          "note": "One-roll winners are paid and returned; Keep Bets On and Repeat are UI conveniences (rules spec §9 #19)."
+        },
+        "/catalog/anyCraps": {
+          "status": "verified",
+          "source": "IB (Any Craps)",
+          "note": "One roll on 2, 3 or 12."
+        },
+        "/catalog/anyCraps/pays": {
+          "status": "reported",
+          "source": "IB (game screen)",
+          "note": "The screen shows props as \"for 1\": 5 (seven), 8 (craps), 16 (eleven, 3, easy hops) and 31 (2, 12, hard hops) for 1."
+        },
+        "/catalog/anyCraps/afterWin": {
+          "status": "assumed",
+          "note": "One-roll winners are paid and returned; Keep Bets On and Repeat are UI conveniences (rules spec §9 #19)."
+        },
+        "/catalog/c": {
+          "status": "verified",
+          "source": "IB §2.9",
+          "note": "C (Craps): one roll on 2, 3 or 12."
+        },
+        "/catalog/c/pays": {
+          "status": "reported",
+          "source": "IB (game screen)",
+          "note": "The screen shows props as \"for 1\": 5 (seven), 8 (craps), 16 (eleven, 3, easy hops) and 31 (2, 12, hard hops) for 1."
+        },
+        "/catalog/c/afterWin": {
+          "status": "assumed",
+          "note": "One-roll winners are paid and returned; Keep Bets On and Repeat are UI conveniences (rules spec §9 #19)."
+        },
+        "/catalog/e": {
+          "status": "verified",
+          "source": "IB §2.9",
+          "note": "E (Eleven): one roll on 11."
+        },
+        "/catalog/e/pays": {
+          "status": "reported",
+          "source": "IB (game screen)",
+          "note": "The screen shows props as \"for 1\": 5 (seven), 8 (craps), 16 (eleven, 3, easy hops) and 31 (2, 12, hard hops) for 1."
+        },
+        "/catalog/e/afterWin": {
+          "status": "assumed",
+          "note": "One-roll winners are paid and returned; Keep Bets On and Repeat are UI conveniences (rules spec §9 #19)."
+        },
+        "/catalog/snakeEyes": {
+          "status": "verified",
+          "source": "IB (Horn bets)",
+          "note": "Horn single on 1-1."
+        },
+        "/catalog/snakeEyes/pays": {
+          "status": "reported",
+          "source": "IB (game screen)",
+          "note": "The screen shows props as \"for 1\": 5 (seven), 8 (craps), 16 (eleven, 3, easy hops) and 31 (2, 12, hard hops) for 1."
+        },
+        "/catalog/snakeEyes/afterWin": {
+          "status": "assumed",
+          "note": "One-roll winners are paid and returned; Keep Bets On and Repeat are UI conveniences (rules spec §9 #19)."
+        },
+        "/catalog/aceDeuce": {
+          "status": "verified",
+          "source": "IB (Horn bets)",
+          "note": "Horn single on 1-2."
+        },
+        "/catalog/aceDeuce/pays": {
+          "status": "reported",
+          "source": "IB (game screen)",
+          "note": "The screen shows props as \"for 1\": 5 (seven), 8 (craps), 16 (eleven, 3, easy hops) and 31 (2, 12, hard hops) for 1."
+        },
+        "/catalog/aceDeuce/afterWin": {
+          "status": "assumed",
+          "note": "One-roll winners are paid and returned; Keep Bets On and Repeat are UI conveniences (rules spec §9 #19)."
+        },
+        "/catalog/yo": {
+          "status": "verified",
+          "source": "IB (Horn bets)",
+          "note": "Horn single on 5-6."
+        },
+        "/catalog/yo/pays": {
+          "status": "reported",
+          "source": "IB (game screen)",
+          "note": "The screen shows props as \"for 1\": 5 (seven), 8 (craps), 16 (eleven, 3, easy hops) and 31 (2, 12, hard hops) for 1."
+        },
+        "/catalog/yo/afterWin": {
+          "status": "assumed",
+          "note": "One-roll winners are paid and returned; Keep Bets On and Repeat are UI conveniences (rules spec §9 #19)."
+        },
+        "/catalog/boxcars": {
+          "status": "verified",
+          "source": "IB (Horn bets)",
+          "note": "Horn single on 6-6."
+        },
+        "/catalog/boxcars/pays": {
+          "status": "reported",
+          "source": "IB (game screen)",
+          "note": "The screen shows props as \"for 1\": 5 (seven), 8 (craps), 16 (eleven, 3, easy hops) and 31 (2, 12, hard hops) for 1."
+        },
+        "/catalog/boxcars/afterWin": {
+          "status": "assumed",
+          "note": "One-roll winners are paid and returned; Keep Bets On and Repeat are UI conveniences (rules spec §9 #19)."
+        },
+        "/catalog/hop13": {
+          "status": "verified",
+          "source": "IB (Hop bets)",
+          "note": "13 easy hops and the hard hops 2-2 to 5-5; 1-1, 1-2, 5-6 and 6-6 are the horn singles."
+        },
+        "/catalog/hop13/pays": {
+          "status": "reported",
+          "source": "IB (game screen)",
+          "note": "16 for 1 on an easy hop and 31 for 1 on a hard hop, as the screen shows."
+        },
+        "/catalog/hop13/afterWin": {
+          "status": "assumed",
+          "note": "One-roll winners are paid and returned; Keep Bets On and Repeat are UI conveniences (rules spec §9 #19)."
+        },
+        "/catalog/hop14": {
+          "status": "verified",
+          "source": "IB (Hop bets)",
+          "note": "13 easy hops and the hard hops 2-2 to 5-5; 1-1, 1-2, 5-6 and 6-6 are the horn singles."
+        },
+        "/catalog/hop14/pays": {
+          "status": "reported",
+          "source": "IB (game screen)",
+          "note": "16 for 1 on an easy hop and 31 for 1 on a hard hop, as the screen shows."
+        },
+        "/catalog/hop14/afterWin": {
+          "status": "assumed",
+          "note": "One-roll winners are paid and returned; Keep Bets On and Repeat are UI conveniences (rules spec §9 #19)."
+        },
+        "/catalog/hop15": {
+          "status": "verified",
+          "source": "IB (Hop bets)",
+          "note": "13 easy hops and the hard hops 2-2 to 5-5; 1-1, 1-2, 5-6 and 6-6 are the horn singles."
+        },
+        "/catalog/hop15/pays": {
+          "status": "reported",
+          "source": "IB (game screen)",
+          "note": "16 for 1 on an easy hop and 31 for 1 on a hard hop, as the screen shows."
+        },
+        "/catalog/hop15/afterWin": {
+          "status": "assumed",
+          "note": "One-roll winners are paid and returned; Keep Bets On and Repeat are UI conveniences (rules spec §9 #19)."
+        },
+        "/catalog/hop16": {
+          "status": "verified",
+          "source": "IB (Hop bets)",
+          "note": "13 easy hops and the hard hops 2-2 to 5-5; 1-1, 1-2, 5-6 and 6-6 are the horn singles."
+        },
+        "/catalog/hop16/pays": {
+          "status": "reported",
+          "source": "IB (game screen)",
+          "note": "16 for 1 on an easy hop and 31 for 1 on a hard hop, as the screen shows."
+        },
+        "/catalog/hop16/afterWin": {
+          "status": "assumed",
+          "note": "One-roll winners are paid and returned; Keep Bets On and Repeat are UI conveniences (rules spec §9 #19)."
+        },
+        "/catalog/hop22": {
+          "status": "verified",
+          "source": "IB (Hop bets)",
+          "note": "13 easy hops and the hard hops 2-2 to 5-5; 1-1, 1-2, 5-6 and 6-6 are the horn singles."
+        },
+        "/catalog/hop22/pays": {
+          "status": "reported",
+          "source": "IB (game screen)",
+          "note": "16 for 1 on an easy hop and 31 for 1 on a hard hop, as the screen shows."
+        },
+        "/catalog/hop22/afterWin": {
+          "status": "assumed",
+          "note": "One-roll winners are paid and returned; Keep Bets On and Repeat are UI conveniences (rules spec §9 #19)."
+        },
+        "/catalog/hop23": {
+          "status": "verified",
+          "source": "IB (Hop bets)",
+          "note": "13 easy hops and the hard hops 2-2 to 5-5; 1-1, 1-2, 5-6 and 6-6 are the horn singles."
+        },
+        "/catalog/hop23/pays": {
+          "status": "reported",
+          "source": "IB (game screen)",
+          "note": "16 for 1 on an easy hop and 31 for 1 on a hard hop, as the screen shows."
+        },
+        "/catalog/hop23/afterWin": {
+          "status": "assumed",
+          "note": "One-roll winners are paid and returned; Keep Bets On and Repeat are UI conveniences (rules spec §9 #19)."
+        },
+        "/catalog/hop24": {
+          "status": "verified",
+          "source": "IB (Hop bets)",
+          "note": "13 easy hops and the hard hops 2-2 to 5-5; 1-1, 1-2, 5-6 and 6-6 are the horn singles."
+        },
+        "/catalog/hop24/pays": {
+          "status": "reported",
+          "source": "IB (game screen)",
+          "note": "16 for 1 on an easy hop and 31 for 1 on a hard hop, as the screen shows."
+        },
+        "/catalog/hop24/afterWin": {
+          "status": "assumed",
+          "note": "One-roll winners are paid and returned; Keep Bets On and Repeat are UI conveniences (rules spec §9 #19)."
+        },
+        "/catalog/hop25": {
+          "status": "verified",
+          "source": "IB (Hop bets)",
+          "note": "13 easy hops and the hard hops 2-2 to 5-5; 1-1, 1-2, 5-6 and 6-6 are the horn singles."
+        },
+        "/catalog/hop25/pays": {
+          "status": "reported",
+          "source": "IB (game screen)",
+          "note": "16 for 1 on an easy hop and 31 for 1 on a hard hop, as the screen shows."
+        },
+        "/catalog/hop25/afterWin": {
+          "status": "assumed",
+          "note": "One-roll winners are paid and returned; Keep Bets On and Repeat are UI conveniences (rules spec §9 #19)."
+        },
+        "/catalog/hop26": {
+          "status": "verified",
+          "source": "IB (Hop bets)",
+          "note": "13 easy hops and the hard hops 2-2 to 5-5; 1-1, 1-2, 5-6 and 6-6 are the horn singles."
+        },
+        "/catalog/hop26/pays": {
+          "status": "reported",
+          "source": "IB (game screen)",
+          "note": "16 for 1 on an easy hop and 31 for 1 on a hard hop, as the screen shows."
+        },
+        "/catalog/hop26/afterWin": {
+          "status": "assumed",
+          "note": "One-roll winners are paid and returned; Keep Bets On and Repeat are UI conveniences (rules spec §9 #19)."
+        },
+        "/catalog/hop33": {
+          "status": "verified",
+          "source": "IB (Hop bets)",
+          "note": "13 easy hops and the hard hops 2-2 to 5-5; 1-1, 1-2, 5-6 and 6-6 are the horn singles."
+        },
+        "/catalog/hop33/pays": {
+          "status": "reported",
+          "source": "IB (game screen)",
+          "note": "16 for 1 on an easy hop and 31 for 1 on a hard hop, as the screen shows."
+        },
+        "/catalog/hop33/afterWin": {
+          "status": "assumed",
+          "note": "One-roll winners are paid and returned; Keep Bets On and Repeat are UI conveniences (rules spec §9 #19)."
+        },
+        "/catalog/hop34": {
+          "status": "verified",
+          "source": "IB (Hop bets)",
+          "note": "13 easy hops and the hard hops 2-2 to 5-5; 1-1, 1-2, 5-6 and 6-6 are the horn singles."
+        },
+        "/catalog/hop34/pays": {
+          "status": "reported",
+          "source": "IB (game screen)",
+          "note": "16 for 1 on an easy hop and 31 for 1 on a hard hop, as the screen shows."
+        },
+        "/catalog/hop34/afterWin": {
+          "status": "assumed",
+          "note": "One-roll winners are paid and returned; Keep Bets On and Repeat are UI conveniences (rules spec §9 #19)."
+        },
+        "/catalog/hop35": {
+          "status": "verified",
+          "source": "IB (Hop bets)",
+          "note": "13 easy hops and the hard hops 2-2 to 5-5; 1-1, 1-2, 5-6 and 6-6 are the horn singles."
+        },
+        "/catalog/hop35/pays": {
+          "status": "reported",
+          "source": "IB (game screen)",
+          "note": "16 for 1 on an easy hop and 31 for 1 on a hard hop, as the screen shows."
+        },
+        "/catalog/hop35/afterWin": {
+          "status": "assumed",
+          "note": "One-roll winners are paid and returned; Keep Bets On and Repeat are UI conveniences (rules spec §9 #19)."
+        },
+        "/catalog/hop36": {
+          "status": "verified",
+          "source": "IB (Hop bets)",
+          "note": "13 easy hops and the hard hops 2-2 to 5-5; 1-1, 1-2, 5-6 and 6-6 are the horn singles."
+        },
+        "/catalog/hop36/pays": {
+          "status": "reported",
+          "source": "IB (game screen)",
+          "note": "16 for 1 on an easy hop and 31 for 1 on a hard hop, as the screen shows."
+        },
+        "/catalog/hop36/afterWin": {
+          "status": "assumed",
+          "note": "One-roll winners are paid and returned; Keep Bets On and Repeat are UI conveniences (rules spec §9 #19)."
+        },
+        "/catalog/hop44": {
+          "status": "verified",
+          "source": "IB (Hop bets)",
+          "note": "13 easy hops and the hard hops 2-2 to 5-5; 1-1, 1-2, 5-6 and 6-6 are the horn singles."
+        },
+        "/catalog/hop44/pays": {
+          "status": "reported",
+          "source": "IB (game screen)",
+          "note": "16 for 1 on an easy hop and 31 for 1 on a hard hop, as the screen shows."
+        },
+        "/catalog/hop44/afterWin": {
+          "status": "assumed",
+          "note": "One-roll winners are paid and returned; Keep Bets On and Repeat are UI conveniences (rules spec §9 #19)."
+        },
+        "/catalog/hop45": {
+          "status": "verified",
+          "source": "IB (Hop bets)",
+          "note": "13 easy hops and the hard hops 2-2 to 5-5; 1-1, 1-2, 5-6 and 6-6 are the horn singles."
+        },
+        "/catalog/hop45/pays": {
+          "status": "reported",
+          "source": "IB (game screen)",
+          "note": "16 for 1 on an easy hop and 31 for 1 on a hard hop, as the screen shows."
+        },
+        "/catalog/hop45/afterWin": {
+          "status": "assumed",
+          "note": "One-roll winners are paid and returned; Keep Bets On and Repeat are UI conveniences (rules spec §9 #19)."
+        },
+        "/catalog/hop46": {
+          "status": "verified",
+          "source": "IB (Hop bets)",
+          "note": "13 easy hops and the hard hops 2-2 to 5-5; 1-1, 1-2, 5-6 and 6-6 are the horn singles."
+        },
+        "/catalog/hop46/pays": {
+          "status": "reported",
+          "source": "IB (game screen)",
+          "note": "16 for 1 on an easy hop and 31 for 1 on a hard hop, as the screen shows."
+        },
+        "/catalog/hop46/afterWin": {
+          "status": "assumed",
+          "note": "One-roll winners are paid and returned; Keep Bets On and Repeat are UI conveniences (rules spec §9 #19)."
+        },
+        "/catalog/hop55": {
+          "status": "verified",
+          "source": "IB (Hop bets)",
+          "note": "13 easy hops and the hard hops 2-2 to 5-5; 1-1, 1-2, 5-6 and 6-6 are the horn singles."
+        },
+        "/catalog/hop55/pays": {
+          "status": "reported",
+          "source": "IB (game screen)",
+          "note": "16 for 1 on an easy hop and 31 for 1 on a hard hop, as the screen shows."
+        },
+        "/catalog/hop55/afterWin": {
+          "status": "assumed",
+          "note": "One-roll winners are paid and returned; Keep Bets On and Repeat are UI conveniences (rules spec §9 #19)."
+        },
+        "/composites": {
+          "status": "verified",
+          "source": "IB §2.9; IB (Horn bets)",
+          "note": "C&E wins on 2, 3, 11 and 12; the Horn field splits the bet equally among the four horn singles."
+        },
+        "/sideBets/luckyRollerLow": {
+          "status": "verified",
+          "source": "IB §6.2",
+          "note": "Low Rolls 2 to 6, High Rolls 8 to 12, Roll 'Em All all ten, before any 7; offered on every Interblock game, crapless included."
+        },
+        "/sideBets/luckyRollerHigh": {
+          "status": "verified",
+          "source": "IB §6.2",
+          "note": "Low Rolls 2 to 6, High Rolls 8 to 12, Roll 'Em All all ten, before any 7; offered on every Interblock game, crapless included."
+        },
+        "/sideBets/luckyRollerAll": {
+          "status": "verified",
+          "source": "IB §6.2",
+          "note": "Low Rolls 2 to 6, High Rolls 8 to 12, Roll 'Em All all ten, before any 7; offered on every Interblock game, crapless included."
+        },
+        "/sideBets/luckyRollerLow/pays": {
+          "status": "reported",
+          "source": "IB §6.2 (game screen); VA",
+          "note": "30, 30 and 155 to 1: the screen shows Low 31, Roll 'Em All 156 and High 31 for 1 (rules spec §0.2 #10)."
+        },
+        "/sideBets/luckyRollerHigh/pays": {
+          "status": "reported",
+          "source": "IB §6.2 (game screen); VA",
+          "note": "30, 30 and 155 to 1: the screen shows Low 31, Roll 'Em All 156 and High 31 for 1 (rules spec §0.2 #10)."
+        },
+        "/sideBets/luckyRollerAll/pays": {
+          "status": "reported",
+          "source": "IB §6.2 (game screen); VA",
+          "note": "30, 30 and 155 to 1: the screen shows Low 31, Roll 'Em All 156 and High 31 for 1 (rules spec §0.2 #10)."
+        },
+        "/sideBets/luckyRollerLow/placement": {
+          "status": "verified",
+          "source": "IB §6.2, §6.2.1",
+          "note": "Only after a 7 or before the first roll of the history cycle; no new bet of a type after it wins until a 7."
+        },
+        "/sideBets/luckyRollerHigh/placement": {
+          "status": "verified",
+          "source": "IB §6.2, §6.2.1",
+          "note": "Only after a 7 or before the first roll of the history cycle; no new bet of a type after it wins until a 7."
+        },
+        "/sideBets/luckyRollerAll/placement": {
+          "status": "verified",
+          "source": "IB §6.2, §6.2.1",
+          "note": "Only after a 7 or before the first roll of the history cycle; no new bet of a type after it wins until a 7."
+        },
+        "/sideBets/luckyRollerLow/endsOn": {
+          "status": "verified",
+          "source": "IB §6.2",
+          "note": "Any 7, including a come-out 7, loses the bet."
+        },
+        "/sideBets/luckyRollerHigh/endsOn": {
+          "status": "verified",
+          "source": "IB §6.2",
+          "note": "Any 7, including a come-out 7, loses the bet."
+        },
+        "/sideBets/luckyRollerAll/endsOn": {
+          "status": "verified",
+          "source": "IB §6.2",
+          "note": "Any 7, including a come-out 7, loses the bet."
+        },
+        "/workingToggle": {
+          "status": "verified",
+          "source": "IB §3.2",
+          "note": "\"Set bets On/Off\" covers Place, Buy, Odds and Hard Ways (Lay is not offered in crapless) and stays until changed."
+        },
+        "/workingToggle/perBet": {
+          "status": "assumed",
+          "source": "IB §3.2",
+          "note": "IB §3.2 describes only the one Set bets On/Off button; no per-bet toggle is documented."
+        },
+        "/comeOut": {
+          "status": "verified",
+          "source": "IB §2.6, §3.2",
+          "note": "No come-out auto-OFF: place and buy bets work on the come-out (rules spec §0.2 #4)."
+        },
+        "/afterSevenOut": {
+          "status": "verified",
+          "source": "IB §3.2",
+          "note": "After a 7-out, new Place and Buy bets are set OFF until the player taps Set bets On."
+        },
+        "/afterSevenOut/newPlacedOff/trigger": {
+          "status": "assumed",
+          "source": "IB §3.2",
+          "note": "\"After a 7 (7-out) is rolled\" is read as a seven-out only, so place and buy bets made after a come-out 7 work; it may be any 7 (rules spec §9 #6)."
+        },
+        "/afterSevenOut/newPlacedOff/until": {
+          "status": "assumed",
+          "source": "IB §3.2",
+          "note": "\"Until the player sets bets ON\" is a literal reading; it may instead end when the next point is established (rules spec §9 #6)."
+        },
+        "/layAutoOn": {
+          "status": "verified",
+          "source": "IB §2.6",
+          "note": "Crapless offers no lay bets."
+        },
+        "/oddsOffReturnedAtPointMade": {
+          "status": "assumed",
+          "source": "IB §3.2",
+          "note": "\"Odds bets are removed when a Point is reestablished\" while set OFF, read as: OFF odds are returned when the point is made. The research marks this reading unverified (core.md §5.1)."
+        },
+        "/offBets": {
+          "status": "verified",
+          "source": "IB §3.2",
+          "note": "\"All placed bets decrease the Playable credit meter regardless of them being set to on or off.\""
+        },
+        "/exclusiveGroups": {
+          "status": "verified",
+          "source": "IB §2.6",
+          "note": "Place and Buy may share a number \"when available\"; no lay or don't bets to exclude."
+        },
+        "/excludeLineVsLayBuy": {
+          "status": "verified",
+          "source": "IB221",
+          "note": "The Pass/Don't Pass vs Lay/Buy exclusion needs lay or don't pass, which crapless lacks."
+        },
+        "/payLabelStyle": {
+          "status": "assumed",
+          "note": "Display only: each ratio is shown as written, so props read \"for 1\" as on the screen."
+        },
+        "/flow/shooter": {
+          "status": "verified",
+          "source": "IB §1",
+          "note": "On a single-player machine the player is always the shooter."
+        },
+        "/flow/invalidRoll": {
+          "status": "reported",
+          "source": "PAT-RFID",
+          "note": "An Interblock patent re-vibrates and re-reads misread dice. Cosmetic: the engine never re-rolls."
+        },
+        "/flow/puckReset": {
+          "status": "verified",
+          "source": "IB §4.1.2; IB221",
+          "note": "Standard puck behavior (setting 0)."
+        },
+        "/flow/groupButtons": {
+          "status": "verified",
+          "source": "IB §3.1.1",
+          "note": "Crapless offers Press and Across, after the come-out and only with a Pass, Don't Pass, Field or one-roll bet up."
+        },
+        "/flow/historyLength": {
+          "status": "assumed",
+          "source": "IB §5.1",
+          "note": "The last-results sidebar length is a setting; 20 is a trainer default."
+        },
+        "/flow/macros": {
+          "status": "verified",
+          "source": "IB §5.1",
+          "note": "Repeat Last Bet and Double Bet; Keep Bets On is not in every jurisdiction."
+        },
+        "/pace": {
+          "status": "reported",
+          "source": "G3-MOH; WOV-35576",
+          "note": "Self-paced with no bet timer; the shooter window does not apply."
+        },
+        "/pace/rollsPerHour": {
+          "status": "assumed",
+          "note": "120 rolls per hour for a self-paced heads-up game; the coach also shows a 60 to 150 range (rules spec §8.3)."
+        }
+      }
+    }
+  },
+  "windows": [
+    {
+      "actions": [
+        { "type": "place", "typeId": "buy", "amount": 2500, "number": 11 },
+        { "type": "place", "typeId": "place", "amount": 1200, "number": 6 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "fd7144015d1d05e0"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "hard", "amount": 300, "number": 4 },
+        { "type": "place", "typeId": "come", "amount": 500 },
+        { "type": "batch", "actions": [{ "type": "setAmount", "betId": "b2", "amount": 2600 }] }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "1f893b03dfd50185"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "buy", "amount": 2500, "number": 10 },
+        { "type": "batch", "actions": [{ "type": "setAmount", "betId": "b2", "amount": 5600 }] },
+        { "type": "place", "typeId": "hard", "amount": 300, "number": 10 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "5719784dd40255e1"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "comeOdds", "amount": 500, "parentId": "b4" },
+        { "type": "place", "typeId": "come", "amount": 1500 },
+        { "type": "place", "typeId": "hop23", "amount": 200 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "269766a4ba802718"
+    },
+    {
+      "actions": [
+        { "type": "batch", "actions": [{ "type": "setAmount", "betId": "b2", "amount": 12100 }] }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "8a0d2077c5d18195"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "hop23", "amount": 200 },
+        { "type": "place", "typeId": "place", "amount": 1500, "number": 12 },
+        { "type": "place", "typeId": "pass", "amount": 300 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "34de3e2ad6621a22"
+    },
+    {
+      "actions": [{ "type": "place", "typeId": "place", "amount": 500, "number": 11 }],
+      "roll": { "type": "roll" },
+      "hashAfter": "f349fe971ff4a001"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "buy", "amount": 5000, "number": 2 },
+        { "type": "place", "typeId": "pass", "amount": 500 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "4bb42886923459b7"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "hard", "amount": 400, "number": 10 },
+        { "type": "setAmount", "betId": "b11", "amount": 2000 },
+        { "type": "place", "typeId": "buy", "amount": 7500, "number": 6 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "d17edc44ecde70fe"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "place", "amount": 1000, "number": 2 },
+        { "type": "place", "typeId": "place", "amount": 500, "number": 9 },
+        { "type": "place", "typeId": "pass", "amount": 500 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "b5d6309ad500151e"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "place", "amount": 500, "number": 3 },
+        { "type": "place", "typeId": "hard", "amount": 200, "number": 4 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "65ee377e068a4c11"
+    },
+    {
+      "actions": [{ "type": "place", "typeId": "pass", "amount": 500 }],
+      "roll": { "type": "roll" },
+      "hashAfter": "4c91a0bca209b8ec"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "come", "amount": 1500 },
+        { "type": "place", "typeId": "hop34", "amount": 300 },
+        { "type": "place", "typeId": "passOdds", "amount": 500, "parentId": "b23" }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "862200770eeefcf7"
+    },
+    {
+      "actions": [
+        { "type": "setGlobalWorking", "off": true },
+        { "type": "place", "typeId": "hop25", "amount": 100 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "e3fc6c9dd9367e96"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "hop36", "amount": 100 },
+        { "type": "place", "typeId": "place", "amount": 500, "number": 10 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "21a8a2bd546a85ed"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "hop33", "amount": 200 },
+        { "type": "place", "typeId": "pass", "amount": 300 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "0ecfcc04b68f06e2"
+    },
+    {
+      "actions": [
+        { "type": "setGlobalWorking", "off": null },
+        { "type": "place", "typeId": "hard", "amount": 300, "number": 10 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "74ea628916668fa2"
+    },
+    {
+      "actions": [{ "type": "setAmount", "betId": "b29", "amount": 1000 }],
+      "roll": { "type": "roll" },
+      "hashAfter": "d7d3062c58615417"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "buy", "amount": 5000, "number": 4 },
+        { "type": "place", "typeId": "pass", "amount": 500 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "cab9a12f7e602e03"
+    },
+    {
+      "actions": [
+        { "type": "deposit", "amount": 20000 },
+        { "type": "place", "typeId": "snakeEyes", "amount": 300 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "541b4e1102c9eeff"
+    },
+    {
+      "actions": [{ "type": "place", "typeId": "hop25", "amount": 200 }],
+      "roll": { "type": "roll" },
+      "hashAfter": "54d30d57631fac73"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "horn", "amount": 300 },
+        { "type": "setAmount", "betId": "b37", "amount": 0 },
+        {
+          "type": "batch",
+          "actions": [
+            { "type": "setAmount", "betId": "b33", "amount": 10000 },
+            { "type": "setAmount", "betId": "b34", "amount": 1000 }
+          ]
+        }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "6bbd2a55bf0bc162"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "buy", "amount": 2500, "number": 2 },
+        { "type": "place", "typeId": "passOdds", "amount": 500, "parentId": "b34" }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "96bfeddd7b0138bb"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "come", "amount": 500 },
+        { "type": "place", "typeId": "hop24", "amount": 200 },
+        {
+          "type": "batch",
+          "actions": [
+            { "type": "place", "typeId": "buy", "amount": 2500, "number": 2 },
+            { "type": "place", "typeId": "passOdds", "amount": 500, "parentId": "b34" }
+          ]
+        }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "9d2ec55a9451c2ed"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "place", "amount": 1200, "number": 6 },
+        { "type": "place", "typeId": "pass", "amount": 500 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "cf88a23ab2848ec7"
+    },
+    {
+      "actions": [
+        { "type": "deposit", "amount": 20000 },
+        { "type": "place", "typeId": "place", "amount": 500, "number": 5 },
+        { "type": "place", "typeId": "anyCraps", "amount": 200 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "71050d4013bea269"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "come", "amount": 500 },
+        { "type": "place", "typeId": "hop16", "amount": 200 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "2133da76b3c0d021"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "passOdds", "amount": 1000, "parentId": "b43" },
+        { "type": "place", "typeId": "hop15", "amount": 100 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "19a8525b8cc36690"
+    },
+    {
+      "actions": [{ "type": "place", "typeId": "place", "amount": 1000, "number": 3 }],
+      "roll": { "type": "roll" },
+      "hashAfter": "5906682da5ff14f1"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "buy", "amount": 5000, "number": 9 },
+        { "type": "place", "typeId": "hard", "amount": 400, "number": 4 },
+        { "type": "place", "typeId": "place", "amount": 1500, "number": 12 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "c21a35289e806a17"
+    },
+    {
+      "actions": [
+        {
+          "type": "batch",
+          "actions": [
+            { "type": "setAmount", "betId": "b33", "amount": 20000 },
+            { "type": "setAmount", "betId": "b42", "amount": 2400 },
+            { "type": "setAmount", "betId": "b44", "amount": 1000 },
+            { "type": "setAmount", "betId": "b50", "amount": 2000 },
+            { "type": "setAmount", "betId": "b51", "amount": 10000 },
+            { "type": "setAmount", "betId": "b52", "amount": 800 },
+            { "type": "setAmount", "betId": "b53", "amount": 3000 }
+          ]
+        }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "3c6e04cb8eadf426"
+    },
+    {
+      "actions": [
+        { "type": "batch", "actions": [{ "type": "setAmount", "betId": "b50", "amount": 7500 }] },
+        { "type": "place", "typeId": "hard", "amount": 400, "number": 8 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "eb1821f56288b6fb"
+    },
+    {
+      "actions": [
+        { "type": "deposit", "amount": 10000 },
+        { "type": "place", "typeId": "any7", "amount": 200 },
+        { "type": "place", "typeId": "buy", "amount": 5000, "number": 3 },
+        {
+          "type": "batch",
+          "actions": [
+            { "type": "setAmount", "betId": "b50", "amount": 7500 },
+            { "type": "place", "typeId": "hard", "amount": 400, "number": 8 }
+          ]
+        }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "964e169d0681e475"
+    },
+    {
+      "actions": [{ "type": "place", "typeId": "hop22", "amount": 200 }],
+      "roll": { "type": "roll" },
+      "hashAfter": "4c870a65dd32dd82"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "come", "amount": 1000 },
+        { "type": "batch", "actions": [{ "type": "place", "typeId": "hop22", "amount": 200 }] }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "b58a9c4b8be59a3b"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "hard", "amount": 200, "number": 6 },
+        { "type": "place", "typeId": "buy", "amount": 5000, "number": 2 },
+        { "type": "place", "typeId": "buy", "amount": 5000, "number": 11 },
+        { "type": "place", "typeId": "pass", "amount": 300 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "8524030cbc0ca475"
+    },
+    {
+      "actions": [
+        { "type": "deposit", "amount": 20000 },
+        { "type": "place", "typeId": "come", "amount": 1500 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "78592fdf49b706a2"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "hop33", "amount": 200 },
+        { "type": "place", "typeId": "pass", "amount": 300 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "6abbbe7a280798a0"
+    },
+    {
+      "actions": [{ "type": "place", "typeId": "passOdds", "amount": 600, "parentId": "b66" }],
+      "roll": { "type": "roll" },
+      "hashAfter": "e2e04ab66853212e"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "hard", "amount": 400, "number": 6 },
+        { "type": "batch", "actions": [{ "type": "setAmount", "betId": "b66", "amount": 600 }] }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "594f320c74adde3b"
+    },
+    {
+      "actions": [{ "type": "place", "typeId": "place", "amount": 1500, "number": 5 }],
+      "roll": { "type": "roll" },
+      "hashAfter": "3f9a976c332ba8d7"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "place", "amount": 1500, "number": 12 },
+        { "type": "place", "typeId": "come", "amount": 1000 },
+        { "type": "place", "typeId": "place", "amount": 1500, "number": 4 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "72937e917ac6890a"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "hard", "amount": 300, "number": 6 },
+        { "type": "place", "typeId": "come", "amount": 1500 },
+        { "type": "setAmount", "betId": "b61", "amount": 7500 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "6621a8f89d5900fd"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "hard", "amount": 400, "number": 10 },
+        { "type": "place", "typeId": "place", "amount": 500, "number": 2 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "c49e83caf1b09d7d"
+    },
+    {
+      "actions": [{ "type": "setAmount", "betId": "b69", "amount": 0 }],
+      "roll": { "type": "roll" },
+      "hashAfter": "986332974944b8c5"
+    },
+    {
+      "actions": [
+        { "type": "setAmount", "betId": "b66", "amount": 1600 },
+        { "type": "place", "typeId": "comeOdds", "amount": 1000, "parentId": "b71" },
+        { "type": "setAmount", "betId": "b66", "amount": 3100 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "8565362214d56ea1"
+    },
+    {
+      "actions": [{ "type": "setAmount", "betId": "b66", "amount": 5100 }],
+      "roll": { "type": "roll" },
+      "hashAfter": "90661ce4abc37508"
+    },
+    {
+      "actions": [
+        {
+          "type": "batch",
+          "actions": [{ "type": "place", "typeId": "passOdds", "parentId": "b66", "amount": 10200 }]
+        },
+        { "type": "place", "typeId": "come", "amount": 1500 },
+        { "type": "place", "typeId": "buy", "amount": 2500, "number": 10 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "7122e2d85b70e8fa"
+    },
+    {
+      "actions": [
+        { "type": "deposit", "amount": 30000 },
+        { "type": "place", "typeId": "buy", "amount": 5000, "number": 3 },
+        { "type": "place", "typeId": "e", "amount": 300 },
+        { "type": "place", "typeId": "pass", "amount": 200 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "9b23fc6c32678a0b"
+    },
+    {
+      "actions": [
+        {
+          "type": "batch",
+          "actions": [{ "type": "place", "typeId": "passOdds", "parentId": "b83", "amount": 400 }]
+        }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "55fbf322692312b1"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "hard", "amount": 500, "number": 10 },
+        { "type": "setAmount", "betId": "b81", "amount": 12500 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "19f1e0e6a8ff38cf"
+    },
+    {
+      "actions": [
+        { "type": "batch", "actions": [{ "type": "setAmount", "betId": "b83", "amount": 400 }] },
+        { "type": "place", "typeId": "hard", "amount": 100, "number": 8 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "5fbbc59839f5df42"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "buy", "amount": 2500, "number": 12 },
+        { "type": "place", "typeId": "hop23", "amount": 200 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "909dc0938a4a28fb"
+    },
+    {
+      "actions": [{ "type": "setAmount", "betId": "b83", "amount": 2400 }],
+      "roll": { "type": "roll" },
+      "hashAfter": "2392484fc855c848"
+    },
+    {
+      "actions": [
+        { "type": "setGlobalWorking", "off": true },
+        { "type": "place", "typeId": "come", "amount": 1000 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "e2c9f23a814f4a6c"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "boxcars", "amount": 300 },
+        { "type": "setGlobalWorking", "off": null },
+        { "type": "place", "typeId": "buy", "amount": 7500, "number": 5 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "021c6e086d5cce63"
+    },
+    {
+      "actions": [{ "type": "place", "typeId": "hard", "amount": 100, "number": 4 }],
+      "roll": { "type": "roll" },
+      "hashAfter": "52a0e9dc3e210f18"
+    },
+    {
+      "actions": [
+        { "type": "setAmount", "betId": "b91", "amount": 10000 },
+        { "type": "place", "typeId": "come", "amount": 1000 },
+        { "type": "batch", "actions": [{ "type": "setAmount", "betId": "b91", "amount": 20800 }] }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "7bd52d77e3a03ca7"
+    },
+    {
+      "actions": [{ "type": "place", "typeId": "come", "amount": 1000 }],
+      "roll": { "type": "roll" },
+      "hashAfter": "ea6961739755e645"
+    },
+    {
+      "actions": [
+        { "type": "setAmount", "betId": "b42", "amount": 3600 },
+        { "type": "place", "typeId": "comeOdds", "amount": 1000, "parentId": "b89" }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "eb7926fb46ba30e5"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "hop45", "amount": 100 },
+        { "type": "place", "typeId": "place", "amount": 1000, "number": 2 },
+        { "type": "setAmount", "betId": "b81", "amount": 0 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "13736fbd16691b2d"
+    },
+    {
+      "actions": [{ "type": "place", "typeId": "come", "amount": 2000 }],
+      "roll": { "type": "roll" },
+      "hashAfter": "c89800d7032e62b2"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "place", "amount": 1500, "number": 10 },
+        { "type": "place", "typeId": "any7", "amount": 100 },
+        { "type": "batch", "actions": [{ "type": "setAmount", "betId": "b95", "amount": 2000 }] }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "494825b04f65969d"
+    },
+    {
+      "actions": [{ "type": "place", "typeId": "pass", "amount": 500 }],
+      "roll": { "type": "roll" },
+      "hashAfter": "e6a441342b2298c6"
+    },
+    {
+      "actions": [{ "type": "place", "typeId": "hop45", "amount": 300 }],
+      "roll": { "type": "roll" },
+      "hashAfter": "d832249850705c39"
+    },
+    {
+      "actions": [{ "type": "place", "typeId": "pass", "amount": 1000 }],
+      "roll": { "type": "roll" },
+      "hashAfter": "4a9b17464f570690"
+    },
+    {
+      "actions": [
+        { "type": "setGlobalWorking", "off": true },
+        { "type": "place", "typeId": "place", "amount": 1500, "number": 4 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "3183bd0e531cfe03"
+    },
+    {
+      "actions": [
+        {
+          "type": "batch",
+          "actions": [{ "type": "place", "typeId": "place", "amount": 1500, "number": 4 }]
+        },
+        { "type": "place", "typeId": "pass", "amount": 500 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "fb52e34565e7d8ee"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "hard", "amount": 300, "number": 6 },
+        {
+          "type": "batch",
+          "actions": [{ "type": "place", "typeId": "passOdds", "parentId": "b105", "amount": 1000 }]
+        }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "b5fd27590bf549f9"
+    },
+    {
+      "actions": [{ "type": "setAmount", "betId": "b106", "amount": 0 }],
+      "roll": { "type": "roll" },
+      "hashAfter": "149f41fafc183f96"
+    },
+    {
+      "actions": [{ "type": "place", "typeId": "come", "amount": 1000 }],
+      "roll": { "type": "roll" },
+      "hashAfter": "c7e28ef3f9fbe562"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "hop44", "amount": 300 },
+        { "type": "place", "typeId": "buy", "amount": 7500, "number": 12 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "7f5ce8884d45316b"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "comeOdds", "amount": 500, "parentId": "b108" },
+        { "type": "place", "typeId": "buy", "amount": 7500, "number": 2 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "d55a094d97b73273"
+    },
+    {
+      "actions": [
+        { "type": "setGlobalWorking", "off": null },
+        { "type": "setAmount", "betId": "b111", "amount": 1500 },
+        { "type": "place", "typeId": "hop33", "amount": 200 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "5184cc7815c4cd48"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "anyCraps", "amount": 200 },
+        { "type": "place", "typeId": "pass", "amount": 2000 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "f9db24de4e9cc977"
+    },
+    {
+      "actions": [
+        { "type": "deposit", "amount": 20000 },
+        { "type": "place", "typeId": "hop35", "amount": 200 },
+        { "type": "place", "typeId": "place", "amount": 500, "number": 9 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "d205291f80a312a5"
+    },
+    {
+      "actions": [{ "type": "place", "typeId": "hard", "amount": 400, "number": 8 }],
+      "roll": { "type": "roll" },
+      "hashAfter": "46f43ff56189cd3c"
+    },
+    {
+      "actions": [{ "type": "place", "typeId": "buy", "amount": 7500, "number": 10 }],
+      "roll": { "type": "roll" },
+      "hashAfter": "4ccd03e0d977c7af"
+    },
+    {
+      "actions": [{ "type": "place", "typeId": "c", "amount": 300 }],
+      "roll": { "type": "roll" },
+      "hashAfter": "2ca073eb629dc37c"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "passOdds", "amount": 1000, "parentId": "b115" },
+        {
+          "type": "batch",
+          "actions": [
+            { "type": "setAmount", "betId": "b117", "amount": 0 },
+            { "type": "setAmount", "betId": "b119", "amount": 0 },
+            { "type": "setAmount", "betId": "b121", "amount": 0 }
+          ]
+        }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "a9193cacb2cf0c0c"
+    },
+    {
+      "actions": [
+        {
+          "type": "batch",
+          "actions": [{ "type": "place", "typeId": "passOdds", "parentId": "b115", "amount": 4000 }]
+        }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "fc65fee1715f56d1"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "buy", "amount": 5000, "number": 9 },
+        { "type": "place", "typeId": "place", "amount": 1000, "number": 3 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "7b74bde1af6e6382"
+    },
+    {
+      "actions": [{ "type": "place", "typeId": "place", "amount": 1000, "number": 4 }],
+      "roll": { "type": "roll" },
+      "hashAfter": "668d11d66bb0e932"
+    },
+    {
+      "actions": [
+        {
+          "type": "batch",
+          "actions": [
+            { "type": "setAmount", "betId": "b123", "amount": 10000 },
+            { "type": "setAmount", "betId": "b124", "amount": 2000 },
+            { "type": "setAmount", "betId": "b125", "amount": 2000 }
+          ]
+        }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "178d93bd5757d15d"
+    },
+    {
+      "actions": [{ "type": "place", "typeId": "come", "amount": 2000 }],
+      "roll": { "type": "roll" },
+      "hashAfter": "993991b9aa13a9aa"
+    },
+    {
+      "actions": [
+        { "type": "setAmount", "betId": "b125", "amount": 2500 },
+        { "type": "place", "typeId": "comeOdds", "amount": 1000, "parentId": "b126" }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "a87c1dbedbf4c432"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "come", "amount": 2000 },
+        { "type": "setAmount", "betId": "b128", "amount": 4000 },
+        { "type": "place", "typeId": "hard", "amount": 500, "number": 10 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "9ff9d5b9bf953ab9"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "come", "amount": 500 },
+        { "type": "batch", "actions": [{ "type": "setAmount", "betId": "b127", "amount": 4000 }] }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "d142f466d499eb0a"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "buy", "amount": 5000, "number": 8 },
+        { "type": "place", "typeId": "hop55", "amount": 200 },
+        { "type": "place", "typeId": "horn", "amount": 200 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "092889452ed7a532"
+    },
+    {
+      "actions": [{ "type": "place", "typeId": "pass", "amount": 1500 }],
+      "roll": { "type": "roll" },
+      "hashAfter": "44ea8604062d6a8b"
+    },
+    {
+      "actions": [
+        {
+          "type": "batch",
+          "actions": [{ "type": "place", "typeId": "passOdds", "parentId": "b134", "amount": 3000 }]
+        },
+        { "type": "place", "typeId": "come", "amount": 1000 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "d2e598d057591f24"
+    },
+    {
+      "actions": [{ "type": "place", "typeId": "place", "amount": 1800, "number": 8 }],
+      "roll": { "type": "roll" },
+      "hashAfter": "991dd509c01bb9d9"
+    },
+    {
+      "actions": [
+        { "type": "batch", "actions": [{ "type": "setAmount", "betId": "b137", "amount": 3600 }] },
+        { "type": "place", "typeId": "place", "amount": 500, "number": 3 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "38d665d007b4cc3a"
+    },
+    {
+      "actions": [{ "type": "place", "typeId": "come", "amount": 1500 }],
+      "roll": { "type": "roll" },
+      "hashAfter": "cf52d21aea16219a"
+    },
+    {
+      "actions": [{ "type": "place", "typeId": "place", "amount": 1000, "number": 10 }],
+      "roll": { "type": "roll" },
+      "hashAfter": "1d3514e53653300d"
+    },
+    {
+      "actions": [{ "type": "place", "typeId": "buy", "amount": 5000, "number": 11 }],
+      "roll": { "type": "roll" },
+      "hashAfter": "422c70216df6ac7d"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "hop55", "amount": 100 },
+        { "type": "place", "typeId": "place", "amount": 500, "number": 10 },
+        { "type": "place", "typeId": "pass", "amount": 400 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "1d5439a43060b022"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "place", "amount": 1500, "number": 12 },
+        {
+          "type": "batch",
+          "actions": [
+            { "type": "setAmount", "betId": "b143", "amount": 1000 },
+            { "type": "setAmount", "betId": "b145", "amount": 3000 }
+          ]
+        },
+        { "type": "place", "typeId": "place", "amount": 1500, "number": 4 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "7e641ecc6b29c220"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "come", "amount": 2000 },
+        { "type": "place", "typeId": "hard", "amount": 300, "number": 10 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "c25ee0d9f42c5b8e"
+    },
+    {
+      "actions": [{ "type": "setAmount", "betId": "b145", "amount": 4500 }],
+      "roll": { "type": "roll" },
+      "hashAfter": "d2fc2fdc05b4d63b"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "horn", "amount": 300 },
+        { "type": "place", "typeId": "buy", "amount": 7500, "number": 8 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "211c8ba980cfee73"
+    },
+    {
+      "actions": [{ "type": "setAmount", "betId": "b144", "amount": 1400 }],
+      "roll": { "type": "roll" },
+      "hashAfter": "f8d156977ef86b9b"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "place", "amount": 1500, "number": 5 },
+        { "type": "place", "typeId": "place", "amount": 1500, "number": 9 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "829f994385d1758b"
+    },
+    {
+      "actions": [
+        { "type": "setAmount", "betId": "b152", "amount": 2000 },
+        {
+          "type": "batch",
+          "actions": [
+            { "type": "place", "typeId": "place", "amount": 1500, "number": 5 },
+            { "type": "place", "typeId": "place", "amount": 1500, "number": 9 }
+          ]
+        },
+        { "type": "place", "typeId": "place", "amount": 500, "number": 3 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "efd0454e25ce9f0f"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "hop45", "amount": 300 },
+        { "type": "place", "typeId": "come", "amount": 1000 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "f2e79786e9076ce4"
+    },
+    {
+      "actions": [
+        { "type": "batch", "actions": [{ "type": "setAmount", "betId": "b151", "amount": 7200 }] }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "a70c54228ada8c8a"
+    },
+    {
+      "actions": [{ "type": "place", "typeId": "boxcars", "amount": 300 }],
+      "roll": { "type": "roll" },
+      "hashAfter": "871e5973e7af10f7"
+    },
+    {
+      "actions": [{ "type": "place", "typeId": "aceDeuce", "amount": 200 }],
+      "roll": { "type": "roll" },
+      "hashAfter": "6dddd3485dc08e32"
+    },
+    {
+      "actions": [{ "type": "place", "typeId": "passOdds", "amount": 500, "parentId": "b144" }],
+      "roll": { "type": "roll" },
+      "hashAfter": "f696e92b7cdfad61"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "comeOdds", "amount": 1000, "parentId": "b155" },
+        { "type": "place", "typeId": "buy", "amount": 5000, "number": 12 },
+        {
+          "type": "batch",
+          "actions": [{ "type": "place", "typeId": "passOdds", "amount": 500, "parentId": "b144" }]
+        }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "6acd6f8acc4f44b0"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "place", "amount": 1500, "number": 5 },
+        { "type": "place", "typeId": "pass", "amount": 500 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "ff17352183210cfe"
+    },
+    {
+      "actions": [{ "type": "place", "typeId": "buy", "amount": 2500, "number": 12 }],
+      "roll": { "type": "roll" },
+      "hashAfter": "1c41cba16550bf6c"
+    },
+    {
+      "actions": [
+        {
+          "type": "batch",
+          "actions": [{ "type": "place", "typeId": "passOdds", "parentId": "b162", "amount": 1000 }]
+        },
+        { "type": "place", "typeId": "hop22", "amount": 300 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "1881de4bb3854a3f"
+    },
+    {
+      "actions": [{ "type": "place", "typeId": "come", "amount": 1000 }],
+      "roll": { "type": "roll" },
+      "hashAfter": "39dada1393dc8ed6"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "comeOdds", "amount": 500, "parentId": "b166" },
+        { "type": "place", "typeId": "place", "amount": 1000, "number": 9 },
+        { "type": "place", "typeId": "come", "amount": 1500 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "ccf72d88afd58206"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "come", "amount": 500 },
+        { "type": "setAmount", "betId": "b170", "amount": 1500 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "e882a7c977e3efb8"
+    },
+    {
+      "actions": [{ "type": "place", "typeId": "place", "amount": 1500, "number": 2 }],
+      "roll": { "type": "roll" },
+      "hashAfter": "9275aab74723fc86"
+    },
+    {
+      "actions": [{ "type": "place", "typeId": "come", "amount": 1000 }],
+      "roll": { "type": "roll" },
+      "hashAfter": "8c774cf38a52f8d7"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "place", "amount": 600, "number": 6 },
+        { "type": "place", "typeId": "hop35", "amount": 200 },
+        { "type": "place", "typeId": "hard", "amount": 100, "number": 8 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "12d67413700ba26b"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "place", "amount": 1500, "number": 4 },
+        { "type": "place", "typeId": "pass", "amount": 500 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "ffd52ee912783d62"
+    },
+    {
+      "actions": [
+        {
+          "type": "batch",
+          "actions": [
+            { "type": "place", "typeId": "place", "amount": 1500, "number": 4 },
+            { "type": "place", "typeId": "pass", "amount": 500 }
+          ]
+        },
+        { "type": "batch", "actions": [{ "type": "setAmount", "betId": "b177", "amount": 1500 }] },
+        { "type": "place", "typeId": "buy", "amount": 2500, "number": 6 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "30b51e9096c81a08"
+    },
+    {
+      "actions": [{ "type": "place", "typeId": "come", "amount": 1500 }],
+      "roll": { "type": "roll" },
+      "hashAfter": "d1003d05f04022ec"
+    },
+    {
+      "actions": [
+        { "type": "batch", "actions": [{ "type": "place", "typeId": "come", "amount": 1500 }] },
+        { "type": "place", "typeId": "passOdds", "amount": 1000, "parentId": "b177" }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "ee587dfb07f93ae9"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "buy", "amount": 2500, "number": 2 },
+        { "type": "place", "typeId": "place", "amount": 1000, "number": 3 },
+        { "type": "place", "typeId": "comeOdds", "amount": 500, "parentId": "b179" }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "ef38bb26d7db0fb8"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "hard", "amount": 200, "number": 10 },
+        { "type": "place", "typeId": "pass", "amount": 300 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "2c2291a0df9a13d6"
+    },
+    {
+      "actions": [
+        { "type": "deposit", "amount": 30000 },
+        { "type": "place", "typeId": "hop14", "amount": 300 },
+        {
+          "type": "batch",
+          "actions": [{ "type": "place", "typeId": "passOdds", "parentId": "b186", "amount": 600 }]
+        }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "176e6950174235f8"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "place", "amount": 1500, "number": 3 },
+        { "type": "place", "typeId": "pass", "amount": 500 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "5cc39291f378ce9f"
+    },
+    {
+      "actions": [{ "type": "place", "typeId": "hard", "amount": 300, "number": 6 }],
+      "roll": { "type": "roll" },
+      "hashAfter": "d75bf1a024564ca6"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "come", "amount": 1500 },
+        { "type": "place", "typeId": "place", "amount": 600, "number": 8 },
+        {
+          "type": "batch",
+          "actions": [{ "type": "place", "typeId": "passOdds", "parentId": "b190", "amount": 1000 }]
+        }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "c9240eafb35d4bd1"
+    },
+    {
+      "actions": [
+        {
+          "type": "batch",
+          "actions": [{ "type": "place", "typeId": "comeOdds", "parentId": "b192", "amount": 3000 }]
+        },
+        {
+          "type": "batch",
+          "actions": [
+            { "type": "setAmount", "betId": "b143", "amount": 2000 },
+            { "type": "setAmount", "betId": "b161", "amount": 3000 },
+            { "type": "setAmount", "betId": "b176", "amount": 6000 },
+            { "type": "setAmount", "betId": "b189", "amount": 3000 },
+            { "type": "setAmount", "betId": "b190", "amount": 1000 },
+            { "type": "setAmount", "betId": "b193", "amount": 1200 }
+          ]
+        }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "8e98a3a6f562dd1c"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "place", "amount": 1500, "number": 9 },
+        { "type": "place", "typeId": "hop24", "amount": 300 },
+        { "type": "place", "typeId": "buy", "amount": 5000, "number": 3 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "11ef8ca984b91acb"
+    },
+    {
+      "actions": [
+        { "type": "setAmount", "betId": "b189", "amount": 0 },
+        { "type": "place", "typeId": "hop36", "amount": 100 },
+        {
+          "type": "batch",
+          "actions": [{ "type": "place", "typeId": "passOdds", "parentId": "b190", "amount": 2000 }]
+        }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "7a22abd2b876d1fd"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "hard", "amount": 100, "number": 6 },
+        { "type": "place", "typeId": "pass", "amount": 400 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "398146912aabaa2b"
+    },
+    {
+      "actions": [{ "type": "place", "typeId": "come", "amount": 2000 }],
+      "roll": { "type": "roll" },
+      "hashAfter": "3d2e72ca06041e87"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "hop33", "amount": 200 },
+        { "type": "place", "typeId": "hard", "amount": 300, "number": 10 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "6ed5c1e5a4481e04"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "comeOdds", "amount": 500, "parentId": "b203" },
+        { "type": "batch", "actions": [{ "type": "setAmount", "betId": "b202", "amount": 800 }] }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "4e7a2b69f72129a6"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "hard", "amount": 400, "number": 4 },
+        { "type": "setAmount", "betId": "b161", "amount": 4500 },
+        {
+          "type": "batch",
+          "actions": [
+            { "type": "place", "typeId": "comeOdds", "amount": 500, "parentId": "b203" },
+            { "type": "setAmount", "betId": "b202", "amount": 800 }
+          ]
+        }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "53e15735e93447c4"
+    },
+    {
+      "actions": [
+        { "type": "batch", "actions": [{ "type": "setAmount", "betId": "b206", "amount": 4000 }] }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "c8800e5b4921fe08"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "buy", "amount": 5000, "number": 3 },
+        { "type": "place", "typeId": "hop14", "amount": 100 },
+        { "type": "place", "typeId": "pass", "amount": 400 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "cc398b22eef196cc"
+    },
+    {
+      "actions": [{ "type": "place", "typeId": "hard", "amount": 400, "number": 4 }],
+      "roll": { "type": "roll" },
+      "hashAfter": "e68fee1e68a7a232"
+    },
+    {
+      "actions": [
+        {
+          "type": "batch",
+          "actions": [
+            { "type": "setAmount", "betId": "b143", "amount": 4000 },
+            { "type": "setAmount", "betId": "b161", "amount": 9000 },
+            { "type": "setAmount", "betId": "b176", "amount": 12000 },
+            { "type": "setAmount", "betId": "b208", "amount": 10000 },
+            { "type": "setAmount", "betId": "b211", "amount": 800 }
+          ]
+        },
+        { "type": "setAmount", "betId": "b208", "amount": 12500 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "122ebc01f01ee6ed"
+    },
+    {
+      "actions": [{ "type": "place", "typeId": "horn", "amount": 300 }],
+      "roll": { "type": "roll" },
+      "hashAfter": "423862f215657842"
+    },
+    {
+      "actions": [
+        { "type": "setGlobalWorking", "off": true },
+        { "type": "setAmount", "betId": "b208", "amount": 0 },
+        { "type": "place", "typeId": "pass", "amount": 500 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "be19486ab82658b6"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "come", "amount": 500 },
+        { "type": "setAmount", "betId": "b214", "amount": 1000 },
+        { "type": "place", "typeId": "hard", "amount": 400, "number": 8 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "18cba225be8797b4"
+    },
+    {
+      "actions": [
+        {
+          "type": "batch",
+          "actions": [
+            { "type": "place", "typeId": "come", "amount": 500 },
+            { "type": "setAmount", "betId": "b214", "amount": 1000 },
+            { "type": "place", "typeId": "hard", "amount": 400, "number": 8 }
+          ]
+        }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "de974f2b7732b40b"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "hard", "amount": 500, "number": 4 },
+        { "type": "place", "typeId": "pass", "amount": 500 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "2f7ecdc9fc54979e"
+    },
+    {
+      "actions": [{ "type": "setAmount", "betId": "b143", "amount": 0 }],
+      "roll": { "type": "roll" },
+      "hashAfter": "a8d14524306e334b"
+    },
+    {
+      "actions": [{ "type": "place", "typeId": "hop46", "amount": 100 }],
+      "roll": { "type": "roll" },
+      "hashAfter": "c0f64d7698e328df"
+    },
+    {
+      "actions": [
+        { "type": "setAmount", "betId": "b215", "amount": 1000 },
+        { "type": "place", "typeId": "come", "amount": 1500 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "e8c55e9c296d0e52"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "pass", "amount": 1500 },
+        { "type": "place", "typeId": "place", "amount": 500, "number": 12 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "6be965eaa782cf27"
+    },
+    {
+      "actions": [
+        { "type": "setGlobalWorking", "off": null },
+        { "type": "place", "typeId": "passOdds", "amount": 500, "parentId": "b221" },
+        { "type": "setAmount", "betId": "b161", "amount": 10500 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "dc02b7527a07eb87"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "come", "amount": 1000 },
+        { "type": "setAmount", "betId": "b224", "amount": 1500 },
+        {
+          "type": "batch",
+          "actions": [
+            { "type": "setAmount", "betId": "b161", "amount": 21000 },
+            { "type": "setAmount", "betId": "b176", "amount": 24000 },
+            { "type": "setAmount", "betId": "b215", "amount": 2000 },
+            { "type": "setAmount", "betId": "b222", "amount": 1000 },
+            { "type": "setAmount", "betId": "b223", "amount": 1000 },
+            { "type": "setAmount", "betId": "b224", "amount": 3000 }
+          ]
+        }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "051ab3444c9f5d15"
+    },
+    {
+      "actions": [{ "type": "place", "typeId": "place", "amount": 1500, "number": 11 }],
+      "roll": { "type": "roll" },
+      "hashAfter": "7ec2a6fd4f0a096a"
+    },
+    {
+      "actions": [{ "type": "place", "typeId": "hard", "amount": 500, "number": 4 }],
+      "roll": { "type": "roll" },
+      "hashAfter": "746eb5fcf51c6cdc"
+    },
+    {
+      "actions": [{ "type": "place", "typeId": "pass", "amount": 500 }],
+      "roll": { "type": "roll" },
+      "hashAfter": "7720fda9cba50c0f"
+    },
+    {
+      "actions": [
+        {
+          "type": "batch",
+          "actions": [{ "type": "place", "typeId": "passOdds", "parentId": "b227", "amount": 1000 }]
+        },
+        { "type": "place", "typeId": "buy", "amount": 2500, "number": 10 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "713519ac29ef42e5"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "hard", "amount": 100, "number": 6 },
+        { "type": "place", "typeId": "pass", "amount": 400 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "990495dad76d1e5c"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "buy", "amount": 2500, "number": 8 },
+        {
+          "type": "batch",
+          "actions": [
+            { "type": "place", "typeId": "hard", "amount": 100, "number": 6 },
+            { "type": "place", "typeId": "pass", "amount": 400 }
+          ]
+        }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "bfa2de073b919aee"
+    },
+    {
+      "actions": [{ "type": "place", "typeId": "buy", "amount": 5000, "number": 12 }],
+      "roll": { "type": "roll" },
+      "hashAfter": "6a4c156866828499"
+    },
+    {
+      "actions": [
+        {
+          "type": "batch",
+          "actions": [{ "type": "place", "typeId": "passOdds", "parentId": "b231", "amount": 1600 }]
+        },
+        { "type": "place", "typeId": "buy", "amount": 7500, "number": 11 },
+        { "type": "place", "typeId": "place", "amount": 1000, "number": 4 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "0ba9a953854bb1cf"
+    },
+    {
+      "actions": [
+        {
+          "type": "batch",
+          "actions": [
+            { "type": "setAmount", "betId": "b234", "amount": 10000 },
+            { "type": "setAmount", "betId": "b236", "amount": 15000 },
+            { "type": "setAmount", "betId": "b237", "amount": 2000 }
+          ]
+        },
+        { "type": "place", "typeId": "buy", "amount": 2500, "number": 8 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "501803fc68038540"
+    },
+    {
+      "actions": [{ "type": "place", "typeId": "come", "amount": 2000 }],
+      "roll": { "type": "roll" },
+      "hashAfter": "8cff47c744b5050c"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "hop24", "amount": 100 },
+        { "type": "place", "typeId": "pass", "amount": 400 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "b876340b78f35987"
+    },
+    {
+      "actions": [
+        {
+          "type": "batch",
+          "actions": [{ "type": "place", "typeId": "passOdds", "parentId": "b241", "amount": 800 }]
+        }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "a622e0a9ac899d75"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "buy", "amount": 5000, "number": 4 },
+        { "type": "batch", "actions": [{ "type": "setAmount", "betId": "b241", "amount": 800 }] }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "a5fee5ab9777c268"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "come", "amount": 2000 },
+        { "type": "place", "typeId": "hard", "amount": 400, "number": 8 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "a10a6bb6e873c615"
+    },
+    {
+      "actions": [
+        {
+          "type": "batch",
+          "actions": [{ "type": "place", "typeId": "comeOdds", "parentId": "b244", "amount": 4000 }]
+        },
+        { "type": "place", "typeId": "buy", "amount": 5000, "number": 2 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "4cd36ece8d1d0995"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "come", "amount": 1500 },
+        { "type": "setAmount", "betId": "b247", "amount": 0 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "c113808aadfeadb3"
+    },
+    {
+      "actions": [
+        { "type": "batch", "actions": [{ "type": "setAmount", "betId": "b243", "amount": 0 }] },
+        { "type": "place", "typeId": "hard", "amount": 400, "number": 10 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "8f79876d74525ce4"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "hard", "amount": 300, "number": 4 },
+        { "type": "place", "typeId": "place", "amount": 500, "number": 9 },
+        { "type": "place", "typeId": "pass", "amount": 1500 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "baacec2b955723c9"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "place", "amount": 500, "number": 12 },
+        { "type": "place", "typeId": "place", "amount": 500, "number": 10 },
+        { "type": "place", "typeId": "any7", "amount": 200 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "224515dce1f09b86"
+    },
+    {
+      "actions": [{ "type": "place", "typeId": "hop55", "amount": 200 }],
+      "roll": { "type": "roll" },
+      "hashAfter": "37dbaf8f45de7c88"
+    },
+    {
+      "actions": [
+        { "type": "setGlobalWorking", "off": true },
+        {
+          "type": "batch",
+          "actions": [{ "type": "place", "typeId": "passOdds", "parentId": "b252", "amount": 3000 }]
+        },
+        { "type": "place", "typeId": "anyCraps", "amount": 300 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "e6aacfd4f002a399"
+    },
+    {
+      "actions": [
+        { "type": "setAmount", "betId": "b250", "amount": 600 },
+        { "type": "place", "typeId": "hop24", "amount": 200 },
+        { "type": "setAmount", "betId": "b259", "amount": 0 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "1dc355267ba00edd"
+    },
+    {
+      "actions": [
+        { "type": "setAmount", "betId": "b257", "amount": 0 },
+        { "type": "setAmount", "betId": "b250", "amount": 0 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "6af1ff9a816ca64e"
+    },
+    {
+      "actions": [
+        { "type": "deposit", "amount": 20000 },
+        { "type": "place", "typeId": "place", "amount": 500, "number": 4 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "8b4ccfe7a2da9bb8"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "buy", "amount": 5000, "number": 9 },
+        { "type": "place", "typeId": "place", "amount": 600, "number": 6 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "faf15e8a8212b085"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "buy", "amount": 2500, "number": 4 },
+        { "type": "place", "typeId": "passOdds", "amount": 500, "parentId": "b252" },
+        { "type": "place", "typeId": "hop14", "amount": 100 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "ae4a4a45ad7d17e9"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "hop16", "amount": 300 },
+        { "type": "place", "typeId": "hard", "amount": 200, "number": 6 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "a010b4234fac6372"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "buy", "amount": 7500, "number": 6 },
+        { "type": "setAmount", "betId": "b254", "amount": 1000 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "d13615376f554dbf"
+    },
+    {
+      "actions": [
+        { "type": "setAmount", "betId": "b264", "amount": 1000 },
+        { "type": "setAmount", "betId": "b267", "amount": 300 },
+        { "type": "place", "typeId": "buy", "amount": 2500, "number": 8 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "43ea500fcf47b52c"
+    },
+    {
+      "actions": [
+        { "type": "setAmount", "betId": "b264", "amount": 1500 },
+        { "type": "place", "typeId": "place", "amount": 1500, "number": 11 },
+        { "type": "place", "typeId": "come", "amount": 2000 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "2fbc7079cd02e227"
+    },
+    {
+      "actions": [{ "type": "place", "typeId": "pass", "amount": 2000 }],
+      "roll": { "type": "roll" },
+      "hashAfter": "df985c4641e7950c"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "passOdds", "amount": 500, "parentId": "b272" },
+        { "type": "setGlobalWorking", "off": null },
+        { "type": "setAmount", "betId": "b261", "amount": 10000 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "4ec6592db695b2f2"
+    },
+    {
+      "actions": [
+        { "type": "setAmount", "betId": "b273", "amount": 1500 },
+        { "type": "setAmount", "betId": "b262", "amount": 2400 },
+        { "type": "batch", "actions": [{ "type": "setAmount", "betId": "b269", "amount": 5300 }] }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "371726dac51c3b13"
+    },
+    {
+      "actions": [{ "type": "setAmount", "betId": "b273", "amount": 2000 }],
+      "roll": { "type": "roll" },
+      "hashAfter": "792a025dc8605682"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "come", "amount": 1500 },
+        { "type": "place", "typeId": "buy", "amount": 2500, "number": 11 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "8b9a2d32511a4d10"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "place", "amount": 1000, "number": 5 },
+        { "type": "place", "typeId": "place", "amount": 600, "number": 6 },
+        { "type": "place", "typeId": "pass", "amount": 500 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "c6250c1811e32d3d"
+    },
+    {
+      "actions": [
+        {
+          "type": "batch",
+          "actions": [{ "type": "place", "typeId": "passOdds", "parentId": "b278", "amount": 1000 }]
+        },
+        { "type": "place", "typeId": "come", "amount": 2000 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "0316b9534ab1e1e9"
+    },
+    {
+      "actions": [
+        {
+          "type": "batch",
+          "actions": [{ "type": "place", "typeId": "comeOdds", "parentId": "b280", "amount": 4000 }]
+        },
+        { "type": "place", "typeId": "come", "amount": 500 },
+        { "type": "place", "typeId": "place", "amount": 1000, "number": 3 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "e40c3fa5715b5758"
+    },
+    {
+      "actions": [{ "type": "place", "typeId": "comeOdds", "amount": 1000, "parentId": "b282" }],
+      "roll": { "type": "roll" },
+      "hashAfter": "138b99c0dfccbff1"
+    },
+    {
+      "actions": [{ "type": "place", "typeId": "place", "amount": 1000, "number": 4 }],
+      "roll": { "type": "roll" },
+      "hashAfter": "297b700dd6b757ad"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "pass", "amount": 2000 },
+        { "type": "setAmount", "betId": "b286", "amount": 4000 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "87307b2ff84677f7"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "come", "amount": 500 },
+        { "type": "place", "typeId": "buy", "amount": 2500, "number": 3 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "902adf8cb57f9007"
+    },
+    {
+      "actions": [{ "type": "place", "typeId": "pass", "amount": 2000 }],
+      "roll": { "type": "roll" },
+      "hashAfter": "5ba171a953674fe5"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "hard", "amount": 200, "number": 8 },
+        { "type": "place", "typeId": "come", "amount": 2000 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "156a03fa175a5a9b"
+    },
+    {
+      "actions": [{ "type": "place", "typeId": "comeOdds", "amount": 500, "parentId": "b291" }],
+      "roll": { "type": "roll" },
+      "hashAfter": "729d788f190991ef"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "buy", "amount": 7500, "number": 3 },
+        { "type": "place", "typeId": "buy", "amount": 5000, "number": 8 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "db5dae64865c6f6b"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "hop15", "amount": 100 },
+        { "type": "place", "typeId": "pass", "amount": 400 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "cffacccd236658c2"
+    },
+    {
+      "actions": [{ "type": "place", "typeId": "place", "amount": 1000, "number": 11 }],
+      "roll": { "type": "roll" },
+      "hashAfter": "28d4440b6145393f"
+    }
+  ],
+  "pending": [],
+  "finalStateHash": "28d4440b6145393f"
+}

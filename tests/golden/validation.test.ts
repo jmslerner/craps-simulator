@@ -78,8 +78,7 @@ const TRIGGERS: readonly TriggerCase[] = [
   },
   {
     code: 'BAD_PARAMS',
-    title:
-      'bad amounts, numbers, parents, dice, settings and action shapes; a deposit past safe cents; a roll in a batch',
+    title: 'bad amounts, numbers, parents, dice, settings and action shapes; a roll in a batch',
     run: () =>
       passOnFour()
         .place('field', 100)
@@ -115,17 +114,7 @@ const TRIGGERS: readonly TriggerCase[] = [
           { field: 'actions', reason: 'roll', batchIndex: 1 },
         )
         .expectReject('BAD_PARAMS', { type: 'teleport' } as never, { field: 'type' })
-        .expectReject('BAD_PARAMS', null as never)
-        // A deposit may not carry the ledger past whole, safe cents: $500 is in already.
-        .expectReject('BAD_PARAMS', { type: 'deposit', amount: Number.MAX_SAFE_INTEGER } as never, {
-          field: 'amount',
-          max: Number.MAX_SAFE_INTEGER - 50_000,
-        })
-        .deposit(Number.MAX_SAFE_INTEGER - 50_000)
-        .expectReject('BAD_PARAMS', { type: 'deposit', amount: 1 } as never, {
-          field: 'amount',
-          max: 0,
-        }),
+        .expectReject('BAD_PARAMS', null as never),
   },
   {
     code: 'WRONG_PHASE',
@@ -160,7 +149,8 @@ const TRIGGERS: readonly TriggerCase[] = [
   },
   {
     code: 'ABOVE_MAX',
-    title: 'more than $500 on one bet, placed or pressed, however large, never thrown (plan §4.6)',
+    title:
+      'more than $500 on one bet, placed or pressed, however large; more money than safe cents hold (plan §4.6)',
     run: () =>
       scenario('craplessBubble')
         .expectReject('ABOVE_MAX', place('place', 50_100, { number: 6 }), { max: 50_000 })
@@ -176,7 +166,21 @@ const TRIGGERS: readonly TriggerCase[] = [
         .expectReject('ABOVE_MAX', place('place', Number.MAX_SAFE_INTEGER - 600, { number: 6 }), {
           amount: Number.MAX_SAFE_INTEGER,
           max: 50_000,
-        }),
+        })
+        // A deposit may not carry the ledger past whole, safe cents: $500 is in already. A table
+        // that holds that much cannot roll either, as a win could pass it: refused, not thrown.
+        .expectReject(
+          'ABOVE_MAX',
+          { type: 'deposit', amount: cents(Number.MAX_SAFE_INTEGER) },
+          {
+            scope: 'ledger',
+            field: 'amount',
+            max: Number.MAX_SAFE_INTEGER - 50_000,
+          },
+        )
+        .deposit(Number.MAX_SAFE_INTEGER - 50_000)
+        .expectReject('ABOVE_MAX', { type: 'deposit', amount: cents(1) }, { max: 0 })
+        .expectReject('ABOVE_MAX', roll(3, 3), { scope: 'ledger', max: Number.MAX_SAFE_INTEGER }),
   },
   {
     code: 'BAD_INCREMENT',

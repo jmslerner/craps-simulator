@@ -5,7 +5,6 @@ import {
   legalAmounts,
   minimumFreeFrom,
   roundingPeriod,
-  smallestAmount,
 } from './amounts.ts'
 import { configPathsOf } from './analyze.ts'
 import { catalogSpecs } from './catalog.ts'
@@ -108,7 +107,10 @@ function issuesOf(spec: BetSpec, cfg: MachineConfig, paths: readonly string[]): 
   const life = distribution(spec, start, 'lifetime', cfg)
   const labels = [...first.labels, ...life.labels]
   const later = laterDecisions(spec, lifetime.chain, cfg)
-  const reArmed = rearmDue(at(lifetime.chain.group.slots, lifetime.chain.group.subject).type, spec.number)
+  const reArmed = rearmDue(
+    at(lifetime.chain.group.slots, lifetime.chain.group.subject).type,
+    spec.number,
+  )
 
   let worst: { readonly amount: Cents; readonly edge: Fraction } | null = null
   for (const amount of sweepAmounts(spec, labels, cfg)) {
@@ -200,27 +202,36 @@ function laterDecisions(
 }
 
 /**
- * The stakes a sweep checks: a rounding period of legal stakes from the minimum, the same from where
- * any commission minimum stops binding, and the largest legal stake.
+ * The stakes a sweep checks: a rounding period of legal stakes from the minimum, the same from
+ * where any commission minimum stops binding, and the largest legal stake.
  */
 export function sweepAmounts(
   spec: BetSpec,
   labels: readonly ChainLabel[],
   cfg: MachineConfig,
 ): Cents[] {
-  const period = roundingPeriod(spec, labels, cfg)
-  const lowest = smallestAmount(spec, cfg)
-  if (lowest === null) return []
+  const [lowest, next] = legalAmounts(spec, cfg, { from: 0, to: Number.MAX_SAFE_INTEGER }, 2)
+  if (lowest === undefined) return []
+  // Remainders repeat over legal stakes every lcm(period, step), not every period: $1 and $2 lay
+  // odds at 5:6 round differently although the period is 6¢.
+  const step = next === undefined ? 1 : next - lowest
+  const span = lcm(roundingPeriod(spec, labels, cfg), step)
   const amounts = new Set<Cents>()
-  const window = (from: number) => {
-    for (const amount of legalAmounts(spec, cfg, { from, to: from + period }, SWEEP_LIMIT)) {
+  const scanFrom = (from: number) => {
+    for (const amount of legalAmounts(spec, cfg, { from, to: from + span }, SWEEP_LIMIT)) {
       amounts.add(amount)
     }
   }
-  window(lowest)
+  scanFrom(lowest)
   const free = minimumFreeFrom(spec, cfg)
-  if (free > lowest) window(free)
+  if (free > lowest) scanFrom(free)
   const largest = largestAmount(spec, cfg)
   if (largest !== null) amounts.add(largest)
   return [...amounts].sort((a, b) => a - b)
+}
+
+function lcm(a: number, b: number): number {
+  let [x, y] = [a, b]
+  while (y !== 0) [x, y] = [y, x % y]
+  return (a / x) * b
 }

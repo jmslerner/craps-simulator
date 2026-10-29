@@ -44,19 +44,17 @@ export function sameEvents(
   }
   const from = start === 'typical' ? typicalStart(a, cfg) : start
   const group = groupOf([a.typeId, b.typeId], cfg)
-  const bets = [a, b].map(
-    (spec, index): BetInstance => ({
-      id: betId(index + 1),
-      typeId: spec.typeId,
-      number: spec.number,
-      parentId: null,
-      amount: at(group.nominal, index),
-      vigHeld: cents(0),
-      working: from.working,
-      progress: 0,
-      placedAtRoll: from.carried ? 0 : 1,
-    }),
-  )
+  const bets = [a, b].map((spec, index): BetInstance => ({
+    id: betId(index + 1),
+    typeId: spec.typeId,
+    number: spec.number,
+    parentId: null,
+    amount: at(group.nominal, index),
+    vigHeld: cents(0),
+    working: from.working,
+    progress: 0,
+    placedAtRoll: from.carried ? 0 : 1,
+  }))
   const seen = new Set<string>()
   const queue: TableNode[] = []
   for (const { phase } of from.phases) {
@@ -64,6 +62,7 @@ export function sameEvents(
       phase: group.tracksRound ? phase : { kind: 'comeOut' },
       bets,
       globalOff: from.globalOff,
+      heldOff: from.held === true ? bets.map(({ id }) => id) : [],
     }
     checkTable(group, table, cfg)
     queue.push(table)

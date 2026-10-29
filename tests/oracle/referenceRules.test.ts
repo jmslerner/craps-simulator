@@ -720,7 +720,8 @@ describe('per-number rounding, the on-win cap and re-collection parts (rules spe
   it('splits a re-collection between the win and credit', () => {
     const fromCredit = edited('craplessBubble', (input) => {
       const buy = input.catalog.buy
-      if (buy?.family === 'numberVsSeven' && buy.commission) buy.commission.rearm = 'recollectFromCredit'
+      if (buy?.family === 'numberVsSeven' && buy.commission)
+        buy.commission.rearm = 'recollectFromCredit'
     })
     const bet = { typeId: 'buy', number: 4, amount: 2_000, vigHeld: 100 }
     expect(settle(crapless, bet, win(frac(2), 'stay'))).toMatchObject({
@@ -754,7 +755,11 @@ describe('per-number rounding, the on-win cap and re-collection parts (rules spe
     })
     // $3 laid on 4 wins $1.50, paid $1: the win pays the $1 re-collection in full.
     expect(
-      settle(live, { typeId: 'lay', number: 4, amount: 300, vigHeld: 100 }, win(frac(1, 2), 'stay')),
+      settle(
+        live,
+        { typeId: 'lay', number: 4, amount: 300, vigHeld: 100 },
+        win(frac(1, 2), 'stay'),
+      ),
     ).toMatchObject({ winPaid: 100, vigRearmFromWin: 100, vigRearmFromCredit: 0, credited: 0 })
   })
 })

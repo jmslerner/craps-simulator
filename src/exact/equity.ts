@@ -1,6 +1,7 @@
 import {
   Fraction,
   commissionRule,
+  heldOffOf,
   requireType,
   type BetId,
   type BetInstance,
@@ -22,10 +23,10 @@ import { startAt } from './start.ts'
  * 2 × $10 × 1/7 = $20/7: it wins $10 plus its stake with P = 1/7, which is why it cannot come down.
  * The decision cost of an action is its outlay − ΔV.
  *
- * The analysis starts from the table as it is: the phase, the bet's own ON/OFF, the button, and
- * whether it was carried from an earlier window. A bet that would never be decided from there
- * (Interblock's place bet left OFF after a seven-out, with no Set bets On to come) is worth what
- * taking it down returns.
+ * The analysis starts from the table as it is: the phase, the bet's own ON/OFF, the button, the
+ * machine's hold (`heldOff`), and whether it was carried from an earlier window. A bet that would
+ * never be decided from there (Interblock's place bet held OFF after a seven-out, with no Set bets
+ * On to come) is worth what taking it down returns.
  */
 
 export interface ExistingAnalysis {
@@ -90,6 +91,7 @@ export function startOfBet(bet: BetInstance, state: TableState): StartContext {
     carried: bet.placedAtRoll < state.round.rollIndex,
     working: bet.working,
     globalOff: state.globalOff,
+    held: heldOffOf(state).includes(bet.id),
   })
 }
 

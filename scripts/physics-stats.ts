@@ -181,7 +181,7 @@ function report(samples: readonly Sample[], chain: number, verbose: boolean): vo
     ['first attempt valid', `${firstValid}/${n} (${pct(firstValid, n)})`],
     ['invalid reasons', [...reasons].map(([r, k]) => `${r} ${k}`).join(', ') || 'none'],
     ['throws retried', `${retried}, in ${attempts.length} attempts`],
-    ['started from fresh poses', `${restarted} (rest asked for could not start a throw)`],
+    ['fresh start poses', `${restarted} (rests no valid throw could start from)`],
     ['ended as', `pop ${endedAs('pop')}, drop ${endedAs('drop')}, hop ${endedAs('hop')}`],
     [
       'apex, first attempt',

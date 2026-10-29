@@ -27,10 +27,15 @@
  * leaves the table (a winner that stays up starts a new decision), which prices the lifecycle edge
  * of rules spec §0.1 with plan §0 amendment 22's divisor: the stake of every decision plus the
  * commission paid up front (at placement, and re-collected when a winner stays up).
+ *
+ * `checkAgainstClosedForm` runs every bet a machine offers through both this chain and the closed
+ * form (`closedFormOf.ts`) and lists every disagreement. M6's `analyzeBet` is to be compared with
+ * `dispatchAnalysis` on the same `dispatchVariant` (plan §9 item 4).
  */
 import {
   applyAction,
   cents,
+  compileConfig,
   effectiveWorking,
   makeRoll,
   newTable,
@@ -44,7 +49,10 @@ import {
 } from '../../src/engine/index.ts'
 import { pruneProvenance } from '../../src/engine/config/provenance.ts'
 import { Fraction } from '../../src/engine/core/rational.ts'
+import { analyze } from './closedForm.ts'
+import { closedFormOf, machineBets, type MachineBet } from './closedFormOf.ts'
 import { denseSolve, type DenseTransition } from './denseSolve.ts'
+import { factsFrom, typeFacts, type MachineFacts } from './machineFacts.ts'
 
 /** Starting credit for a dispatch table: enough that no commission is ever declined. */
 const BANKROLL = 1_000_000_000
@@ -109,8 +117,11 @@ export function startTable(cfg: MachineConfig, bet: DispatchBet): DispatchStart 
     return result.events
   }
   const rollTotal = (total: number) => act({ type: 'roll', dice: diceFor(total) })
-  const place = (typeId: string, amount: number, extra: Partial<Action> = {}) =>
-    act({ type: 'place', typeId, amount: cents(amount), ...extra } as Action)
+  const place = (
+    typeId: string,
+    amount: number,
+    extra: { readonly number?: PointNumber; readonly parentId?: BetId } = {},
+  ) => act({ type: 'place', typeId, amount: cents(amount), ...extra })
   const point = bet.point ?? null
 
   let parentId: BetId | undefined
@@ -264,9 +275,8 @@ export function dispatchAnalysis(
   horizon: Horizon,
 ): DispatchAnalysis {
   const chain = buildChain(cfg, bet, horizon)
-  const solved = denseSolve({ size: chain.tables.length, transitions: chain.transitions }, {
-    visits: false,
-  })
+  const chainOnly = { size: chain.tables.length, transitions: chain.transitions }
+  const solved = denseSolve(chainOnly, { visits: false })
   const from = solved.rewards[0]
   const reward = (name: string) => from?.get(name) ?? Fraction.ZERO
   const { placementCost, placementVig } = chain.start
@@ -279,7 +289,9 @@ export function dispatchAnalysis(
     horizon === 'decision'
       ? Fraction.of(placementCost).sub(cashBack).sub(rearm).sub(staysUp)
       : Fraction.of(placementCost).sub(cashBack)
-  const risked = wagered.add(Fraction.of(placementVig)).add(horizon === 'lifetime' ? rearm : Fraction.ZERO)
+  const risked = wagered
+    .add(Fraction.of(placementVig))
+    .add(horizon === 'lifetime' ? rearm : Fraction.ZERO)
   const workingRolls = reward('workingRolls')
   return {
     states: chain.tables.length,
@@ -298,6 +310,81 @@ export function dispatchAnalysis(
     netPerStake: loss.neg().div(stake),
     edgePerWorkingRoll: workingRolls.isZero() ? Fraction.ZERO : loss.div(workingRolls.mul(stake)),
   }
+}
+
+/**
+ * Where a machine's bet goes on a dispatch table: a come or don't come bet on the table's point 6
+ * (8 when its own number is 6), a pass or don't pass bet on the come-out, odds behind a parent of
+ * the same stake on their point, and every other bet on the come-out.
+ */
+export function dispatchBetOf(facts: MachineFacts, bet: MachineBet): DispatchBet {
+  const type = typeFacts(facts, bet.typeId)
+  const awayFrom = (n: number | null) => (n === 6 ? 8 : 6)
+  if (type.family === 'line') {
+    return type.window === 'point'
+      ? { typeId: bet.typeId, amount: bet.amount, point: 6 }
+      : { typeId: bet.typeId, amount: bet.amount }
+  }
+  if (type.family === 'odds') {
+    const parent = typeFacts(facts, type.parent)
+    if (bet.number === null) throw new RangeError(`${bet.typeId} needs its parent's point`)
+    return {
+      typeId: bet.typeId,
+      amount: bet.amount,
+      parent: { typeId: parent.id, amount: bet.amount, number: bet.number },
+      point: parent.family === 'line' && parent.window === 'point' ? awayFrom(bet.number) : null,
+    }
+  }
+  return bet.number === null
+    ? { typeId: bet.typeId, amount: bet.amount }
+    : { typeId: bet.typeId, number: bet.number, amount: bet.amount }
+}
+
+/**
+ * The reducer against the closed form, bet by bet (plan §9 items 3 and 4): for every bet the
+ * machine offers at each stake that `closedFormOf` models, the lifecycle edge, loss, amount risked
+ * and edge per working roll, and the first decision's chances, working rolls and loss, must agree
+ * exactly. Returns one line per disagreement, and how many bets were checked.
+ */
+export function checkAgainstClosedForm(
+  input: MachineConfigInput,
+  stakes: readonly number[],
+  filter: (bet: MachineBet) => boolean = () => true,
+): { readonly mismatches: readonly string[]; readonly checked: number } {
+  const variant = dispatchVariant(input)
+  const cfg = compileConfig(variant)
+  const facts = factsFrom(variant)
+  const mismatches: string[] = []
+  let checked = 0
+  for (const stake of stakes) {
+    for (const bet of machineBets(facts, stake).filter(filter)) {
+      const form = closedFormOf(facts, bet)
+      if (form === null) continue
+      checked++
+      const closed = analyze(form)
+      const spec = dispatchBetOf(facts, bet)
+      const life = dispatchAnalysis(cfg, spec, 'lifetime')
+      const once = dispatchAnalysis(cfg, spec, 'decision')
+      const outcome = (name: string) => once.outcomes.get(name) ?? Fraction.ZERO
+      const pairs: readonly (readonly [string, Fraction, Fraction])[] = [
+        ['edge', life.edge, closed.edge],
+        ['loss', life.loss, closed.loss],
+        ['risked', life.risked, closed.risked],
+        ['edgePerWorkingRoll', life.edgePerWorkingRoll, closed.edgePerWorkingRoll],
+        ['pWin', outcome('win'), closed.pWin],
+        ['pLose', outcome('lose'), closed.pLose],
+        ['pPush', outcome('push'), closed.pPush],
+        ['workingRolls', once.expectedWorkingRolls, closed.workingRollsPerDecision],
+        ['decisionLoss', once.loss, closed.perDecision.loss],
+      ]
+      for (const [what, engine, oracle] of pairs) {
+        if (engine.equals(oracle)) continue
+        const at = `${input.id} ${bet.typeId}@${bet.number ?? '-'} ${stake}¢ ${what}`
+        mismatches.push(`${at}: reducer ${engine.toString()}, closed form ${oracle.toString()}`)
+      }
+    }
+  }
+  return { mismatches, checked }
 }
 
 /** The 36 ordered rolls. */

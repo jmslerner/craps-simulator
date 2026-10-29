@@ -5,7 +5,13 @@ import {
   type Phase,
   type PointNumber,
 } from '../engine/index.ts'
-import { COME_OUT, ExactError, type BetSpec, type StartContext, type WeightedPhase } from './chain.ts'
+import {
+  COME_OUT,
+  ExactError,
+  type BetSpec,
+  type StartContext,
+  type WeightedPhase,
+} from './chain.ts'
 import { roundStats } from './roundStats.ts'
 
 /**
@@ -26,13 +32,14 @@ import { roundStats } from './roundStats.ts'
 /** A start in one phase: a new bet, no toggles unless given. */
 export function startAt(
   phase: Phase,
-  options: Partial<Pick<StartContext, 'carried' | 'working' | 'globalOff'>> = {},
+  options: Partial<Pick<StartContext, 'carried' | 'working' | 'globalOff' | 'held'>> = {},
 ): StartContext {
   return {
     phases: [{ phase, weight: Fraction.ONE }],
     carried: options.carried ?? false,
     working: options.working ?? null,
     globalOff: options.globalOff ?? null,
+    held: options.held ?? false,
   }
 }
 
@@ -108,7 +115,8 @@ export function startKey(start: StartContext): string {
       return `${at}=${weight.toString()}`
     })
     .join(',')
-  return `${phases}|${String(start.carried)}|${String(start.working)}|${String(start.globalOff)}`
+  const inputs = [start.carried, start.working, start.globalOff].map(String).join('|')
+  return `${phases}|${inputs}${start.held === true ? '|held' : ''}`
 }
 
 function only(phase: Phase): readonly WeightedPhase[] {

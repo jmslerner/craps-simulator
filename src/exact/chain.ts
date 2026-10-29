@@ -6,12 +6,13 @@ import {
   commissionRule,
   decideBet,
   effectiveWorking,
+  heldOffOf,
   isDoubles,
   isSettled,
   resolveType,
   settle,
   totalOf,
-  typeLimits,
+  type BetId,
   type BetInstance,
   type Cents,
   type Decision,
@@ -29,9 +30,9 @@ import {
   type StakeDisposition,
   type TableState,
 } from '../engine/index.ts'
-// The machine's actions after a roll (Interblock's lay re-enable and its post-seven-out OFF ending
-// at the point) change a bet's working status between rolls, so a chain must apply them (M4 → M6
-// hand-off). They are not in the engine barrel; this is the one engine module imported directly.
+// The machine's actions after a roll (Interblock's lay re-enable and the end of its post-seven-out
+// hold at the point) change a bet's working status between rolls, so a chain must apply them (M4 →
+// M6 hand-off). They are not in the engine barrel; this is the one engine module imported directly.
 import { AFTER_ROLL } from '../engine/bets/policies.ts'
 import { at, solveChain, type ChainSolution } from './solve.ts'
 
@@ -40,24 +41,26 @@ import { at, solveChain, type ChainSolution } from './solve.ts'
  * plus, when its family's `projection` is `round`, the round's phase and point. Each state branches
  * on the 21 dice classes (weight 1 or 2 out of 36), and every branch is worked out by the engine's
  * own rules: `advanceRound`, `effectiveWorking` on the table before the roll, `decideBet` (odds
- * after their parent, with its decision), the family's `apply`, the toggle reset of
- * `/workingToggle/scope: nextRollOnly` and the machine's `AFTER_ROLL` actions. Nothing here knows a
- * bet's rules: a decision is whatever the engine decides.
+ * after their parent, with its decision), the family's `apply`, then the roll's commit as
+ * `table/roll.ts` makes it (every bet carried, toggles reset under `/workingToggle/scope:
+ * nextRollOnly`, the machine's holds kept for the bets still up) and the machine's `AFTER_ROLL`
+ * actions. Nothing here knows a bet's rules: a decision is whatever the engine decides.
  *
  * - **What is followed.** The subject bet, behind its parent line bet for odds (the parent's own
  *   money is not the subject's). Only the subject's settlements are labelled.
  * - **Labels** are amount-independent (`price.ts` turns them into money at any stake): a settlement
- *   `win:<payKey>:<disposition>`, `lose:-:lost`, `push:<reason>:<disposition>` (the disposition is
- *   where `settle` sends the stake, which decides its cash); `vig:rearm` when a winner that stays up
- *   has its up-front commission collected again; and `travel:<n>` when the bet moves to n (no cash;
- *   counted for odds and arrival rates).
+ *   `win:<payKey>:<disposition>`, `lose:-:lost`, `push:<reason>:<disposition>` (the disposition
+ *   is where `settle` sends the stake, which decides its cash); `vig:rearm` when a winner that
+ *   stays up has its up-front commission collected again; and `travel:<n>` when the bet moves to
+ *   n (no cash; counted for odds and arrival rates).
  * - **Horizons.** `decision` ends at the subject's first settlement; `lifetime` follows it through
  *   wins that leave it up until it comes down.
  * - **Money never enters.** Decisions never read an amount (engine contract), so the chain is built
  *   once at a nominal stake, and states never record amounts or held commission.
- * - **Working inputs.** Whether a bet works reads the phase, its own ON/OFF, the global button and
- *   whether it was carried from an earlier betting window (Shoot To Win's carried chips), so a state
- *   records all four. After any roll every bet is carried.
+ * - **Working inputs.** Whether a bet works reads the phase, its own ON/OFF, the machine's hold
+ *   (`TableState.heldOff`: Interblock's post-seven-out OFF), the global button and whether it was
+ *   carried from an earlier betting window (Shoot To Win's carried chips), so a state records all
+ *   five. After any roll every bet is carried.
  */
 
 /** A bet to analyse: a type the machine offers and the number it is on. */
@@ -90,10 +93,16 @@ export interface StartContext {
   readonly working: boolean | null
   /** The machine's ON/OFF button (`TableState.globalOff`). */
   readonly globalOff: boolean | null
+  /**
+   * Whether the machine holds the bet OFF (`TableState.heldOff`: Interblock's place or buy bet
+   * placed right after a seven-out, until Set bets On). Absent means no hold.
+   */
+  readonly held?: boolean
 }
 
 /** Why an analysis cannot be made. */
-export type ExactErrorCode = 'NOT_OFFERED' | 'BAD_SPEC' | 'BAD_START' | 'MAX_STATES' | 'NEVER_RESOLVES'
+export type ExactErrorCode =
+  'NOT_OFFERED' | 'BAD_SPEC' | 'BAD_START' | 'MAX_STATES' | 'NEVER_RESOLVES'
 
 export class ExactError extends Error {
   readonly code: ExactErrorCode
@@ -125,12 +134,17 @@ export interface Group {
   readonly nominal: readonly Cents[]
 }
 
-/** A projected table: the phase of the next roll and the bets in each slot. */
+/**
+ * A projected table: the phase of the next roll, the bets in each slot, and the table-wide working
+ * inputs: the global button and the machine's holds.
+ */
 export interface TableNode {
   /** The phase of the next roll; the come-out when the round is not tracked. */
   readonly phase: Phase
   readonly bets: readonly (BetInstance | null)[]
   readonly globalOff: boolean | null
+  /** The bets the machine holds OFF (`TableState.heldOff`). */
+  readonly heldOff: readonly BetId[]
 }
 
 /** What one dice class does to a projected table. */
@@ -139,7 +153,10 @@ export interface RollOutcome {
   readonly transition: RoundTransition
   /** Each slot's decision; `none` for an empty slot. */
   readonly decisions: readonly Decision[]
-  /** The table after the roll: decisions applied, toggles reset where they last one roll, and the machine's actions after the roll. */
+  /**
+   * The table after the roll: decisions applied, the roll committed (toggles reset where they last
+   * one roll, holds kept for the bets still up) and the machine's actions after it.
+   */
   readonly next: TableNode
 }
 
@@ -224,8 +241,9 @@ export function groupFor(spec: BetSpec, cfg: MachineConfig): Group {
     case 'odds': {
       if (number === null || !type.pays.has(number)) throw bad()
       const parent = resolveType(cfg, type.parent)
-      if (parent === null) throw new ExactError('NOT_OFFERED', `No ${type.parent} for ${spec.typeId}`)
-      return makeGroup([parent, resolved], 1, cfg)
+      if (parent === null)
+        throw new ExactError('NOT_OFFERED', `No ${type.parent} for ${spec.typeId}`)
+      return makeGroup([parent, resolved], 1)
     }
     case 'line':
       if (number !== null && !cfg.ruleset.points.includes(number)) throw bad()
@@ -235,32 +253,34 @@ export function groupFor(spec: BetSpec, cfg: MachineConfig): Group {
       if (number !== null) throw bad()
       break
   }
-  return makeGroup([resolved], 0, cfg)
+  return makeGroup([resolved], 0)
 }
 
 /** A group of bets placed side by side, none behind another (the product chain of `events.ts`). */
 export function groupOf(typeIds: readonly string[], cfg: MachineConfig): Group {
   const slots = typeIds.map((typeId) => {
     const resolved = resolveType(cfg, typeId)
-    if (resolved === null) throw new ExactError('NOT_OFFERED', `${cfg.id} does not offer "${typeId}"`)
+    if (resolved === null)
+      throw new ExactError('NOT_OFFERED', `${cfg.id} does not offer "${typeId}"`)
     return resolved
   })
-  return makeGroup(slots, 0, cfg)
+  return makeGroup(slots, 0)
 }
 
 /**
- * The subject is built at its type's minimum and any other slot at its maximum, so a parent's odds
- * cap always covers the nominal odds (decisions never read the amounts).
+ * Decisions never read amounts, so a chain is built at fixed nominal stakes that no config value
+ * affects (a limit edit must not change an analysis): $1 for the subject and $10,000,000 for any
+ * other slot, so a parent's odds cap always covers the nominal odds.
  */
-function makeGroup(slots: readonly ResolvedType[], subject: number, cfg: MachineConfig): Group {
+const NOMINAL_SUBJECT = cents(100)
+const NOMINAL_OTHER = cents(1_000_000_000)
+
+function makeGroup(slots: readonly ResolvedType[], subject: number): Group {
   return {
     slots,
     subject,
     tracksRound: slots.some(({ family }) => family.projection === 'round'),
-    nominal: slots.map(({ type }, index) => {
-      const limits = typeLimits(cfg, type.typeId)
-      return index === subject ? limits.min : limits.max
-    }),
+    nominal: slots.map((_, index) => (index === subject ? NOMINAL_SUBJECT : NOMINAL_OTHER)),
   }
 }
 
@@ -273,7 +293,7 @@ export function startTable(
   group: Group,
   spec: BetSpec,
   phase: Phase,
-  start: Pick<StartContext, 'carried' | 'working' | 'globalOff'>,
+  start: Pick<StartContext, 'carried' | 'working' | 'globalOff' | 'held'>,
   cfg: MachineConfig,
 ): TableNode {
   const placedAtRoll = start.carried ? 0 : 1
@@ -296,6 +316,7 @@ export function startTable(
     phase: group.tracksRound ? phase : COME_OUT,
     bets,
     globalOff: start.globalOff,
+    heldOff: start.held === true ? [betId(group.subject + 1)] : [],
   }
   checkTable(group, table, cfg)
   return table
@@ -326,7 +347,7 @@ export function tableKey(group: Group, table: TableNode): string {
         : `${bet.number ?? '-'}/${String(bet.working)}/${bet.placedAtRoll}/${bet.progress}`,
     )
     .join(',')
-  return `${phase}|${bets}|${String(table.globalOff)}`
+  return `${phase}|${bets}|${String(table.globalOff)}|${table.heldOff.join(',')}`
 }
 
 /**
@@ -394,8 +415,11 @@ export function rollOutcomes(
           },
     )
     let globalOff = nextRollOnly ? null : table.globalOff
-    if (bets.some((bet) => bet !== null)) {
-      let committed = tableState(cfg, { phase, bets, globalOff })
+    // The machine's holds outlive the roll for the bets still up (they are not toggles).
+    const up = new Set(bets.flatMap((bet) => (bet === null ? [] : [bet.id])))
+    let heldOff: readonly BetId[] = table.heldOff.filter((id) => up.has(id))
+    if (up.size > 0) {
+      let committed = tableState(cfg, { phase, bets, globalOff, heldOff })
       for (const rule of AFTER_ROLL) committed = rule(committed, step, cfg).state
       bets = bets.map((bet) => {
         if (bet === null) return null
@@ -405,8 +429,14 @@ export function rollOutcomes(
           : { ...bet, working: now.working }
       })
       globalOff = committed.globalOff
+      heldOff = heldOffOf(committed)
     }
-    return { dice, transition: step.transition, decisions, next: { phase, bets, globalOff } }
+    return {
+      dice,
+      transition: step.transition,
+      decisions,
+      next: { phase, bets, globalOff, heldOff },
+    }
   })
 }
 
@@ -564,6 +594,7 @@ export function tableState(cfg: MachineConfig, table: TableNode): TableState {
     lastRoll: null,
     recentTotals: [],
     rebetBlocked: [],
+    heldOff: table.heldOff,
   }
 }
 
@@ -669,4 +700,3 @@ function decisionDetail(decision: SettledDecision): string {
         : `push:${decision.reason}`
   }
 }
-

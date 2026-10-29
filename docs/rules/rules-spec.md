@@ -189,7 +189,7 @@ A hand of 154 or more rolls has odds of about 1 in 5.59 billion.
 7. Commit the round state.
 8. Machine post-roll actions:
    - **STW:** on POINT_ESTABLISHED, auto-OFF chips turn ON. When the next phase is a come-out, carried types go OFF.
-   - **IB:** lay bets turn back ON after a point is made or any 7. OFF odds are returned when their point is made. The engine and the oracle read IB §3.2's "Odds bets are removed when a Point is reestablished" as: when the pass point is made, every odds bet that is OFF comes down and is returned, come odds whose come bet the roll does not decide included (`/oddsOffReturnedAtPointMade` [A]). Odds whose own bet is decided while they are OFF are returned by step 4 in any case.
+   - **IB:** lay bets turn back ON after a point is made or any 7 (those a toggle switched OFF; a lay the post-seven-out hold covers stays held, §9 #31). OFF odds are returned when their point is made. The engine and the oracle read IB §3.2's "Odds bets are removed when a Point is reestablished" as: when the pass point is made, every odds bet that is OFF comes down and is returned, come odds whose come bet the roll does not decide included (`/oddsOffReturnedAtPointMade` [A]). Odds whose own bet is decided while they are OFF are returned by step 4 in any case.
    - Auto re-bets happen per `afterWin`.
    - Side-bet windows open or close.
    - **IB:** after a SEVEN_OUT, Place/Buy bets placed in the next window are held OFF (a machine hold, not the bet's own setting; §2.4).
@@ -351,7 +351,7 @@ Non-US paytables: 15:2 → 5.556%; 19:2 → 4.545% [WOO-HE].
 ### 4.1 Representation
 
 - **Amounts:** money is integer `Cents`. Stakes must be multiples of `money.betIncrement` (or of `perType.increment`, or of the type's unit on the bet's number, `perType.incrementByNumber`; for odds, the parent's point).
-- **Malformed or extreme input** is refused, never thrown: amounts are safe integers of cents, an addition is checked against the limits before it is summed, a deposit may not carry the ledger past `Number.MAX_SAFE_INTEGER`, and scripted dice must be an object with two whole faces from 1 to 6 (plan §4.6).
+- **Malformed or extreme input** is refused, never thrown (plan §4.6): amounts are safe integers of cents; an addition is checked against the limits before it is summed; neither a deposit nor a roll whose largest possible payout could do so may carry the ledger past `Number.MAX_SAFE_INTEGER` cents (about $90 trillion; `ABOVE_MAX`, `scope: 'ledger'`); scripted dice must be an object with two whole faces from 1 to 6; and a batch may not contain a roll at any depth (`BAD_PARAMS`).
 - **Payout ratios:** stored as exact `Ratio` "to 1"; `parseRatio` converts "for 1".
 - **Win amount:**
   - `winExact = stake × num/den` (a Fraction).
@@ -510,7 +510,7 @@ The last column is where each knob lives in `MachineConfigInput` (`src/engine/co
 | | `oddsMutable` | — | Not a knob: odds may be added, reduced or removed until decided (§3.1) |
 | | `sideBetsWithdrawable` | false | Side bets are locked (§2.6); Lucky Shooter before its point: `/sideBets/<t>/removableBeforePoint` |
 | Exclusivity | `exclusiveGroups[]` with `scope: global/sameNumber`+ | — | `/exclusiveGroups/<i>/types`, `/exclusiveGroups/<i>/scope` |
-| | `excludeLineVsLayBuy`+ | IB: Pass blocks Lay on the point; Don't Pass blocks Buy on the point | `/excludeLineVsLayBuy` |
+| | `excludeLineVsLayBuy`+ | IB: Pass blocks Lay on the point; Don't Pass blocks Buy on the point. A blocked spot takes no money, so a lay or buy already up when the line bet reaches its number can be cut or taken down but not added to or pressed (§9 #30) | `/excludeLineVsLayBuy` |
 | Auto-actions | `afterWin` per type | `stay` / `return` / `stayIfFirstRoll`+ / `stayIf11`+ | `/catalog/<t>/afterWin`; the last two on line bets only |
 | | `keepBetsOn`, `repeatLastBet` | UI | `/flow/macros`: `repeatLastBet`, `double`, `keepBetsOn` |
 | Side bets | `hotShooter`, `luckyShooter`, `luckyRoller`, `fire`, `powerOdds` | See §6 | `/sideBets/<t>` by family: `handLength` (Hot Shooter), `pointRun` (Lucky Shooter), `collectSet` (Lucky Roller, one type each for Low, High and All), `uniquePointsMade` (Fire, with required `countedPoints` and `payTable`). Power Odds is not modeled (§5.2) |
@@ -869,6 +869,8 @@ The strategy lab (bots, progressions and Monte Carlo comparisons) is deferred pa
 | 27 | Whether per-bet minimums apply to each part of a composite (a $1 horn is four 25¢ parts) | **Resolved by plan §0 #15:** limits, increments and minimums apply to the composite's total stake |
 | 28 | Interblock "Set bets On": does it force the covered bets ON (`setGlobalWorking(false)`: Come odds then work on the come-out) or return them to the machine's defaults (`setGlobalWorking(null)`)? IB §3.2 does not say | **Defaults** (`null`) [A, plan §0 #21]: it ends the post-seven-out OFF, and Come odds stay OFF on the come-out (returned on a come-out 7). The coach marks it assumed; a crapless scenario pins it (`tests/scenarios/working.test.ts`) |
 | 29 | The post-seven-out OFF on a machine with per-bet toggles (no preset has both): does setting the bet back to its default end it? | **No** [reading]: the OFF is the machine's hold on the bet, not the bet's own setting. Setting the bet ON turns it ON; setting it back to its default leaves it held until Set bets On (or the point, under `until: pointEstablished`, which releases only the hold, not a player's own OFF); a `nextRollOnly` toggle reset leaves the hold |
+| 30 | Interblock's `excludeLineVsLayBuy` when the lay or buy is already up as the dice take the pass or don't pass bet to its number (no rule can stop that): may the player add to it or press it? | **No** [reading, IB221: the setting "will prevent the player from wagering on the Buy bet of the established Point"]: the bet stays up and can be cut or taken down, but takes no more money, whether by a new placement on its spot or by a press. Any exclusion blocks additions the same way (M6 reconciliation; `tests/oracle/reference.diff.test.ts`) |
+| 31 | Interblock's lay re-enable (`/layAutoOn`) on a lay the post-seven-out hold covers (no preset: IB §3.2 holds place and buy only): does a point made or a 7 end the hold? | **No** [reading, IB §3.2]: "Lay bets become enabled after a Point is reestablished or a 7 is rolled" is said of the bets "Set bets Off" disables, while bets held after a 7-out need "the Set bets On button" (§2.4). A lay a toggle switched OFF is set ON, its own setting outranking the hold; one OFF only by the hold stays OFF until Set bets On, or the point under `until: pointEstablished` (M6 reconciliation; `tests/oracle/reference.diff.test.ts`) |
 
 ---
 

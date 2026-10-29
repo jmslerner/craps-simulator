@@ -1,5 +1,6 @@
 import {
   Fraction,
+  cents,
   requireType,
   type Cents,
   type MachineConfig,
@@ -32,10 +33,10 @@ import { startAt, typicalStart } from './start.ts'
  *
  * | Bet | Standing cost per roll |
  * |---|---|
- * | number bets, hardways, one-roll bets, composites | loss per working roll × π(phases where a carried bet works) |
- * | pass, don't pass | loss per decision × π(comeOut): one decision starts on every come-out roll |
- * | come, don't come | loss per decision × π(point): one starts in the box on every point-phase roll |
- * | odds | loss per decision × the rate at which the parent arrives on the number |
+ * | number bets, hardways, one-roll, composites | loss per working roll × π(where it works) |
+ * | pass, don't pass | loss per decision × π(comeOut): one starts on each come-out roll |
+ * | come, don't come | loss per decision × π(point): one starts in the box on each point roll |
+ * | odds | loss per decision × the rate the parent arrives on the number |
  *
  * π and the arrival rates come from the round's own chain (`roundStats`) and the parent's chain;
  * the losses from the bet's chain, priced at the stake as the machine pays.
@@ -47,7 +48,11 @@ import { startAt, typicalStart } from './start.ts'
  * come-out to come-out and the bets placed in it.
  */
 
-/** Toggles a standing bet keeps: its own ON/OFF and the global button. */
+/**
+ * Toggles a standing bet keeps: its own ON/OFF and the global button. Interblock's post-seven-out
+ * hold is not one of them: it lasts until the player sets bets ON, which over the long run the
+ * player does, so standing costs take it as released.
+ */
 export interface Toggles {
   readonly working?: boolean | null
   readonly globalOff?: boolean | null
@@ -105,35 +110,46 @@ export function standingCost(
 
 /**
  * π(phases where it works): the long-run share of rolls on which a standing bet of `spec` works,
- * with `toggles`, per the engine's `effectiveWorking` in each phase. A standing bet has been carried
- * from earlier windows, unless its type cannot be (a one-roll bet that comes back after every roll:
- * the families' invariants reject it carried), in which case it is new on every roll.
+ * with `toggles`, per the engine's `effectiveWorking`.
+ *
+ * Where a bet works the same in each phase whether it is new or carried from an earlier window
+ * (every preset), this is plan §5.1's Σ π(phase) over the phases where it works. Where it does not
+ * (Shoot To Win with new chips working on the come-out and carried ones not, say), a bet placed
+ * again after it comes down is new for a roll or more, so the share comes from the exact re-bet
+ * cycle instead: working rolls ÷ rolls per cycle.
+ *
+ * Only for bets that can stand in every phase (number bets, hardways, one-roll bets and
+ * composites): a line bet or odds is tied to the round, and is priced per decision instead.
  */
 export function workingShare(spec: BetSpec, cfg: MachineConfig, toggles: Toggles = {}): Fraction {
-  const group = groupFor(spec, cfg)
-  let share = Fraction.ZERO
-  for (const { phase, share: weight } of roundStats(cfg).phases) {
-    const table = standingTable(group, spec, phase, toggles, cfg)
-    if (at(workingOf(table, cfg), group.subject)) share = share.add(weight)
+  const family = requireType(cfg, spec.typeId).type.family
+  if (family === 'line' || family === 'odds') {
+    throw new ExactError('BAD_SPEC', `${spec.typeId} is priced per decision, not per working roll`)
   }
-  return share
-}
-
-function standingTable(
-  group: Group,
-  spec: BetSpec,
-  phase: Phase,
-  toggles: Toggles,
-  cfg: MachineConfig,
-): TableNode {
+  const group = groupFor(spec, cfg)
   const working = toggles.working ?? null
   const globalOff = toggles.globalOff ?? null
-  try {
-    return startTable(group, spec, phase, { carried: true, working, globalOff }, cfg)
-  } catch (error) {
-    if (!(error instanceof ExactError) || error.code !== 'BAD_START') throw error
-    return startTable(group, spec, phase, { carried: false, working, globalOff }, cfg)
+  const works = (phase: Phase, carried: boolean): boolean | null => {
+    try {
+      const table = startTable(group, spec, phase, { carried, working, globalOff }, cfg)
+      return at(workingOf(table, cfg), group.subject)
+    } catch (error) {
+      // A one-roll bet that comes back after every roll cannot be carried (its invariants).
+      if (error instanceof ExactError && error.code === 'BAD_START') return null
+      throw error
+    }
   }
+  let share = Fraction.ZERO
+  let uniform = true
+  for (const { phase, share: weight } of roundStats(cfg).phases) {
+    const fresh = works(phase, false)
+    const carried = works(phase, true) ?? fresh
+    if (carried !== fresh) uniform = false
+    if (carried === true) share = share.add(weight)
+  }
+  if (uniform) return share
+  const cycle = rebetCycle(spec, cents(100), cfg, toggles)
+  return cycle.workingRolls.div(cycle.rolls)
 }
 
 /**
@@ -183,7 +199,9 @@ export function renewalCost(
     if (parent.window === 'comeOut') {
       // The come-out establishes n, then the odds face that point.
       const chance = stats.established.find(({ point }) => point === n)?.chance ?? Fraction.ZERO
-      loss = chance.mul(decisionLoss(spec, startAt({ kind: 'point', point: n }, toggles), amount, cfg))
+      loss = chance.mul(
+        decisionLoss(spec, startAt({ kind: 'point', point: n }, toggles), amount, cfg),
+      )
     } else {
       // A bet made under point p travels to n; the odds then face point p, or the come-out when
       // the travelling roll made the point.
@@ -199,28 +217,39 @@ export function renewalCost(
     }
     return loss.div(stats.rollsPerDecision)
   }
-  return rebetCycleCost(spec, amount, cfg, toggles)
+  const cycle = rebetCycle(spec, amount, cfg, toggles)
+  return cycle.loss.div(cycle.rolls)
+}
+
+/** One renewal cycle of a bet placed again whenever it comes down: expectations, in cents. */
+interface Cycle {
+  readonly loss: Fraction
+  readonly rolls: Fraction
+  readonly workingRolls: Fraction
 }
 
 /**
  * A bet up alone, placed again as soon as it comes down (or, if its window is closed, as soon as
- * it opens): E[loss per cycle] ÷ E[rolls per cycle], where a cycle runs from a fresh placement at a
- * regeneration state r to the next placement landing on r. Every step is the engine's (the same
- * `rollOutcomes` the analysis chains use); the cash of each step is priced at `amount`.
+ * it opens): the expected loss, rolls and working rolls of a cycle that runs from a fresh placement
+ * at a regeneration state r to the next placement landing on r. Every step is the engine's (the
+ * same `rollOutcomes` the analysis chains use); the cash of each step is priced at `amount`. A bet
+ * placed again is new and follows the toggles; the machine's post-seven-out hold is taken as
+ * released (the player sets bets ON), as the long run requires.
  */
-function rebetCycleCost(
-  spec: BetSpec,
-  amount: Cents,
-  cfg: MachineConfig,
-  toggles: Toggles,
-): Fraction {
+function rebetCycle(spec: BetSpec, amount: Cents, cfg: MachineConfig, toggles: Toggles): Cycle {
   const group = groupFor(spec, cfg)
   const subjectType = at(group.slots, group.subject).type
   const placement = upfrontCharge(spec, amount, cfg, 'rounded')
   const placeCost = Fraction.of(amount).add(placement)
   const rearm = rearmDue(subjectType, spec.number) ? placement : Fraction.ZERO
   const fresh = (phase: Phase, globalOff: boolean | null) =>
-    startTable(group, spec, phase, { carried: false, working: toggles.working ?? null, globalOff }, cfg)
+    startTable(
+      group,
+      spec,
+      phase,
+      { carried: false, working: toggles.working ?? null, globalOff },
+      cfg,
+    )
 
   interface Edge {
     readonly weight: number
@@ -229,6 +258,7 @@ function rebetCycleCost(
     readonly loss: Fraction
     readonly placesAgain: boolean
   }
+  const workingAt: boolean[] = []
   const keys = new Map<string, number>()
   const tables: TableNode[] = []
   const add = (table: TableNode) => {
@@ -239,11 +269,13 @@ function rebetCycleCost(
     tables.push(table)
     return tables.length - 1
   }
-  for (const { phase } of typicalStart(spec, cfg).phases) add(fresh(phase, toggles.globalOff ?? null))
+  for (const { phase } of typicalStart(spec, cfg).phases)
+    add(fresh(phase, toggles.globalOff ?? null))
   const edges: Edge[][] = []
   for (let i = 0; i < tables.length; i++) {
     const table = at(tables, i)
     const working = workingOf(table, cfg)
+    workingAt.push(at(working, group.subject))
     edges.push(
       rollOutcomes(group, table, working, cfg).map((outcome): Edge => {
         const decision = at(outcome.decisions, group.subject)
@@ -275,19 +307,18 @@ function rebetCycleCost(
     )
     const denominators = edges.flatMap((out) => out.map(({ loss }) => loss.den))
     const common = denominators.reduce((a, b) => lcm(a, b), 1n)
-    const rewards = edges.map((out) => {
+    const rewards = edges.map((out, state) => {
       let loss = 0n
       for (const { weight, to, loss: stepLoss, placesAgain } of out) {
         const counted = to === r && placesAgain ? stepLoss.sub(placeCost) : stepLoss
         loss += BigInt(weight) * counted.num * (common / counted.den)
       }
-      return [loss, 36n * common]
+      return [loss, 36n * common, at(workingAt, state) ? 36n * common : 0n]
     })
-    const values = solveChain({ scale: 36, steps, rewards, columns: 2 }).values[r]
+    const values = solveChain({ scale: 36, steps, rewards, columns: 3 }).values[r]
     if (values === null || values === undefined) continue
-    const cycleLoss = placeCost.add(at(values, 0).div(Fraction.of(common)))
-    const cycleRolls = at(values, 1).div(Fraction.of(common))
-    return cycleLoss.div(cycleRolls)
+    const per = (column: number) => at(values, column).div(Fraction.of(common))
+    return { loss: placeCost.add(per(0)), rolls: per(1), workingRolls: per(2) }
   }
   throw new ExactError('NEVER_RESOLVES', `${spec.typeId} is never placed again`)
 }

@@ -11,7 +11,6 @@ import {
   type BetInstance,
   type Cents,
   type MachineConfig,
-  type Rounding,
 } from '../engine/index.ts'
 import {
   ExactError,
@@ -27,6 +26,7 @@ import {
   type SolvedChain,
   type StartContext,
 } from './chain.ts'
+import { analysisCache, remember } from './cache.ts'
 import { at } from './solve.ts'
 import { startKey } from './start.ts'
 
@@ -86,8 +86,8 @@ export interface Priced {
 }
 
 const MAX_CACHED = 4_000
-const solvedCache = new Map<string, SolvedChain>()
-const distributionCache = new Map<string, Distribution>()
+const solvedCache = analysisCache<string, SolvedChain>()
+const distributionCache = analysisCache<string, Distribution>()
 
 /** The cache key of an analysis: everything a distribution depends on. */
 export function analysisKey(
@@ -119,7 +119,7 @@ export function solvedChain(
   const cached = solvedCache.get(key)
   if (cached !== undefined) return cached
   const solved = solveBetChain(buildChain(spec, start, horizon, cfg))
-  remember(solvedCache, key, solved)
+  remember(solvedCache, key, solved, MAX_CACHED)
   return solved
 }
 
@@ -137,7 +137,7 @@ export function distribution(
   const cached = distributionCache.get(key)
   if (cached !== undefined) return cached
   const made = startDistribution(key, solvedChain(spec, start, horizon, cfg))
-  remember(distributionCache, key, made)
+  remember(distributionCache, key, made, MAX_CACHED)
   return made
 }
 
@@ -257,8 +257,8 @@ export function upfrontCharge(
   return vigOf(vigBase(Fraction.of(amount), type, n, rule, unrounded), rule, unrounded)
 }
 
-/** Exact mode's rounding: none. */
-export function unrounded(amount: Fraction, _rounding: Rounding): Fraction {
+/** Exact mode's rounding: none (a `RoundFn` that ignores its rule). */
+export function unrounded(amount: Fraction): Fraction {
   return amount
 }
 
@@ -279,7 +279,7 @@ export function betAt(spec: BetSpec, amount: Cents): BetInstance {
 
 /** A bet's expected loss and amount risked over a distribution's horizon, in cents. */
 export interface Measured {
-  /** E[loss]: everything paid in (stake, up-front and re-collected vig) less everything credited. */
+  /** E[loss]: all paid in (stake, up-front and re-collected vig) less all credited. */
   readonly loss: Fraction
   /**
    * E[amount risked] (glossary; plan §0 #22): the stake of every decision, pushes included, plus
@@ -318,18 +318,4 @@ export function measure(
 export function edgeOf(measured: Measured): Fraction {
   if (measured.risked.isZero()) throw new ExactError('NEVER_RESOLVES', 'Nothing is ever risked')
   return measured.loss.div(measured.risked)
-}
-
-/** Empties the caches (tests that time cold computations). */
-export function clearAnalysisCache(): void {
-  solvedCache.clear()
-  distributionCache.clear()
-}
-
-function remember<T>(cache: Map<string, T>, key: string, value: T): void {
-  if (cache.size >= MAX_CACHED) {
-    const oldest = cache.keys().next()
-    if (oldest.done !== true) cache.delete(oldest.value)
-  }
-  cache.set(key, value)
 }

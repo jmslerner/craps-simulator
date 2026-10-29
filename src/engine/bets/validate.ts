@@ -44,15 +44,21 @@ import { canToggle, effectiveWorking } from './working.ts'
  *    one: `typeLimits`), then the table maximum.
  * 4. The family's own checks (`canPlace`): odds need a parent on a number, within the cap.
  * 5. Credit covers the increase, plus any up-front commission.
- * 6. Exclusive groups, for a new bet. A `place` on a bet already up needs no mutability check:
- *    `locate` lands it only on a bet that may grow. A pass bet on its point is out of its window
- *    (`WRONG_PHASE`) unless put bets are allowed, when it may grow; every other bet a `place`
- *    reaches (a line bet before its first roll, odds, number bets, hardways, one-roll bets and
- *    composites) may always grow. M11's locked side bets will need the check back.
+ * 6. Exclusive groups and the machine's exclusions, for a new bet and for an addition alike: no
+ *    money goes on a spot that a bet now up excludes. Only Interblock's `excludeLineVsLayBuy` can
+ *    leave a bet up beside one it excludes, when the dice take a pass or don't pass bet to the
+ *    number of a lay or buy already up; the player may then no longer wager on that lay or buy
+ *    (IB221: the setting "will prevent the player from wagering on the Buy bet of the established
+ *    Point"), though it may be cut or taken down. A `place` on a bet already up needs no
+ *    mutability check: `locate` lands it only on a bet that may grow. A pass bet on its point is
+ *    out of its window (`WRONG_PHASE`) unless put bets are allowed, when it may grow; every other
+ *    bet a `place` reaches (a line bet before its first roll, odds, number bets, hardways, one-roll
+ *    bets and composites) may always grow. M11's locked side bets will need the check back.
  *
  * A `setAmount` checks the bet's mutability right after its parameters, so a contract bet answers
  * `CONTRACT_BET` to every change, whatever the amount (plan §9 item 6); then the re-bet window (an
- * increase of a type blocked until the next come-out), limits, the odds caps and credit as above.
+ * increase of a type blocked until the next come-out), limits, the odds caps, credit and, for an
+ * increase, exclusivity as above.
  *
  * Malformed or extreme actions are refused, never thrown (plan §4.6): amounts are whole, safe
  * cents, and an addition is checked before it is summed, so no total leaves that range; a deposit,
@@ -143,11 +149,9 @@ export function validatePlace(
   const vig = family.vigOnChange?.(before ?? { ...after, amount: cents(0) }, amount, type, cfg)
   const short = creditShortfall(state, action.amount, vig ?? NO_VIG)
   if (short !== null) return short
-  // 6. Exclusivity, for a new bet.
-  if (before === null) {
-    const clash = exclusiveConflict(state, type.typeId, after.number, cfg)
-    if (clash !== null) return clash
-  }
+  // 6. Exclusivity, for a new bet or an addition (M6 reconciliation: additions were let through).
+  const clash = exclusiveConflict(state, type.typeId, after.number, cfg)
+  if (clash !== null) return clash
   return {
     resolved,
     before,
@@ -209,6 +213,11 @@ export function validateSetAmount(
   const vig = family.vigOnChange?.(bet, to, type, cfg) ?? NO_VIG
   const short = creditShortfall(state, to - bet.amount, vig)
   if (short !== null) return short
+  // More money on a spot that a bet now up excludes (step 6 of `validatePlace`).
+  if (change === 'increase') {
+    const clash = exclusiveConflict(state, bet.typeId, bet.number, cfg)
+    if (clash !== null) return clash
+  }
   return {
     ...unchanged,
     children: to === 0 ? oddsOf(state, bet.id) : [],

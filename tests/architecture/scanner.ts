@@ -673,8 +673,9 @@ const ORACLE_AREAS: readonly OracleArea[] = [
   },
 ]
 /**
- * Of src/engine/core, oracles may load rational.ts and dice.ts and what those load, nothing else:
- * every import into engine/core from outside it, at any depth, must be of one of these.
+ * Of src/engine/core, oracles may load rational.ts and dice.ts and what those load (but never
+ * money.ts, an area of its own), nothing else: every import into engine/core from outside it, at
+ * any depth, must be of one of these two.
  */
 const ENGINE_CORE = 'src/engine/core'
 const CORE_ENTRIES = ['src/engine/core/rational.ts', 'src/engine/core/dice.ts']
@@ -853,7 +854,7 @@ function analyze(file: string, source: string): { violations: Violation[]; edges
     for (const { specifier, line, typeOnly } of imports) {
       const target = resolveSpecifier(file, specifier)
       const area =
-        target === undefined ? undefined : (oracle.areaOf(target) ?? oracle.entry(target))
+        target === undefined ? undefined : (oracle.areaOf(target) ?? oracle.entryOf(target))
       if (area !== undefined && (area.types || !typeOnly)) {
         report(line, 'oracle-independence', `${area.imports}: ${target}`)
       }
@@ -888,7 +889,7 @@ interface OracleRule {
    * For an import of `target` from outside src/engine/core: the area of the engine/core module it
    * enters there, if it may not (see CORE_ENTRIES).
    */
-  readonly entry: (target: string) => OracleArea | undefined
+  readonly entryOf: (target: string) => OracleArea | undefined
 }
 
 /**
@@ -900,7 +901,7 @@ function oracleRule(file: string): OracleRule | undefined {
   if (file === DISPATCH_CHAIN) {
     return {
       areaOf: (target) => (isAt(target, 'src/exact', true) ? DISPATCH_CHAIN_AREA : undefined),
-      entry: () => undefined,
+      entryOf: () => undefined,
     }
   }
   const areaOf = (target: string) =>
@@ -908,7 +909,7 @@ function oracleRule(file: string): OracleRule | undefined {
     ORACLE_AREAS.find((area) => area.dir && isAt(target, area.path, true))
   return {
     areaOf,
-    entry: (target) =>
+    entryOf: (target) =>
       isAt(target, ENGINE_CORE, true) &&
       !CORE_ENTRIES.some((path) => isAt(target, path)) &&
       areaOf(target) === undefined
@@ -949,7 +950,8 @@ function checkReach(file: string, graph: ReadonlyMap<string, readonly Edge[]>): 
     for (const edge of graph.get(from) ?? []) {
       const reach = { path: [...path, edge.target], line: from === file ? edge.line : line }
       // Every import into engine/core counts, not only the first to reach a module there.
-      if (!isAt(from, ENGINE_CORE, true)) report(oracle.entry(edge.target), reach.path, reach.line)
+      if (!isAt(from, ENGINE_CORE, true))
+        report(oracle.entryOf(edge.target), reach.path, reach.line)
       if (chains.has(edge.target)) continue
       chains.set(edge.target, reach)
       queue.push(edge.target)

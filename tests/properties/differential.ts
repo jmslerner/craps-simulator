@@ -4,6 +4,7 @@ import { compileConfig, type MachineConfig } from '../../src/engine/config/compi
 import { PRESETS, type PresetId } from '../../src/engine/config/presets/index.ts'
 import type { MachineConfigInput } from '../../src/engine/config/schema.ts'
 import { canonicalJson } from '../../src/engine/core/hash.ts'
+import { Fraction } from '../../src/engine/core/rational.ts'
 import { effectiveWorking } from '../../src/engine/bets/working.ts'
 import type { GameEvent } from '../../src/engine/table/events.ts'
 import { applyAction, type ActionResult } from '../../src/engine/table/reducer.ts'
@@ -19,10 +20,12 @@ import {
   type RefTable,
 } from '../oracle/referenceTable.ts'
 import {
+  COMMISSION_EVENTS,
   engineAction,
   intent,
   keyOf,
   newCoverage,
+  oddsTypes,
   offeredTypes,
   recordResult,
   resolveIntent,
@@ -327,14 +330,39 @@ export function describeMismatch(mismatch: Mismatch): string {
   ].join('\n')
 }
 
+/** How much a set of runs must reach beyond every type and decision kind (`expectExercised`). */
+export interface ExerciseBar {
+  /** Each odds type the machine offers placed at least this often. */
+  readonly oddsPlaced: number
+  /** These commission events (rules spec §4.3, §4.5), each at least `commissionCount` times. */
+  readonly commission: readonly CommissionEvent[]
+  readonly commissionCount: number
+}
+
+export type CommissionEvent = keyof typeof COMMISSION_EVENTS
+
+const NO_BAR: ExerciseBar = { oddsPlaced: 1, commission: [], commissionCount: 1 }
+
 /** What a set of runs must have exercised on `cfg` for the comparison to mean anything. */
-export function expectExercised(report: DiffReport, cfg: MachineConfig): void {
+export function expectExercised(
+  report: DiffReport,
+  cfg: MachineConfig,
+  bar: ExerciseBar = NO_BAR,
+): void {
   const { coverage } = report
   const count = (map: Map<string, number>, key: string) => map.get(key) ?? 0
   const missing = (map: Map<string, number>) =>
     offeredTypes(cfg).filter((typeId) => count(map, typeId) === 0)
   expect(missing(coverage.placed), 'types never placed').toEqual([])
   expect(missing(coverage.settled), 'types never settled').toEqual([])
+  const rareOdds = oddsTypes(cfg).filter(
+    (typeId) => count(coverage.placed, typeId) < bar.oddsPlaced,
+  )
+  expect(rareOdds, `odds types placed fewer than ${bar.oddsPlaced} times`).toEqual([])
+  const rareCommission = bar.commission.filter(
+    (event) => count(coverage.machine, COMMISSION_EVENTS[event]) < bar.commissionCount,
+  )
+  expect(rareCommission, `commission events fewer than ${bar.commissionCount}`).toEqual([])
   const kinds = ['win:stay', 'win:return', 'lose', 'travel', 'push:offReturned']
   if (cfg.ruleset.dontBar !== null) kinds.push('push:bar')
   if ([...cfg.composites.values()].some((type) => type.pushes.size > 0)) kinds.push('push:zeroNet')
@@ -356,4 +384,26 @@ export function expectExercised(report: DiffReport, cfg: MachineConfig): void {
   }
   // Both sides refused a share of the actions, so validation was compared too.
   expect(report.refused).toBeGreaterThan(report.actions / 10)
+}
+
+/**
+ * The refusal codes the two models disagree on, which must all come from one known difference of
+ * check order: a `setAmount` on a contract bet answers `CONTRACT_BET` in the engine before
+ * anything else (plan §9 item 6: every change attempt gets it), where the reference table follows
+ * plan §4.6's order and may name a limit, the odds cap, credit or the re-bet window first. Any
+ * other pair is listed, as `engine/oracle`.
+ */
+export function unexplainedCodePairs(report: DiffReport): string[] {
+  return [...report.codePairs.keys()].filter((pair) => !pair.startsWith('CONTRACT_BET/'))
+}
+
+/** How often both models refused with the same code, as printable text. */
+export function codeAgreement(report: DiffReport): string {
+  if (report.refused === 0) return 'no refusals'
+  const share = Fraction.of(report.sameCode, report.refused).formatPercent(2)
+  const pairs = [...report.codePairs].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+  return (
+    `${report.sameCode} of ${report.refused} refusals with the same code (${share}%); ` +
+    `differing: ${JSON.stringify(Object.fromEntries(pairs))}`
+  )
 }

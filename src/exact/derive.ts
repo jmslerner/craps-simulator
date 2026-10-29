@@ -124,7 +124,8 @@ export function derive(
 function ways(spec: BetSpec, start: StartContext, cfg: MachineConfig): DerivationStep {
   const { chain } = solvedChain(spec, start, 'decision', cfg)
   const ranked = [...chain.starts].sort((a, b) => {
-    const working = Number(at(chain.nodes, b.node).working) - Number(at(chain.nodes, a.node).working)
+    const working =
+      Number(at(chain.nodes, b.node).working) - Number(at(chain.nodes, a.node).working)
     return working !== 0 ? working : b.weight.compare(a.weight)
   })
   const first = ranked[0]

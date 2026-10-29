@@ -6,6 +6,7 @@ import {
   type Phase,
   type PointNumber,
 } from '../engine/index.ts'
+import { analysisCache, remember } from './cache.ts'
 import { COME_OUT, roundAt } from './chain.ts'
 import { at, solveChain } from './solve.ts'
 
@@ -45,15 +46,14 @@ export interface RoundStats {
 }
 
 const SCALE = 36
-const cache = new Map<string, RoundStats>()
+const cache = analysisCache<string, RoundStats>()
 
 /** The round statistics of `cfg`'s ruleset, cached by config hash. */
 export function roundStats(cfg: MachineConfig): RoundStats {
   const cached = cache.get(cfg.configHash)
   if (cached !== undefined) return cached
   const stats = computeRoundStats(cfg)
-  if (cache.size > 64) cache.clear()
-  cache.set(cfg.configHash, stats)
+  remember(cache, cfg.configHash, stats, 64)
   return stats
 }
 
@@ -65,7 +65,10 @@ function computeRoundStats(cfg: MachineConfig): RoundStats {
   const indexOf = (phase: Phase) =>
     phase.kind === 'comeOut' ? 0 : 1 + cfg.ruleset.points.indexOf(phase.point)
   const rolls = phases.map((phase) =>
-    DICE_CLASSES.map((dice) => ({ weight: dice.weight, step: advanceRound(roundAt(phase), dice, cfg.ruleset) })),
+    DICE_CLASSES.map((dice) => ({
+      weight: dice.weight,
+      step: advanceRound(roundAt(phase), dice, cfg.ruleset),
+    })),
   )
   const points = cfg.ruleset.points
 

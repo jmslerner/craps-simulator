@@ -1,10 +1,6 @@
-import {
-  type Cents,
-  type Fraction,
-  type MachineConfig,
-  type PointNumber,
-} from '../engine/index.ts'
+import { type Cents, type Fraction, type MachineConfig, type PointNumber } from '../engine/index.ts'
 import { exactUnit, smallestAmount } from './amounts.ts'
+import { analysisCache, remember } from './cache.ts'
 import { analyzeBet } from './analyze.ts'
 import { ExactError, type BetSpec } from './chain.ts'
 import { distribution, edgeOf, measure } from './price.ts'
@@ -46,7 +42,7 @@ export interface CatalogRow {
   readonly assumedPaths: readonly string[]
 }
 
-const cache = new Map<string, readonly CatalogRow[]>()
+const cache = analysisCache<string, readonly CatalogRow[]>()
 
 /** Every non-side bet `cfg` offers, on each of its numbers, in config order. */
 export function catalogSpecs(cfg: MachineConfig): BetSpec[] {
@@ -87,8 +83,7 @@ export function catalogTable(cfg: MachineConfig): readonly CatalogRow[] {
       if (!(error instanceof ExactError)) throw error
     }
   }
-  if (cache.size > 32) cache.clear()
-  cache.set(cfg.configHash, rows)
+  remember(cache, cfg.configHash, rows, 32)
   return rows
 }
 
@@ -121,7 +116,9 @@ export function catalogRow(spec: BetSpec, cfg: MachineConfig): CatalogRow {
         ? null
         : {
             amount: minimum,
-            edge: edgeOf(measure(distribution(spec, start, 'lifetime', cfg), minimum, cfg, 'rounded')),
+            edge: edgeOf(
+              measure(distribution(spec, start, 'lifetime', cfg), minimum, cfg, 'rounded'),
+            ),
           },
     assumedPaths: analysis.assumedPaths,
   }

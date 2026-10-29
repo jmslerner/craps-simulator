@@ -987,6 +987,15 @@ describe('Fire Bet (rules spec §6.6, §0.2 #13; plan §9 item 5)', () => {
     // (at once on the 6th, or a 6+ tier); paying nothing above 6 at the seven-out is 17.1059%.
     const all10 = fire('crapless', [...BOX, ...CRAPLESS_EXTRA], 6)
     expect(all10.edge.formatPercent(4)).toBe('13.4152')
+    same(
+      all10.edge,
+      '50321828082661097007132879108739539881622629562732643479311167898892810350855048011169384' +
+        '22917314198543551857967148398565965220654956270135756795431100803676917851251937126278008' +
+        '908371863921337976531793647/' +
+        '37511014834422891225308602430019086716844803038153173621335056537544265387140732571296040' +
+        '40548818237320678462897383219149507044983328403858807597436681385450491236949836535682619' +
+        '2716804443025489836094313696',
+    )
     const sixPlus = new Map([...PAYS, [7, f(999)], [8, f(999)], [9, f(999)], [10, f(999)]])
     same(fire('crapless', [...BOX, ...CRAPLESS_EXTRA], null, sixPlus).edge, all10.edge)
     expect(fire('crapless', [...BOX, ...CRAPLESS_EXTRA], null).edge.formatPercent(4)).toBe(

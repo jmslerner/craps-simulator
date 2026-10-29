@@ -43,6 +43,9 @@
  *   the win paid toward the vig. A winner that comes down anyway is never charged again.
  * - `incrementByNumber` applies to the bet's own number, an odds bet's parent point and a put
  *   bet's point; a bet with no number takes its type's increment.
+ * - An exclusion blocks every wager on the spot it covers, an addition or press of a bet already
+ *   there included (IB221 on `excludeLineVsLayBuy`: "prevent the player from wagering on the Buy
+ *   bet of the established Point"); cutting or taking that bet down stays allowed.
  */
 import { incrementOf, typeFacts, type MachineFacts, type TypeFacts } from './machineFacts.ts'
 import {
@@ -444,6 +447,7 @@ function place(
  *   parent down returns its odds with it.
  * - Upfront vig: an increase tops it up to the vig due on the new amount; a reduction or take-down
  *   refunds the excess only with `refundOnTakeDown`.
+ * - An increase meets the exclusions a `place` there would, after the contract check.
  */
 function setAmount(facts: MachineFacts, s: Draft, ref: RefBetRef, amount: number): Rejected | Done {
   const found = findBet(s, ref)
@@ -487,6 +491,14 @@ function setAmount(facts: MachineFacts, s: Draft, ref: RefBetRef, amount: number
         `${type.id} on ${bet.number} cannot be ${delta > 0 ? 'increased' : 'reduced or removed'}`,
       )
     }
+  }
+  // An increase is a wager on the bet's spot, so the exclusions that block a `place` there block
+  // it too (rules spec §5.1 `excludeLineVsLayBuy`, IB221: the setting "will prevent the player
+  // from wagering on the Buy bet of the established Point"). (M6 reconciliation: only `place`
+  // checked them, so a press of a buy on the don't pass point went through.)
+  if (delta > 0) {
+    const conflict = exclusiveConflict(facts, s, type, bet.number)
+    if (conflict !== null) return reject('EXCLUSIVE_CONFLICT', conflict)
   }
 
   const { vigHeld, refund } =
@@ -785,16 +797,23 @@ function isLay(facts: MachineFacts, bet: RefBetState): boolean {
   return type.family === 'numberVsSeven' && type.kind === 'lay'
 }
 
-/** Switched OFF by the player, by bet or by the global button (what Interblock turns back ON). */
+/**
+ * Switched OFF by the player, by bet or by the global button (what Interblock turns back ON). Not
+ * the post-seven-out OFF: rules spec §2.4 says only Set bets On (or the point, under `until:
+ * pointEstablished`) ends it, and IB §3.2 gives the lay re-enable among the bets "Set bets Off"
+ * disables, while bets held after a 7-out need "the Set bets On button". (M6 reconciliation: a lay
+ * the hold covered came back ON here; no preset holds lays.)
+ */
 function toggledOff(facts: MachineFacts, s: Draft, bet: RefBetState): boolean {
-  if (bet.offAfterSevenOut || bet.working === false) return true
+  if (bet.working === false) return true
   return (
     bet.working === null && s.globalOff === true && facts.working.toggle.types.includes(bet.typeId)
   )
 }
 
+/** The lay set ON; a post-seven-out hold stays, below the bet's own setting (§2.4). */
 function layOn(bet: RefBetState): RefBetState {
-  return { ...bet, working: true, offAfterSevenOut: false }
+  return { ...bet, working: true }
 }
 
 /** Checks the model's own invariants; a failure is a bug in the oracle, never a finding. */
