@@ -1,6 +1,6 @@
 {
-  // Test code runs under Vitest in Node. It also covers the unit tests that sit next to core
-  // and physics modules, so the pure projects contain only shipped code.
+  // Test code runs under Vitest in Node. It also covers the unit tests that sit next to core,
+  // physics and worker modules, so those projects contain only shipped code.
   "extends": "./tsconfig.base.json",
   "compilerOptions": {
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.test.tsbuildinfo",
@@ -13,6 +13,7 @@
     "src/exact/**/*.test.ts",
     "src/coach/**/*.test.ts",
     "src/sim/**/*.test.ts",
-    "src/physics/**/*.test.ts"
+    "src/physics/**/*.test.ts",
+    "src/workers/**/*.test.ts"
   ]
 }

@@ -1,0 +1,9 @@
+# The research and plans under docs/ stay exactly as written.
+docs/**
+
+# Generated output.
+/dist/
+/dist-e2e/
+/coverage/
+/playwright-report/
+/test-results/

@@ -27,9 +27,10 @@ export function drawKicks(
 
 function drawKick(prng: Prng, pose: Pose, kick: KickParams, domeRadius: number): Kick {
   const [x, , z] = pose.p
-  const r = Math.min(Math.sqrt(x * x + z * z), domeRadius)
   // Radial falloff: the burst comes from the centre, so a die near the wall gets less of it.
-  const falloff = Math.max(0, 1 - kick.falloff * (r / domeRadius) ** 2)
+  // Plain products rather than ** keep the arithmetic exact IEEE in every JS engine.
+  const reach = Math.min((x * x + z * z) / (domeRadius * domeRadius), 1)
+  const falloff = Math.max(0, 1 - kick.falloff * reach)
   const launch = prng.range(kick.launchMin, kick.launchMax) * falloff
   const [jx, jz] = inDisc(prng)
   const axis = onSphere(prng)

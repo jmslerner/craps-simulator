@@ -1,20 +1,9 @@
-import type { Rng } from '../../engine/core/rng.ts'
-
 /**
- * Unpredictable generator backed by the platform CSPRNG, for normal play.
- * It lives in the ui shell because core code may not touch `crypto`; M1 turns it into
- * `newSessionSeed()`, so the engine only ever sees a seed.
+ * A fresh session seed from the platform CSPRNG, as 16 hex digits. It lives in the ui shell
+ * because core code may not touch `crypto`: the engine only ever sees this string, through
+ * `seedRng`, so any session can be replayed from its seed.
  */
-export function createCryptoRng(): Rng {
-  const buffer = new Uint32Array(64)
-  let index = buffer.length
-  return {
-    nextUint32() {
-      if (index >= buffer.length) {
-        globalThis.crypto.getRandomValues(buffer)
-        index = 0
-      }
-      return buffer[index++] ?? 0
-    },
-  }
+export function newSessionSeed(): string {
+  const words = crypto.getRandomValues(new Uint32Array(2))
+  return Array.from(words, (word) => word.toString(16).padStart(8, '0')).join('')
 }

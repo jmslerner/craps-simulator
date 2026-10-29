@@ -1,8 +1,11 @@
 /**
  * Every physics tunable, in one place. Units: 1 u = one die edge (19 mm), seconds, radians.
- * Starting values come from implementation-plan §7; tune them with `node scripts/physics-stats.ts`.
+ * Starting values come from implementation-plan §7. Tune with `node scripts/physics-stats.ts`.
  * Changing any value changes recordings, so the golden hash in simulate.test.ts must be re-pinned.
+ * Recordings carry `paramsFingerprint(params)`, so a plan never pairs a recording with other params.
  */
+import { createHasher } from './hash.ts'
+
 export interface SurfaceParams {
   readonly friction: number
   readonly restitution: number
@@ -14,11 +17,16 @@ export interface DieParams extends SurfaceParams {
   readonly borderRadius: number
   readonly linearDamping: number
   readonly angularDamping: number
+  /**
+   * Soft-CCD prediction distance, u: contacts are predicted this far ahead, so a fast die meets
+   * the floor or dome instead of sinking into it for a step. Hard CCD only prevents tunnelling.
+   */
+  readonly softCcd: number
 }
 
 export interface FloorParams extends SurfaceParams {
-  /** A fixed cylinder with its top at y = 0, wider than the dome so its rim is always floored. */
-  readonly radius: number
+  /** A fixed slab with its top at y = 0, wider than the dome so the dome's rim sits on it. */
+  readonly halfWidth: number
   readonly thickness: number
 }
 
@@ -65,6 +73,11 @@ export interface ValidityParams {
   readonly maxSettleTime: number
   /** How far a resting die may press into the dome wall and still count as inside, u. */
   readonly wallTolerance: number
+  /**
+   * How deep a die may press into the floor, the dome or the other die at any frame, u. Solver
+   * contacts sink a little at impacts; deeper means a die went into or through something.
+   */
+  readonly maxOverlap: number
 }
 
 export interface FallbackParams {
@@ -83,19 +96,46 @@ export interface HopParams {
   readonly turns: number
   /** Landing distance of each die from the floor centre, u. */
   readonly landing: number
+  /**
+   * Spare room a die needs from the floor, the dome and the other die before it may tumble, on
+   * top of its circumradius, u. Until then it keeps its start orientation.
+   */
+  readonly margin: number
 }
 
 /** Fresh rest poses for first load, restore and fallback (synthesizeRest). */
 export interface RestParams {
   /** Dice are placed within this distance of the floor centre, u. */
   readonly spread: number
-  /** Minimum distance between the two dice centres; √2 stops footprints overlapping at any yaw. */
+  /** Minimum distance between the dice centres; √2 keeps footprints apart at any yaw. */
   readonly minSeparation: number
 }
 
 export interface SnapParams {
   /** Clearance from the floor, dome and other die for a frame to count as airborne, u. */
   readonly airborneClearance: number
+  /** Slowest turn, rad/s over a frame, that hides a change of drawn face. */
+  readonly minTurnRate: number
+}
+
+/** How Rapier resolves contacts, and when a recording flags one. */
+export interface ContactParams {
+  /**
+   * Contact stiffness as a natural frequency, Hz. A resting die sinks about g/(2πf)², so
+   * Rapier's default of 30 Hz, meant for metre-sized bodies under 9.81 m/s², lets it sink
+   * 0.015 u; 300 Hz keeps it under 0.002 u.
+   */
+  readonly frequency: number
+  /** Gauss-Seidel passes inside each solver iteration. */
+  readonly pgsIterations: number
+  /** Penetration the solver leaves uncorrected, u (Rapier's normalised value; length unit 1). */
+  readonly allowedError: number
+  /** CCD substeps per step: more lets a fast die meet two surfaces in one step. */
+  readonly ccdSubsteps: number
+  /** Rapier's contact skin on each die, u: colliders touch this far apart. */
+  readonly skin: number
+  /** A recording flags a die as touching a surface while its gap to it is at most this, u. */
+  readonly touchGap: number
 }
 
 export interface PhysicsParams {
@@ -103,8 +143,10 @@ export interface PhysicsParams {
   readonly gravity: number
   /** Physics step, s. */
   readonly timestep: number
+  /** Rapier's solver iterations per step; each is a substep of its soft-constraint solver. */
   readonly solverIterations: number
-  /** Physics steps per recorded frame: 240 Hz stepping recorded at 60 Hz. */
+  readonly contact: ContactParams
+  /** Physics steps per recorded frame: 480 Hz stepping recorded at 60 Hz. */
   readonly stepsPerFrame: number
   readonly die: DieParams
   readonly floor: FloorParams
@@ -121,9 +163,20 @@ export interface PhysicsParams {
 
 export const DEFAULT_PARAMS: PhysicsParams = {
   gravity: -516,
-  timestep: 1 / 240,
+  // 480 Hz rather than the plan's 240 Hz, and stiffer contacts than Rapier's default: at 240 Hz
+  // and 30 Hz, dice sat 0.03 u into the floor at rest and overlapped by up to 0.18 u in sustained
+  // contact (6000 throws); now 0.002 u and 0.033 u, for about 4 ms per throw in Node.
+  timestep: 1 / 480,
   solverIterations: 8,
-  stepsPerFrame: 4,
+  contact: {
+    frequency: 300,
+    pgsIterations: 1,
+    allowedError: 0.001,
+    ccdSubsteps: 1,
+    skin: 0,
+    touchGap: 0.005,
+  },
+  stepsPerFrame: 8,
   die: {
     halfExtent: 0.42,
     borderRadius: 0.08,
@@ -131,8 +184,9 @@ export const DEFAULT_PARAMS: PhysicsParams = {
     restitution: 0.35,
     linearDamping: 0,
     angularDamping: 0,
+    softCcd: 0.25,
   },
-  floor: { radius: 8, thickness: 1, friction: 0.6, restitution: 0.25 },
+  floor: { halfWidth: 8, thickness: 1, friction: 0.6, restitution: 0.25 },
   dome: { radius: 7.5, segments: 48, rings: 16, friction: 0.25, restitution: 0.45 },
   pop: {
     duration: 0.07,
@@ -161,9 +215,37 @@ export const DEFAULT_PARAMS: PhysicsParams = {
     heightTolerance: 0.03,
     maxSettleTime: 4.5,
     wallTolerance: 0.05,
+    maxOverlap: 0.1,
   },
   fallback: { popRetries: 8, dropTries: 4 },
-  hop: { airTime: 0.5, apex: 2.5, turns: 2, landing: 1 },
+  hop: { airTime: 0.5, apex: 2.5, turns: 2, landing: 1, margin: 0.05 },
   rest: { spread: 2.5, minSeparation: 1.6 },
-  snap: { airborneClearance: 0.05 },
+  snap: { airborneClearance: 0.05, minTurnRate: 6 },
+}
+
+const fingerprints = new WeakMap<PhysicsParams, string>()
+
+/**
+ * A 16-hex-digit hash of every value in `params`, keys sorted, so equal params always agree.
+ * Recordings carry it, and buildPlaybackPlan refuses a recording made with other params.
+ */
+export function paramsFingerprint(params: PhysicsParams): string {
+  const cached = fingerprints.get(params)
+  if (cached !== undefined) return cached
+  const hasher = createHasher()
+  const text = canonicalJson(params)
+  for (let i = 0; i < text.length; i++) hasher.mix(text.charCodeAt(i))
+  const fingerprint = hasher.digest()
+  fingerprints.set(params, fingerprint)
+  return fingerprint
+}
+
+/** JSON with object keys sorted at every level; numbers print the same in every JS engine. */
+function canonicalJson(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`
+  if (typeof value === 'object' && value !== null) {
+    const entries = Object.entries(value).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+    return `{${entries.map(([key, item]) => `${JSON.stringify(key)}:${canonicalJson(item)}`).join(',')}}`
+  }
+  return JSON.stringify(value)
 }

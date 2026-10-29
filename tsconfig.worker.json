@@ -7,5 +7,7 @@
   },
   // "files": [] stops tsc -b failing with TS18003 (no inputs) until src/workers exists.
   "files": [],
-  "include": ["src/workers"]
+  "include": ["src/workers"],
+  // Worker tests run under Node in the core Vitest project, so tsconfig.test.json checks them.
+  "exclude": ["src/**/*.test.ts"]
 }

@@ -19,7 +19,7 @@ export class Fraction {
     const d = toBigInt(den)
     if (d === 0n) throw new RangeError('Fraction denominator cannot be zero')
     const sign = d < 0n ? -1n : 1n
-    const divisor = gcd(abs(n), abs(d))
+    const divisor = gcd(absBig(n), absBig(d))
     return new Fraction((sign * n) / divisor, (sign * d) / divisor)
   }
 
@@ -30,6 +30,19 @@ export class Fraction {
     let total = Fraction.ZERO
     for (const value of values) total = total.add(value)
     return total
+  }
+
+  /**
+   * Rebuilds a fraction sent through `toWire`. Wire data comes from workers and IndexedDB, so
+   * anything other than two integer strings with a non-zero denominator is rejected.
+   */
+  static fromWire(wire: readonly [string, string]): Fraction {
+    const value: unknown = wire
+    if (!Array.isArray(value) || value.length !== 2 || !value.every(isIntegerString)) {
+      throw new TypeError('A wire fraction must be [num, den] as two integer strings')
+    }
+    const [num, den] = value as [string, string]
+    return Fraction.of(BigInt(num), BigInt(den))
   }
 
   add(other: Fraction): Fraction {
@@ -49,8 +62,29 @@ export class Fraction {
     return Fraction.of(this.num * other.den, this.den * other.num)
   }
 
+  /** ⌊this ÷ divisor⌋, rounding toward −∞ (bigint `/` alone truncates toward zero). */
+  floorDiv(divisor: Fraction): bigint {
+    const quotient = this.div(divisor)
+    const truncated = quotient.num / quotient.den
+    return quotient.num < 0n && truncated * quotient.den !== quotient.num
+      ? truncated - 1n
+      : truncated
+  }
+
   neg(): Fraction {
     return new Fraction(-this.num, this.den)
+  }
+
+  abs(): Fraction {
+    return this.num < 0n ? this.neg() : this
+  }
+
+  min(other: Fraction): Fraction {
+    return this.compare(other) <= 0 ? this : other
+  }
+
+  max(other: Fraction): Fraction {
+    return this.compare(other) >= 0 ? this : other
   }
 
   compare(other: Fraction): -1 | 0 | 1 {
@@ -74,6 +108,32 @@ export class Fraction {
     return Number(this.num) / Number(this.den)
   }
 
+  /**
+   * This value as a percentage with exactly `digits` decimals, rounded half away from zero in
+   * integer arithmetic: 1/66 gives "1.52" and 373/6930 gives "5.38". There is no "%" sign, and a
+   * value that rounds to zero prints without a minus sign.
+   */
+  formatPercent(digits: number): string {
+    if (!Number.isSafeInteger(digits) || digits < 0) {
+      throw new RangeError(`digits must be a non-negative integer, got ${digits}`)
+    }
+    const scaled = absBig(this.num) * 100n * 10n ** BigInt(digits)
+    let units = scaled / this.den
+    if (2n * (scaled % this.den) >= this.den) units += 1n
+    const text = units.toString().padStart(digits + 1, '0')
+    const whole = text.slice(0, text.length - digits)
+    const sign = this.num < 0n && units !== 0n ? '-' : ''
+    return digits === 0 ? `${sign}${whole}` : `${sign}${whole}.${text.slice(-digits)}`
+  }
+
+  /**
+   * `[num, den]` as decimal strings: JSON-safe, and it survives a structured clone, which drops
+   * the class's prototype.
+   */
+  toWire(): readonly [string, string] {
+    return [this.num.toString(), this.den.toString()]
+  }
+
   toString(): string {
     return this.den === 1n ? `${this.num}` : `${this.num}/${this.den}`
   }
@@ -87,7 +147,11 @@ function toBigInt(value: bigint | number): bigint {
   return BigInt(value)
 }
 
-function abs(value: bigint): bigint {
+function isIntegerString(value: unknown): boolean {
+  return typeof value === 'string' && /^-?\d+$/.test(value)
+}
+
+function absBig(value: bigint): bigint {
   return value < 0n ? -value : value
 }
 

@@ -37,7 +37,14 @@ export const FACE_NORMALS: Readonly<Record<DieFace, Vec3>> = {
 }
 
 /** FACE_NORMALS as axis indices. */
-export const FACE_AXIS: Readonly<Record<DieFace, AxisIndex>> = { 1: 2, 6: 3, 2: 4, 5: 5, 3: 0, 4: 1 }
+export const FACE_AXIS: Readonly<Record<DieFace, AxisIndex>> = {
+  1: 2,
+  6: 3,
+  2: 4,
+  5: 5,
+  3: 0,
+  4: 1,
+}
 
 /** The face whose normal is each axis, indexed by AxisIndex: the inverse of FACE_AXIS. */
 export const AXIS_FACE: readonly DieFace[] = [3, 4, 1, 6, 2, 5]

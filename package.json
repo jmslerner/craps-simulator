@@ -14,11 +14,13 @@
     "typecheck": "tsc -b",
     "lint": "eslint .",
     "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "test": "vitest run --project core --project ui --project physics",
     "test:watch": "vitest --project core --project ui --project physics",
     "test:slow": "vitest run --project slow",
+    "coverage": "vitest run --project core --coverage",
     "e2e": "playwright test",
-    "verify": "tsc -b && eslint . && npm test && vite build && node scripts/check-bundle.ts"
+    "verify": "tsc -b && eslint . && npm run format:check && npm test && npm run coverage && vite build && node scripts/check-bundle.ts"
   },
   "dependencies": {
     "@dimforge/rapier3d-deterministic-compat": "0.19.3",

@@ -9,6 +9,10 @@ export interface DiceRoll {
   readonly d2: DieFace
 }
 
+/** The implementation plan's names for these: one die face, and the two dice of a roll. */
+export type Die = DieFace
+export type Dice = DiceRoll
+
 /** An unordered pair of faces (`d1 <= d2`) and how many of the 36 ordered rolls show it. */
 export interface DiceClass extends DiceRoll {
   readonly weight: 1 | 2

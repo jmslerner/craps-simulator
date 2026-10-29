@@ -11,7 +11,9 @@ export default mergeConfig(
           test: {
             name: 'core',
             environment: 'node',
-            include: ['src/{engine,exact,coach,sim}/**/*.test.ts', 'tests/**/*.test.ts'],
+            // Workers have no DOM, so their tests run here too. A test file that no project
+            // includes is never run, and Vitest does not warn about it.
+            include: ['src/{engine,exact,coach,sim,workers}/**/*.test.ts', 'tests/**/*.test.ts'],
             exclude: [...configDefaults.exclude, 'tests/slow/**'],
           },
         },

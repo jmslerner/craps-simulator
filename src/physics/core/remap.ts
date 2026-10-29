@@ -3,7 +3,13 @@
  * face is drawn on each body face. Face `target` shows on top when R[o]·n_target = a_up, where
  * a_up is the body-local axis pointing up at rest.
  */
-import { CUBE_ROTATIONS, FACE_AXIS, rotationAngleDeg, type AxisIndex, type DieFace } from './cube.ts'
+import {
+  CUBE_ROTATIONS,
+  FACE_AXIS,
+  rotationAngleDeg,
+  type AxisIndex,
+  type DieFace,
+} from './cube.ts'
 
 /** Every offset that puts `target` on top of a body whose up axis is `aUp`: always exactly 4. */
 export function remapCandidates(aUp: AxisIndex, target: DieFace): number[] {

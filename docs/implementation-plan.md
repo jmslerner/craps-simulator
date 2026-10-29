@@ -1034,8 +1034,8 @@ Every milestone ends with `npm run verify` green, plus its own acceptance check.
 | Milestone | Status | Notes |
 |---|---|---|
 | Scaffold (pre-M0) | done | TS 5.9.3, ESLint 10, Vite 8, Vitest 5, jsdom 29.1.1; `src/engine/{rational,rng,dice,money,variant,probability}.ts` + 31 tests |
-| M0 | pending | |
-| M1 | pending | |
-| P1 | pending | |
+| M0 | done | Integrated 2026-10-28: `verify` (24 files, 190 tests) and `e2e` (3 projects) green. Physics has its own pure `tsconfig.physics.json`. Core unit tests are type-checked by `tsconfig.test.json` and exempt from the purity and rounding bans (now in CLAUDE.md). `createCryptoRng` moved to `ui/services/seed.ts` early. The integrator added `src/workers` tests to the Node `core` Vitest project, because no project collected them and Vitest skips such files silently. For later: `check-bundle` enforces only the initial-JS budget (M10a adds the rest); `test:slow` fails with "No test files found" until M7; `e2e/**` has no DOM types, so M8 must declare the `__CRAPS_TEST__` hook type; the scanner has no scope analysis, so locals named like banned globals (e.g. `window` in M5) must be renamed. |
+| M1 | done | `money.ts` takes a structural `RatioLike`, so core never imports config. Hash API: `hashJson`, `canonicalJson`, `fnv1a64`. Seeds still squeeze to 32 bits, as before; changing that needs an `ENGINE_VERSION` bump and a new snapshot. For M2: `Rounding.increment` must go through `cents()`, and the zod enum can reuse `RoundingMode`. For M11: `parseRatio` rejects "1 for 1" (a push), so the Hot Shooter Jackpot push tier needs another representation. |
+| P1 | done | 300 seeds: 100% valid first time; golden hash `3e108626a432e120` (re-pin after any params, popper or Rapier change); about 3 ms per throw in Node. Deviations: a box floor (a cylinder let wedged dice sink through), soft CCD 0.25 u, and a trimesh dome with `FIX_INTERNAL_EDGES`. Contacts are not recorded yet; M10b's handoff needs them. `simulateThrow` derives its retry seeds itself, so the UI passes `deriveSeed32(sessionSeed, 'physics', rollIndex)` with no `attempt` part. Dice settle in about 0.5 s; M10a should judge the look and tune `params.ts`. |
 | M2 | ready | research landed in `docs/rules/research/` (spec.md + 4 topic files + verification.json) |
 | M3–M14 | pending | |

@@ -8,8 +8,6 @@
     "lib": ["ES2023"],
     "types": []
   },
-  // "files": [] stops tsc -b failing with TS18003 (no inputs) until P1 adds src/physics.
-  "files": [],
   "include": ["src/physics"],
   "exclude": ["src/**/*.test.ts"]
 }
