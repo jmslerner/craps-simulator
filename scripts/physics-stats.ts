@@ -13,16 +13,17 @@ import { buildPlaybackPlan, synthesizeRest, type PlaybackPlan } from '../src/phy
 import { createPrng, deriveSeed } from '../src/physics/core/prng.ts'
 import { angleBetween } from '../src/physics/core/quat.ts'
 import { framePose, touchesAt } from '../src/physics/core/recording.ts'
-import { naturalTopFace, posesOf, type RestState } from '../src/physics/core/restPose.ts'
+import { naturalTopFace, type RestState } from '../src/physics/core/restPose.ts'
 import { simulateThrow, type ThrowResult } from '../src/physics/core/simulate.ts'
-import type { Depths } from '../src/physics/core/validity.ts'
+import type { DepthProfile, Depths } from '../src/physics/core/validity.ts'
 import { initPhysics } from '../src/physics/core/world.ts'
 
 const USAGE = `Usage: node scripts/physics-stats.ts [--seeds N] [--chain L] [--base S] [--verbose]
 
 Simulates N throws in sessions of L throws, each starting where the last one came to rest, and
 prints first-attempt validity, fallback use, exact depths into the floor, the dome and the other
-die, settle times, wall-clock cost, contacts, how well the face snap hides, and natural top faces.
+die (at any physics step, and at the 60 Hz frames that are shown), settle times, wall-clock cost,
+contacts, how well the face snap hides, and natural top faces.
 
 Options:
   --seeds N    number of throws (default 300)
@@ -81,9 +82,15 @@ async function main(args: string[]): Promise<number> {
     if (index % chain === 0) rest = synthesizeRest(deriveSeed(base, index), [1, 1])
     const seed = deriveSeed(base, count + index)
     const began = performance.now()
-    const result = simulateThrow(seed, posesOf(rest))
+    const result = simulateThrow(seed, rest)
     const ms = performance.now() - began
-    const plan = buildPlaybackPlan(result.recording, { d1: roll(), d2: roll() }, rest, 'snap')
+    // From the rest the throw started from: the one asked for, unless it could not start one.
+    const plan = buildPlaybackPlan(
+      result.recording,
+      { d1: roll(), d2: roll() },
+      result.rest,
+      'snap',
+    )
     samples.push({ index, result, plan, ms })
     rest = plan.rest
   }
@@ -103,6 +110,7 @@ function report(samples: readonly Sample[], chain: number, verbose: boolean): vo
   const endedAs = (source: string) =>
     samples.filter((sample) => sample.result.recording.source === source).length
   const retried = samples.filter((sample) => sample.result.attempts.length > 1).length
+  const restarted = samples.filter((sample) => !sample.result.start.valid).length
   const physicsAttempts = attempts.filter((attempt) => attempt.source !== 'hop').length
   // A first attempt that never settled counts as infinitely late.
   const settle = sorted(
@@ -112,16 +120,22 @@ function report(samples: readonly Sample[], chain: number, verbose: boolean): vo
   const throwMs = sorted(samples.map((sample) => sample.ms))
   const lowerApex = sorted(firsts.map((attempt) => Math.min(...attempt.apex)))
 
-  // Exact depths of every attempt, the shown recordings among them.
-  const depthRow = (pick: (attempt: (typeof attempts)[number]) => Depths) => {
-    const of = (key: keyof Depths) => attempts.map((attempt) => pick(attempt)[key])
-    const deepest = sorted(of('deepest'))
+  // Exact depths of every attempt, the shown recordings among them: the deepest at any physics
+  // step, which checkRecording holds to maxOverlap, then what the 60 Hz frames show.
+  const depthRows = (surface: keyof DepthProfile, label: string): [string, string][] => {
+    const of = (key: keyof Depths) => attempts.map((attempt) => attempt.depths[surface][key])
+    const step = sorted(of('step'))
+    const frame = sorted(of('frame'))
     const sustained = Math.max(...of('sustained'))
     const atRest = Math.max(...of('atRest').filter(Number.isFinite))
-    return (
-      `deepest ${u(Math.max(...deepest))} (p99 ${u(quantile(deepest, 0.99))}), ` +
-      `sustained ${u(sustained)}, at rest ${u(atRest)}`
-    )
+    return [
+      [label, `per step: deepest ${u(Math.max(...step))} (p99 ${u(quantile(step, 0.99))})`],
+      [
+        '  per 60 Hz frame',
+        `deepest ${u(Math.max(...frame))} (p99 ${u(quantile(frame, 0.99))}), ` +
+          `sustained ${u(sustained)}, at rest ${u(atRest)}`,
+      ],
+    ]
   }
 
   // Contacts of the shown recordings: how much of each throw each die spends touching something.
@@ -167,14 +181,15 @@ function report(samples: readonly Sample[], chain: number, verbose: boolean): vo
     ['first attempt valid', `${firstValid}/${n} (${pct(firstValid, n)})`],
     ['invalid reasons', [...reasons].map(([r, k]) => `${r} ${k}`).join(', ') || 'none'],
     ['throws retried', `${retried}, in ${attempts.length} attempts`],
+    ['started from fresh poses', `${restarted} (rest asked for could not start a throw)`],
     ['ended as', `pop ${endedAs('pop')}, drop ${endedAs('drop')}, hop ${endedAs('hop')}`],
     [
       'apex, first attempt',
       `lower die min ${u(lowerApex[0] ?? NaN)}, p5 ${u(quantile(lowerApex, 0.05))}`,
     ],
-    ['depth into floor', depthRow((attempt) => attempt.depths.floor)],
-    ['depth into dome', `${depthRow((attempt) => attempt.depths.dome)} (R ${dome.radius})`],
-    ['depth into other die', depthRow((attempt) => attempt.depths.dice)],
+    ...depthRows('floor', 'depth into floor'),
+    ...depthRows('dome', `depth into dome (R ${dome.radius})`),
+    ...depthRows('dice', 'depth into other die'),
     ['settle, simulated', `p50 ${sec(quantile(settle, 0.5))}, p95 ${sec(quantile(settle, 0.95))}`],
     ['wall clock per throw', `mean ${ms(totalMs / n)}, p95 ${ms(quantile(throwMs, 0.95))}`],
     ['per physics attempt', `mean ${ms(totalMs / physicsAttempts)}`],
@@ -184,7 +199,7 @@ function report(samples: readonly Sample[], chain: number, verbose: boolean): vo
     ['natural top faces', [...faces].map(([face, k]) => `${face}:${k}`).join(' ')],
     ['  uniformity', `χ² ${chi2.toFixed(2)} on 5 dof (p = .05 at 11.07)`],
   ]
-  for (const [label, value] of rows) console.log(`${label.padEnd(22)}${value}`)
+  for (const [label, value] of rows) console.log(`${label.padEnd(26)}${value}`)
 
   if (!verbose) return
   for (const { index, result } of samples) {

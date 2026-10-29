@@ -25,6 +25,7 @@ const DOUBLE = { '4': 2, '5': 2, '6': 2, '8': 2, '9': 2, '10': 2 }
 /** "5% of the BET amount is deducted from the win" (buy) / "of the WIN pay amount" (lay). */
 const ON_WIN = { timing: 'onWin', minimum: 0, refundOnTakeDown: false, rearm: 'none' } as const
 const CENT_UP = { mode: 'ceil', increment: 1 } as const
+const CENT_DOWN = { mode: 'floor', increment: 1 } as const
 
 const RIDES = {
   status: 'verified',
@@ -44,6 +45,12 @@ const COME_OUT_ON = {
   note: 'Not on the come-out auto-OFF list, so it works (rules spec §0.2 #2).',
 } as const
 
+const SAME_NUMBER = {
+  status: 'assumed',
+  source: 'CW §21',
+  note: 'The card bars these "for the same roll"; reading that as the same number is assumed, and place and buy may share a number (rules spec §5.2).',
+} as const
+
 const DONT_RIDES = {
   status: 'verified',
   source: 'CW §30',
@@ -53,6 +60,12 @@ const DONT_RIDES = {
 const CENT_ROUNDING = {
   status: 'assumed',
   note: 'A sub-cent commission rounds up to the cent (rules spec §0.2 #3); only a lay can produce one.',
+} as const
+
+const PLACE_6_8_UP = {
+  status: 'reported',
+  source: 'WOV-30281; WOV-11344; WOV-32511',
+  note: 'Place 6/8 rounds up to the cent (rules spec §0.2 #3): a $2 bet paid $2.34 (2018), which only rounding up gives; $1 pays $1.17 (2012, 2019), which rules out rounding down.',
 } as const
 
 const HORN_SINGLE = {
@@ -181,7 +194,8 @@ export const traditionalBubble: MachineConfigInput = deepFreeze({
         '9': '7 to 5',
         '10': '9 to 5',
       },
-      payoutRounding: CENT_UP,
+      payoutRounding: CENT_DOWN,
+      payoutRoundingByNumber: { '6': CENT_UP, '8': CENT_UP },
       afterWin: 'stay',
       comeOutDefault: 'off',
     },
@@ -541,10 +555,11 @@ export const traditionalBubble: MachineConfigInput = deepFreeze({
       note: '9 to 5, 7 to 5 and 7 to 6 (not 6:5: rules spec §0.2 #9).',
     },
     '/catalog/place/payoutRounding': {
-      status: 'reported',
-      source: 'WOV-11344; WOV-32511',
-      note: 'Place 6/8 rounds up to the cent: $1 pays $1.17 and $2 pays $2.34 (rules spec §0.2 #3). 4/5/9/10 pay whole cents on whole-dollar bets.',
+      status: 'assumed',
+      note: 'Place 4, 5, 9 and 10 floor a fractional pay to the cent: no report exists either way, and only 6/8 is reported to round up (rules spec §0.2 #3). Whole-dollar bets on them pay whole cents.',
     },
+    '/catalog/place/payoutRoundingByNumber/6': PLACE_6_8_UP,
+    '/catalog/place/payoutRoundingByNumber/8': PLACE_6_8_UP,
     '/catalog/place/afterWin': RIDES,
     '/catalog/place/comeOutDefault': AUTO_OFF,
     '/catalog/buy': {
@@ -653,6 +668,11 @@ export const traditionalBubble: MachineConfigInput = deepFreeze({
       note: 'All On, All Off and per-chip OFF, "from the upcoming roll onward", on ODDS, DON\'T ODDS, COME ODDS, DON\'T COME ODDS, BIG 6/8, PLACE, BUY, PLACE TO LOSE, LAY and HARDWAYS (rules spec §0.2 #1).',
     },
     '/comeOut/autoOff': AUTO_OFF,
+    '/comeOut/autoOff/newlyPlaced': {
+      status: 'assumed',
+      source: 'CW §4',
+      note: 'The card turns OFF only chips left from the previous series; chips newly placed for the come-out are assumed OFF too (rules spec §9 #7).',
+    },
     '/afterSevenOut': {
       status: 'verified',
       source: 'CW §4',
@@ -676,6 +696,10 @@ export const traditionalBubble: MachineConfigInput = deepFreeze({
       source: 'CW §5f, §9f, §21',
       note: 'Pass vs Don\'t Pass and Come vs Don\'t Come; PLACE vs PLACE TO LOSE/LAY and BUY vs LAY/PLACE TO LOSE "for the same roll". Reading those as same-number conflicts, and allowing place and buy together, is assumed.',
     },
+    '/exclusiveGroups/2/scope': SAME_NUMBER,
+    '/exclusiveGroups/3/scope': SAME_NUMBER,
+    '/exclusiveGroups/4/scope': SAME_NUMBER,
+    '/exclusiveGroups/5/scope': SAME_NUMBER,
     '/excludeLineVsLayBuy': {
       status: 'assumed',
       note: 'An Interblock setting; Shoot To Win documents no such exclusion.',

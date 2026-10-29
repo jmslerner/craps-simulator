@@ -10,6 +10,7 @@ import {
   POINT_KEYS,
   POINT_NUMBERS,
   VARIANTS,
+  isPointNumber,
   makeRuleset,
   partitionIssues,
   variantIssues,
@@ -98,6 +99,12 @@ describe('point numbers', () => {
     expect([...POINT_NUMBERS]).toEqual(TOTALS.filter((total) => total !== 7))
     expect([...POINT_KEYS]).toEqual(POINT_NUMBERS.map(String))
     expect([...HARD_KEYS]).toEqual(HARD_NUMBERS.map(String))
+  })
+
+  it('are recognized by isPointNumber, and nothing else is', () => {
+    expect(TOTALS.filter(isPointNumber)).toEqual([...POINT_NUMBERS])
+    for (const other of [0, 1, 7, 13, 6.5, -6])
+      expect(isPointNumber(other), String(other)).toBe(false)
   })
 })
 

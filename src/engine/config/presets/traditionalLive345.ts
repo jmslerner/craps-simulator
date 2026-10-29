@@ -24,6 +24,9 @@ const LAY_ODDS = {
 const THREE_FOUR_FIVE = { '4': 3, '5': 4, '6': 5, '8': 5, '9': 4, '10': 3 }
 /** The don't side may lay 6x the flat bet on every point, which wins 3x, 4x or 5x. */
 const SIX_TIMES = { '4': 6, '5': 6, '6': 6, '8': 6, '9': 6, '10': 6 }
+/** Odds units that pay whole dollars (rules spec §3.1): take $1/$2/$5, lay $2/$3/$6. */
+const TAKE_UNITS = { '4': 100, '5': 200, '6': 500, '8': 500, '9': 200, '10': 100 }
+const LAY_UNITS = { '4': 200, '5': 300, '6': 600, '8': 600, '9': 300, '10': 200 }
 
 /** Harrah's Philadelphia: 5% rounded down to whole dollars, $1 minimum, refunded on take-down. */
 const LIVE_VIG = {
@@ -46,6 +49,16 @@ const PROPS = {
   status: 'verified',
   source: 'MD-C; HAR-PA; WOO-HE',
   note: 'Posted "to 1": any 7 4 to 1, craps 7 to 1, 3 and 11 15 to 1, 2 and 12 30 to 1.',
+} as const
+
+const ODDS_UNITS = {
+  status: 'assumed',
+  note: 'Odds go in the units that pay whole dollars (rules spec §3.1): take $1 on 4/10, $2 on 5/9 and $5 on 6/8; lay $2, $3 and $6. Other amounts would be paid short, and a $1 lay on 4 would win $0, so the table takes multiples only.',
+} as const
+
+const COMPOSITE_UNITS = {
+  status: 'assumed',
+  note: 'A dealer books a whole-dollar unit on each number: the horn in $4s, C&E in $2s, horn high and the world in $5s, so a $1 horn is refused rather than paid in quarters (rules spec §9 #27).',
 } as const
 
 /**
@@ -77,10 +90,17 @@ export const traditionalLive345: MachineConfigInput = deepFreeze({
       come: { min: 1_000 },
       dontPass: { min: 1_000 },
       dontCome: { min: 1_000 },
-      passOdds: { max: 2_500_000 },
-      comeOdds: { max: 2_500_000 },
-      dontPassOdds: { max: 3_000_000 },
-      dontComeOdds: { max: 3_000_000 },
+      passOdds: { max: 2_500_000, incrementByNumber: TAKE_UNITS },
+      comeOdds: { max: 2_500_000, incrementByNumber: TAKE_UNITS },
+      dontPassOdds: { max: 3_000_000, incrementByNumber: LAY_UNITS },
+      dontComeOdds: { max: 3_000_000, incrementByNumber: LAY_UNITS },
+      ce: { min: 200, increment: 200 },
+      horn: { min: 400, increment: 400 },
+      hornHigh2: { min: 500, increment: 500 },
+      hornHigh3: { min: 500, increment: 500 },
+      hornHigh11: { min: 500, increment: 500 },
+      hornHigh12: { min: 500, increment: 500 },
+      world: { min: 500, increment: 500 },
     },
     minTotal: null,
   },
@@ -448,7 +468,7 @@ export const traditionalLive345: MachineConfigInput = deepFreeze({
     },
     '/money/payoutRounding': {
       status: 'verified',
-      source: 'LVA-RND; WOO-HE',
+      source: 'LVA-RND; HAR-PA',
       note: 'Pays round down to whole dollars ("keep the change"): $5 on the 6 pays $5.',
     },
     '/money/startingBankroll': { status: 'assumed', note: 'Trainer default; not a table value.' },
@@ -461,6 +481,17 @@ export const traditionalLive345: MachineConfigInput = deepFreeze({
       status: 'assumed',
       note: '$10 line minimum and $5,000 maximum; odds may exceed the table maximum (3-4-5x of $5,000; lays up to 6x). Props from $1.',
     },
+    '/limits/perType/passOdds/incrementByNumber': ODDS_UNITS,
+    '/limits/perType/comeOdds/incrementByNumber': ODDS_UNITS,
+    '/limits/perType/dontPassOdds/incrementByNumber': ODDS_UNITS,
+    '/limits/perType/dontComeOdds/incrementByNumber': ODDS_UNITS,
+    '/limits/perType/ce': COMPOSITE_UNITS,
+    '/limits/perType/horn': COMPOSITE_UNITS,
+    '/limits/perType/hornHigh2': COMPOSITE_UNITS,
+    '/limits/perType/hornHigh3': COMPOSITE_UNITS,
+    '/limits/perType/hornHigh11': COMPOSITE_UNITS,
+    '/limits/perType/hornHigh12': COMPOSITE_UNITS,
+    '/limits/perType/world': COMPOSITE_UNITS,
     '/chips': { status: 'assumed', note: 'Standard $1, $5, $25, $100 and $500 chips.' },
     '/catalog/pass': {
       status: 'verified',

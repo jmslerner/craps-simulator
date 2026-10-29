@@ -33,9 +33,9 @@ const DOUBLE_ODDS = {
 }
 
 const ODDS_PAYS = {
-  status: 'reported',
+  status: 'assumed',
   source: 'MD-CL; WOO-CL',
-  note: 'True odds, including 6:1 on 2/12 and 3:1 on 3/11, as on live crapless tables. Interblock pay tables are per par sheet and not public.',
+  note: 'True odds, including 6:1 on 2/12 and 3:1 on 3/11, as on live crapless tables. Interblock pays come from its par sheet, which is not public (rules spec §5.2, §9 #4).',
 } as const
 
 const ODDS_LIMIT = {
@@ -81,6 +81,18 @@ const COME_OUT_ON = {
   status: 'verified',
   source: 'IB §2.6, §3.2; IB221',
   note: 'Place and buy bets work on the come-out unless set OFF (rules spec §0.2 #4).',
+} as const
+
+const LUCKY_ROLLER = {
+  status: 'verified',
+  source: 'IB §6.2',
+  note: "Low Rolls 2 to 6, High Rolls 8 to 12, Roll 'Em All all ten, before any 7; offered on every Interblock game, crapless included.",
+} as const
+
+const LUCKY_ROLLER_PAYS = {
+  status: 'reported',
+  source: 'IB §6.2 (game screen); VA',
+  note: "30, 30 and 155 to 1: the screen shows Low 31, Roll 'Em All 156 and High 31 for 1 (rules spec §0.2 #10).",
 } as const
 
 const LUCKY_ROLLER_WINDOW = {
@@ -324,7 +336,9 @@ export const craplessBubble: MachineConfigInput = deepFreeze({
     types: ['place', 'buy', 'passOdds', 'comeOdds', 'hard'],
   },
   comeOut: { autoOff: null },
-  afterSevenOut: { newPlacedOff: { types: ['place', 'buy'], until: 'playerOn' } },
+  afterSevenOut: {
+    newPlacedOff: { types: ['place', 'buy'], trigger: 'sevenOut', until: 'playerOn' },
+  },
   layAutoOn: null,
   oddsOffReturnedAtPointMade: true,
   offBets: { consumeCredit: true },
@@ -402,7 +416,12 @@ export const craplessBubble: MachineConfigInput = deepFreeze({
     '/catalog/come': {
       status: 'verified',
       source: 'IB §2.4',
-      note: 'Placed only after a point is set; a contract bet once it travels.',
+      note: 'Placed after a point is set; a contract bet once it travels.',
+    },
+    '/catalog/come/window': {
+      status: 'assumed',
+      source: 'IB §2.4',
+      note: 'Taken only in the point phase (rules spec §3.1); the IB §2.4 text also allows a Come bet after the pass point is made (rules spec §9 #26).',
     },
     '/catalog/come/afterWin': COME_RETURNED,
     '/catalog/passOdds': {
@@ -430,9 +449,9 @@ export const craplessBubble: MachineConfigInput = deepFreeze({
       note: 'Place bets on all ten points, on any roll.',
     },
     '/catalog/place/pays': {
-      status: 'verified',
+      status: 'assumed',
       source: 'CW §17; WOO-B',
-      note: 'Standard 9:5, 7:5 and 7:6 on 4 to 10.',
+      note: 'The standard 9:5, 7:5 and 7:6 on 4 to 10, as on Shoot To Win and live tables. Interblock v2.5.1 removed its pay tables, and its par sheet is not public (rules spec §5.2).',
     },
     '/catalog/place/pays/2': PLACE_2_12,
     '/catalog/place/pays/12': PLACE_2_12,
@@ -566,11 +585,12 @@ export const craplessBubble: MachineConfigInput = deepFreeze({
       source: 'IB §2.9; IB (Horn bets)',
       note: 'C&E wins on 2, 3, 11 and 12; the Horn field splits the bet equally among the four horn singles.',
     },
-    '/sideBets': {
-      status: 'reported',
-      source: 'IB §6.2 (game screen); VA',
-      note: "Lucky Roller pays 30, 30 and 155 to 1: the screen shows Low 31, Roll 'Em All 156 and High 31 for 1 (rules spec §0.2 #10).",
-    },
+    '/sideBets/luckyRollerLow': LUCKY_ROLLER,
+    '/sideBets/luckyRollerHigh': LUCKY_ROLLER,
+    '/sideBets/luckyRollerAll': LUCKY_ROLLER,
+    '/sideBets/luckyRollerLow/pays': LUCKY_ROLLER_PAYS,
+    '/sideBets/luckyRollerHigh/pays': LUCKY_ROLLER_PAYS,
+    '/sideBets/luckyRollerAll/pays': LUCKY_ROLLER_PAYS,
     '/sideBets/luckyRollerLow/placement': LUCKY_ROLLER_WINDOW,
     '/sideBets/luckyRollerHigh/placement': LUCKY_ROLLER_WINDOW,
     '/sideBets/luckyRollerAll/placement': LUCKY_ROLLER_WINDOW,
@@ -580,7 +600,12 @@ export const craplessBubble: MachineConfigInput = deepFreeze({
     '/workingToggle': {
       status: 'verified',
       source: 'IB §3.2',
-      note: '"Set bets On/Off" covers Place, Buy, Odds and Hard Ways (Lay is not offered in crapless) and stays until changed; no per-bet toggle.',
+      note: '"Set bets On/Off" covers Place, Buy, Odds and Hard Ways (Lay is not offered in crapless) and stays until changed.',
+    },
+    '/workingToggle/perBet': {
+      status: 'assumed',
+      source: 'IB §3.2',
+      note: 'IB §3.2 describes only the one Set bets On/Off button; no per-bet toggle is documented.',
     },
     '/comeOut': {
       status: 'verified',
@@ -592,6 +617,11 @@ export const craplessBubble: MachineConfigInput = deepFreeze({
       source: 'IB §3.2',
       note: 'After a 7-out, new Place and Buy bets are set OFF until the player taps Set bets On.',
     },
+    '/afterSevenOut/newPlacedOff/trigger': {
+      status: 'assumed',
+      source: 'IB §3.2',
+      note: '"After a 7 (7-out) is rolled" is read as a seven-out only, so place and buy bets made after a come-out 7 work; it may be any 7 (rules spec §9 #6).',
+    },
     '/afterSevenOut/newPlacedOff/until': {
       status: 'assumed',
       source: 'IB §3.2',
@@ -599,9 +629,9 @@ export const craplessBubble: MachineConfigInput = deepFreeze({
     },
     '/layAutoOn': { status: 'verified', source: 'IB §2.6', note: 'Crapless offers no lay bets.' },
     '/oddsOffReturnedAtPointMade': {
-      status: 'verified',
+      status: 'assumed',
       source: 'IB §3.2',
-      note: '"Odds bets are removed when a Point is reestablished" while set OFF.',
+      note: '"Odds bets are removed when a Point is reestablished" while set OFF, read as: OFF odds are returned when the point is made. The research marks this reading unverified (core.md §5.1).',
     },
     '/offBets': {
       status: 'verified',

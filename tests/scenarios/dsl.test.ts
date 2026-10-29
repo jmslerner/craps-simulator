@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import { craplessBubble } from '../../src/engine/config/presets/index.ts'
 import type { DieFace } from '../../src/engine/core/dice.ts'
-import { scenario } from './dsl.ts'
+import { scenario, withoutMinimum } from './dsl.ts'
 
-// A scenario that cannot fail proves nothing, so the DSL's own checks are tested here.
+// A scenario that cannot fail proves nothing, so the DSL's own checks are tested here. Scenarios
+// that roll an empty table run without the machine's minimum total (`withoutMinimum`).
 
 describe('the scenario DSL', () => {
   it('starts at the session start, on a preset id or a config', () => {
@@ -24,16 +25,16 @@ describe('the scenario DSL', () => {
   })
 
   it('checks only the facts it is given', () => {
-    scenario('traditionalBubble')
+    scenario(withoutMinimum('traditionalBubble'))
       .roll(5, 6)
       .expect({ transition: 'natural' })
       .expect({ point: null, handRolls: 1 })
   })
 
   it('fails on a wrong fact, naming the machine and the rolls so far', () => {
-    expect(() => scenario('craplessBubble').roll(5, 6).roll(2, 2).expect({ point: 4 })).toThrow(
-      /craplessBubble, after 5-6, 2-2/,
-    )
+    expect(() =>
+      scenario(withoutMinimum('craplessBubble')).roll(5, 6).roll(2, 2).expect({ point: 4 }),
+    ).toThrow(/craplessBubble, after 5-6, 2-2/)
     expect(() => scenario('craplessBubble').expect({ handIndex: 1 })).toThrow(
       /craplessBubble, before any roll/,
     )
@@ -58,7 +59,7 @@ describe('the scenario DSL', () => {
   })
 
   it('exposes the round and the last transition for checks the facts don’t cover', () => {
-    const s = scenario('craplessBubble').roll(5, 6)
+    const s = scenario(withoutMinimum('craplessBubble')).roll(5, 6)
     expect(s.round.phase).toEqual({ kind: 'point', point: 11 })
     expect(s.transition).toEqual({ kind: 'pointEstablished', point: 11 })
   })

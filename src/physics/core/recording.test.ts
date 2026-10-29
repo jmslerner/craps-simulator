@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import {
   contactByte,
+  deeper,
   FLOATS_PER_FRAME,
   framePose,
   hashRecording,
+  NO_DEPTH,
   readPoses,
   touchesAt,
   touchesDuring,
@@ -27,12 +29,14 @@ function recording(frameCount: number): Recording {
     frameRate: 60,
     stepsPerFrame: STEPS_PER_FRAME,
     contacts,
+    stepDepths: { floor: 0.012, dome: -0.25, dice: 0.004 },
     settleFrame: frameCount - 2,
     finalPoses,
     finalUpAxis: [2, 4],
     source: 'pop',
     seed: 1234,
     paramsFingerprint: '0123456789abcdef',
+    restHash: 'fedcba9876543210',
   }
 }
 
@@ -112,5 +116,21 @@ describe('hashRecording', () => {
     expect(hashRecording({ ...rec, finalUpAxis: [2, 5] })).not.toBe(hash)
     expect(hashRecording({ ...rec, stepsPerFrame: 4 })).not.toBe(hash)
     expect(hashRecording({ ...rec, paramsFingerprint: '0123456789abcdee' })).not.toBe(hash)
+    expect(hashRecording({ ...rec, restHash: 'fedcba9876543211' })).not.toBe(hash)
+    for (const surface of ['floor', 'dome', 'dice'] as const) {
+      const depth = rec.stepDepths[surface]
+      // The last bit of the double: the depths are hashed whole.
+      const nudged = { ...rec.stepDepths, [surface]: depth + Math.abs(depth) * 2 ** -52 }
+      expect(hashRecording({ ...rec, stepDepths: nudged })).not.toBe(hash)
+    }
+  })
+})
+
+describe('step depths', () => {
+  it('keep the deeper value for each surface, from nothing touched', () => {
+    const a = { floor: 0.01, dome: -2, dice: -0.3 }
+    const b = { floor: -0.5, dome: 0.004, dice: -0.1 }
+    expect(deeper(a, b)).toEqual({ floor: 0.01, dome: 0.004, dice: -0.1 })
+    expect(deeper(NO_DEPTH, a)).toEqual(a)
   })
 })

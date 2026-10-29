@@ -28,6 +28,29 @@ export const TOUCH_DIE = 4
 export const TOUCH_ANY = TOUCH_FLOOR | TOUCH_DOME | TOUCH_DIE
 const BITS_PER_DIE = 3
 
+/**
+ * How deep a die pressed into the floor, the dome's trimesh and the other die, u: minus the
+ * smallest gap (see gap.ts), so negative when it never touched that surface. Exact wherever it is
+ * at least −2 × `contact.touchGap`; below that it may be any lower value.
+ */
+export interface SurfaceDepths {
+  readonly floor: number
+  readonly dome: number
+  readonly dice: number
+}
+
+/** The deeper of `a` and `b` for each surface. */
+export function deeper(a: SurfaceDepths, b: SurfaceDepths): SurfaceDepths {
+  return {
+    floor: Math.max(a.floor, b.floor),
+    dome: Math.max(a.dome, b.dome),
+    dice: Math.max(a.dice, b.dice),
+  }
+}
+
+/** Depths for a recording that has not touched anything yet: the start of a running maximum. */
+export const NO_DEPTH: SurfaceDepths = { floor: -Infinity, dome: -Infinity, dice: -Infinity }
+
 export interface Recording {
   /**
    * frameCount × 2 dice × [px, py, pz, qx, qy, qz, qw]: body poses, not the drawn faces. Over a
@@ -44,6 +67,13 @@ export interface Recording {
    */
   readonly contacts: Uint8Array<ArrayBuffer>
   /**
+   * The deepest either die pressed into each surface at any physics step from 0 to the last
+   * frame's, read from the same gaps as `contacts`. The 60 Hz frames show only every
+   * `stepsPerFrame`-th step, and an impact can sink a die further between two of them, so
+   * checkRecording holds these to `validity.maxOverlap` as well as the frames.
+   */
+  readonly stepDepths: SurfaceDepths
+  /**
    * The first frame at which both dice are at rest, or -1 if they never settled. The frames after
    * it confirm the rest; the last frame equals `finalPoses`.
    */
@@ -56,6 +86,11 @@ export interface Recording {
   readonly seed: number
   /** paramsFingerprint of the params it was made with; buildPlaybackPlan checks it. */
   readonly paramsFingerprint: string
+  /**
+   * hashRest of the rest state the throw started from, poses and offsets: buildPlaybackPlan checks
+   * that its prevRest is that same rest, so the offsets drawn at frame 0 are the ones left there.
+   */
+  readonly restHash: string
 }
 
 export type DieIndex = 0 | 1
@@ -124,8 +159,11 @@ export function hashRecording(rec: Recording): string {
   hasher.mix(rec.stepsPerFrame)
   hasher.mix(rec.contacts.length)
   for (const byte of rec.contacts) hasher.mix(byte)
-  for (let i = 0; i < rec.paramsFingerprint.length; i++) {
-    hasher.mix(rec.paramsFingerprint.charCodeAt(i))
+  const { floor, dome, dice } = rec.stepDepths
+  for (const depth of [floor, dome, dice]) hasher.mixFloat(depth)
+  for (const text of [rec.paramsFingerprint, rec.restHash]) {
+    hasher.mix(text.length)
+    for (let i = 0; i < text.length; i++) hasher.mix(text.charCodeAt(i))
   }
   return hasher.digest()
 }

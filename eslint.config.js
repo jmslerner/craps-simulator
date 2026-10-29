@@ -160,6 +160,7 @@ const coreGlobals = [
       'Buffer',
       'globalThis',
       'global',
+      'self',
       'require',
       'module',
       'exports',
@@ -186,6 +187,130 @@ const floatFormatting = ['toFixed', 'toPrecision', 'toNumber'].map((property) =>
   property,
   message: 'Keep money and percentages exact: format with formatCents or Fraction.formatPercent.',
 }))
+
+// The bans above see `Math.random`, `Math?.floor` and `Math['round']`, but not a member reached
+// through Math passed around as a value: an alias, a cast, a wrapper, Reflect.get, parentheses, or
+// a host such as `globalThis.Math`. So wherever they apply, Math may appear only as the object of a
+// member read with a fixed name, or after typeof, as the architecture test also checks from source
+// text. Names called Math, such as object keys, are fine; the type is `typeof Math`, not `Math`.
+const MATH_VALUE =
+  'Read Math only through a fixed member, such as Math.sqrt, so the bans see it. ' +
+  'Its type is typeof Math.'
+/** The objects that hold the globals: `globalThis.Math` is Math. */
+const HOST = '/^(?:globalThis|window|self|global)$/'
+/** Nodes whose `key` is a name, not a value: object and class members, interface members. */
+const KEYED = [
+  'Property',
+  'PropertyDefinition',
+  'MethodDefinition',
+  'TSPropertySignature',
+  'TSMethodSignature',
+]
+const KEY = `:matches(${KEYED.join(', ')})[computed=false] > Identifier.key`
+/** A computed member with a fixed name: `['name']` or `` [`name`] ``. */
+const FIXED_NAME =
+  "[property.type='Literal'], [property.type='TemplateLiteral'][property.expressions.length=0]"
+/** @type {(name: string) => string} A host's member `name`, quoted or a regex, however written. */
+const hostMember = (name) =>
+  `MemberExpression[object.type='Identifier'][object.name=${HOST}]:matches(` +
+  `[computed=false][property.name=${name}], [property.value=${name}], ` +
+  `[property.expressions.length=0][property.quasis.0.value.cooked=${name}])`
+const MATH_NAMES = [
+  'MemberExpression > Identifier.object',
+  'MemberExpression[computed=false] > Identifier.property',
+  KEY,
+  'TSTypeQuery > Identifier.exprName',
+  "UnaryExpression[operator='typeof'] > Identifier.argument",
+  // A type query of a member, `typeof Math.sqrt`, or a qualified name, `NS.Math`.
+  'TSQualifiedName > Identifier.left',
+  `TSQualifiedName:not([left.name=${HOST}]) > Identifier.right`,
+]
+/**
+ * The Math rule where `bans` are the banned Math members: Math as a value, Math through a host
+ * (`globalThis.Math.random`, `self['Math'][name]`), and type queries of a banned member, such as
+ * `typeof Math.random`, which no-restricted-properties does not see.
+ * @param {{ property: string, message: string }[]} bans
+ * @returns {{ selector: string, message: string }[]}
+ */
+const mathValue = (bans) => [
+  { selector: `Identifier[name='Math']:not(${MATH_NAMES.join(', ')})`, message: MATH_VALUE },
+  {
+    selector: `MemberExpression[computed=true][object.name='Math']:not(${FIXED_NAME})`,
+    message: MATH_VALUE,
+  },
+  { selector: hostMember("'Math'"), message: MATH_VALUE },
+  ...bans.map(({ property, message }) => ({
+    selector: `TSQualifiedName[left.name='Math'][right.name='${property}']`,
+    message,
+  })),
+]
+
+// A host passed on (`const g = globalThis`, `Reflect.get(globalThis, 'Math')`) or destructured
+// (`const { Math: M } = globalThis`) carries Math out of sight of every rule above. Shipped core
+// bans the hosts outright (coreGlobals); in tests, where Math has the same rules, a host may only
+// read a member by name. Its typeof, an equality test and a local of the same name, declared as
+// `const window = ...`, are not uses of the host.
+const HOST_VALUE =
+  'Use globalThis, window, self or global only to read a member by name, such as ' +
+  'globalThis.structuredClone: passed on, they carry Math out of sight of its bans.'
+const EQUALITY = ['==', '===', '!=', '!=='].map((op) => `[operator='${op}']`).join(', ')
+const HOST_NAMES = [
+  `MemberExpression:matches([computed=false], ${FIXED_NAME}) > Identifier.object`,
+  'MemberExpression[computed=false] > Identifier.property',
+  KEY,
+  'TSTypeQuery > Identifier.exprName',
+  "UnaryExpression[operator='typeof'] > Identifier.argument",
+  'TSQualifiedName > Identifier.left',
+  `TSQualifiedName:not([left.name=${HOST}]) > Identifier.right`,
+  'VariableDeclarator > Identifier.id',
+  'TSModuleDeclaration > Identifier.id',
+  `BinaryExpression:matches(${EQUALITY}) > Identifier`,
+]
+const hostValue = [
+  { selector: `Identifier[name=${HOST}]:not(${HOST_NAMES.join(', ')})`, message: HOST_VALUE },
+  // A host read from a host, as `globalThis.self`: name the host itself.
+  { selector: hostMember(HOST), message: HOST_VALUE },
+]
+
+// Oracle modules (tests/oracle/**, not their tests) are written from the rules spec alone, so they
+// must not use the engine's rule code, nor its config code (ratio parsing, presets, compile) or
+// money rounding: from src/engine/config they take types only, and from src/engine/core they import
+// only rational.ts and dice.ts. The architecture test also follows their imports through other
+// modules. Lint sees only each import's own text, so it also bans the test helpers known to reach
+// the reducer: the scenario DSL and the property helpers.
+const DISPATCH_CHAIN = 'tests/oracle/dispatchChain.ts'
+const ORACLE = 'Oracle modules are written from the rules spec: they must not use shared rule code.'
+const ORACLE_CONFIG =
+  'Oracle modules read machine data from the plain config JSON with their own ratio parsing: ' +
+  'take only types from src/engine/config, with import type.'
+const ORACLE_CORE =
+  'Oracle modules may import from src/engine/core only rational.ts and dice.ts: they round money ' +
+  'themselves (import type is fine).'
+const RULE_DIRS = ['bets', 'round', 'settle', 'table', 'session'].map((dir) => `src/engine/${dir}`)
+// Relative or root specifiers: for a directory and its files, and for one file, Vite query or not.
+/** @type {(path: string) => string} */
+const inDir = (path) => `^(?:(?:\\.\\.?/)+|/)${path}(?:/|$)`
+/** @type {(path: string) => string} */
+const isFile = (path) => `^(?:(?:\\.\\.?/)+|/)${path}(?:\\?.*)?$`
+const oracleImports = [
+  extensions,
+  ...['src/exact', ...RULE_DIRS].map((dir) => ({ regex: inDir(dir), message: ORACLE })),
+  // The engine barrel, the rulesets (the engine's rule constants) and the helpers that drive it.
+  { regex: isFile('src/engine(?:/|/index\\.ts)?'), message: ORACLE },
+  { regex: isFile('src/engine/config/rulesets\\.ts'), message: ORACLE },
+  { regex: inDir('(?:tests/)?(?:scenarios|properties)'), message: ORACLE },
+  // The rest of the config, and of engine/core beyond rational.ts and dice.ts, at run time.
+  {
+    regex: inDir('src/engine/config(?!/rulesets\\.ts(?:\\?.*)?$)'),
+    allowTypeImports: true,
+    message: ORACLE_CONFIG,
+  },
+  {
+    regex: inDir('src/engine/core(?!/(?:rational|dice)\\.ts(?:\\?.*)?$)'),
+    allowTypeImports: true,
+    message: ORACLE_CORE,
+  },
+]
 
 export default defineConfig([
   globalIgnores(['dist', 'dist-e2e', 'coverage', 'playwright-report', 'test-results']),
@@ -223,6 +348,7 @@ export default defineConfig([
     files: [...filesIn(CORE_DIRS), 'tests/**/*.{ts,tsx}'],
     rules: {
       'no-restricted-properties': ['error', mathRandom],
+      'no-restricted-syntax': ['error', ...mathValue([mathRandom]), ...hostValue],
     },
   },
   {
@@ -232,7 +358,7 @@ export default defineConfig([
     rules: {
       'no-restricted-globals': ['error', ...coreGlobals],
       'no-restricted-properties': ['error', mathRandom, dateNow],
-      'no-restricted-syntax': ['error', ...importForms],
+      'no-restricted-syntax': ['error', ...importForms, ...mathValue([mathRandom])],
     },
   },
   {
@@ -246,6 +372,35 @@ export default defineConfig([
         dateNow,
         ...mathRounding,
         ...floatFormatting,
+      ],
+      'no-restricted-syntax': [
+        'error',
+        ...importForms,
+        ...mathValue([mathRandom, ...mathRounding]),
+      ],
+    },
+  },
+  {
+    files: ['tests/oracle/**/*.{ts,tsx}'],
+    ignores: [...TESTS, DISPATCH_CHAIN],
+    rules: {
+      'no-restricted-imports': ['error', { patterns: oracleImports }],
+      // `import { type A } from` still loads its module; only `import type` is erased.
+      '@typescript-eslint/no-import-type-side-effects': 'error',
+    },
+  },
+  {
+    // The dispatch chain drives the real reducer, but must not use the solver it checks.
+    files: [DISPATCH_CHAIN],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            extensions,
+            { regex: inDir('src/exact'), message: 'The dispatch chain must not use the solver.' },
+          ],
+        },
       ],
     },
   },

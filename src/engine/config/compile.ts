@@ -1,4 +1,4 @@
-import type { Total } from '../core/dice.ts'
+import { DICE_CLASSES, type Total } from '../core/dice.ts'
 import { hashJson } from '../core/hash.ts'
 import { cents, formatCents, type Cents, type Rounding } from '../core/money.ts'
 import { Fraction } from '../core/rational.ts'
@@ -109,6 +109,12 @@ function checkRules(cfg: MachineConfigInput, add: Add): void {
   if (cfg.variant === 'traditional' && cfg.rules.dontBar === null) {
     add(['rules', 'dontBar'], 'traditional craps bars 12 (or 2 under Reno rules)')
   }
+  if (cfg.variant === 'crapless' && cfg.rules.allowPutBets) {
+    add(
+      ['rules', 'allowPutBets'],
+      'no crapless game is known to take put bets; Interblock takes Pass only before the come-out',
+    )
+  }
 }
 
 function checkMoney(cfg: MachineConfigInput, add: Add): void {
@@ -123,19 +129,36 @@ function checkMoney(cfg: MachineConfigInput, add: Add): void {
   if (limits.tableMax !== undefined && limits.tableMax < limits.max) {
     add(['limits', 'tableMax'], 'the table maximum is below the maximum for one bet')
   }
+  if (limits.minTotal !== null) {
+    multiple(['limits', 'minTotal', 'amount'], limits.minTotal.amount, step)
+  }
   for (const [typeId, own] of Object.entries(limits.perType ?? {})) {
     const at = ['limits', 'perType', typeId]
-    if (!Object.hasOwn(cfg.catalog, typeId) && !Object.hasOwn(cfg.sideBets, typeId)) {
-      add(at, `"${typeId}" is not a bet type or side bet in this config`)
-    }
+    const known = [cfg.catalog, cfg.composites, cfg.sideBets].some((ids) =>
+      Object.hasOwn(ids, typeId),
+    )
+    if (!known) add(at, `"${typeId}" is not a bet type, composite or side bet in this config`)
     // Only what this type sets is checked here, and reported at the field it sets; the
-    // config-wide limits were checked above.
-    const min = own.min ?? limits.min
-    if ((own.min !== undefined || own.max !== undefined) && min > (own.max ?? limits.max)) {
+    // config-wide limits were checked above, so a limit the type inherits can miss only an
+    // increment of its own.
+    const bounds = { min: own.min ?? limits.min, max: own.max ?? limits.max }
+    if ((own.min !== undefined || own.max !== undefined) && bounds.min > bounds.max) {
       add([...at, own.min === undefined ? 'max' : 'min'], 'the minimum is above the maximum')
     }
-    if (own.min !== undefined || own.increment !== undefined) {
-      multiple([...at, own.min === undefined ? 'increment' : 'min'], min, own.increment ?? step)
+    const increment = own.increment ?? step
+    const offGrid = (['min', 'max'] as const).filter((key) => bounds[key] % increment !== 0)
+    for (const key of offGrid) {
+      if (own[key] !== undefined) multiple([...at, key], bounds[key], increment)
+    }
+    const inherited = offGrid.filter((key) => own[key] === undefined)
+    if (own.increment !== undefined && inherited.length > 0) {
+      add(
+        [...at, 'increment'],
+        `the ${inherited.join(' and ')} this type inherits must be a multiple of ${formatCents(cents(increment))}`,
+      )
+    }
+    if (own.incrementByNumber !== undefined) {
+      checkUnitsByNumber(cfg, typeId, own.incrementByNumber, increment, at, add)
     }
   }
   cfg.chips.forEach((chip, index) => {
@@ -145,6 +168,45 @@ function checkMoney(cfg: MachineConfigInput, add: Add): void {
       add(['chips', index], 'chips must be listed from smallest to largest, once each')
     }
   })
+}
+
+/**
+ * Per-number stake units (`/limits/perType/<t>/incrementByNumber`): only for a type whose bets sit
+ * on a number (odds on their parent's point, number bets and hardways on their own numbers), only
+ * on those numbers, and each a multiple of the type's own increment, which it refines. The type's
+ * minimum need not be a multiple of a unit: the smallest bet on a number is the minimum rounded up
+ * to its unit, and the largest the maximum rounded down.
+ */
+function checkUnitsByNumber(
+  cfg: MachineConfigInput,
+  typeId: string,
+  units: Readonly<Partial<Record<string, number>>>,
+  increment: number,
+  perType: Path,
+  add: Add,
+): void {
+  const at = [...perType, 'incrementByNumber']
+  const type = Object.hasOwn(cfg.catalog, typeId) ? cfg.catalog[typeId] : undefined
+  const numbers: readonly number[] | null =
+    type?.family === 'odds'
+      ? COME_OUT_RULES[cfg.variant].points
+      : type?.family === 'numberVsSeven' || type?.family === 'hardway'
+        ? type.numbers
+        : null
+  if (numbers === null) {
+    add(at, 'only odds, number bets and hardways sit on a number; use increment instead')
+    return
+  }
+  for (const [key, unit] of Object.entries(units)) {
+    if (!numbers.some((n) => String(n) === key)) {
+      add([...at, key], `${typeId} takes no bet on ${key}`)
+    } else if (unit !== undefined && unit % increment !== 0) {
+      add(
+        [...at, key],
+        `must be a multiple of ${formatCents(cents(increment))}, the type's increment`,
+      )
+    }
+  }
 }
 
 function checkCatalog(cfg: MachineConfigInput, add: Add): void {
@@ -269,6 +331,11 @@ function checkNumberBet(cfg: MachineConfigInput, type: NumberTypeConfig, at: Pat
     }
     checkCommission(commission, path, add)
   }
+  for (const key of Object.keys(type.payoutRoundingByNumber ?? {})) {
+    if (!type.numbers.some((n) => String(n) === key)) {
+      add([...at, 'payoutRoundingByNumber', key], `${key} is not one of this bet's numbers`)
+    }
+  }
 }
 
 function checkCommission(commission: CommissionInput, at: Path, add: Add): void {
@@ -345,23 +412,113 @@ function checkKeys(
   }
 }
 
+/** A part of a composite that passed the per-part checks. */
+interface CompositePart {
+  readonly typeId: string
+  readonly units: number
+  readonly type: OneRollTypeConfig
+}
+
+/**
+ * A composite (C&E, horn, world, horn high) is one bet that settles once, with one rounding, on a
+ * net per unit derived from its parts' pays (plan §0 #15). So its parts must agree on what happens
+ * after a win and on how winnings round, and every roll must win, push or lose it all.
+ */
 function checkComposites(cfg: MachineConfigInput, add: Add): void {
   for (const [id, composite] of Object.entries(cfg.composites)) {
     if (Object.hasOwn(cfg.catalog, id) || Object.hasOwn(cfg.sideBets, id)) {
       add(['composites', id], `"${id}" is already the id of a bet type`)
     }
-    composite.parts.forEach(({ typeId }, index) => {
+    const parts: CompositePart[] = []
+    composite.parts.forEach(({ typeId, units }, index) => {
       const at = ['composites', id, 'parts', index, 'typeId']
       const part = Object.hasOwn(cfg.catalog, typeId) ? cfg.catalog[typeId] : undefined
+      const first = parts[0]
       if (part === undefined) {
         add(at, `"${typeId}" is not a bet type in the catalog`)
       } else if (part.family !== 'oneRoll') {
         add(at, `a composite combines one-roll bets; ${typeId} is not one`)
       } else if (composite.parts.findIndex((p) => p.typeId === typeId) !== index) {
         add(at, `${typeId} is already a part; raise its units instead`)
+      } else {
+        if (first !== undefined && first.type.afterWin !== part.afterWin) {
+          add(
+            at,
+            `a composite settles as one bet, so its parts must agree after a win: ${first.typeId} has ${first.type.afterWin}, ${typeId} ${part.afterWin}`,
+          )
+        } else if (first !== undefined && !sameRounding(cfg, first.type, part)) {
+          add(
+            at,
+            `a composite settles as one bet with one rounding, so ${typeId} must round winnings like ${first.typeId}`,
+          )
+        }
+        parts.push({ typeId, units, type: part })
       }
     })
+    if (parts.length === composite.parts.length) {
+      const partial = partialLoss(
+        parts.map(({ units, type }) => ({ units, match: type.match, pays: payTable(type.pays) })),
+      )
+      if (partial !== null) {
+        add(
+          ['composites', id],
+          `on ${partial.dice} it nets ${partial.net.toString()} per unit, a partial loss: a composite settles as one bet, so every roll must win, push or lose it all (plan §0 #15)`,
+        )
+      }
+    }
   }
+}
+
+function sameRounding(
+  cfg: MachineConfigInput,
+  a: OneRollTypeConfig,
+  b: OneRollTypeConfig,
+): boolean {
+  const ra = a.payoutRounding ?? cfg.money.payoutRounding
+  const rb = b.payoutRounding ?? cfg.money.payoutRounding
+  return ra.mode === rb.mode && ra.increment === rb.increment
+}
+
+/** What a composite's net reads from each part: its units, and what it pays on which outcomes. */
+interface NetPart {
+  readonly units: number
+  readonly match: 'total' | 'dice'
+  readonly pays: ReadonlyMap<string, Ratio>
+}
+
+function payTable(pays: Readonly<Record<string, string>>): ReadonlyMap<string, Ratio> {
+  return new Map(Object.entries(pays).map(([key, text]) => [key, parseRatio(text)]))
+}
+
+/**
+ * A composite's net per unit staked on a roll of `d1` and `d2`, low face first (plan §0 #15). Each
+ * winning part returns its units × (pay + 1), so per unit the bet returns Σ(units of the winning
+ * parts × (pay + 1)) ÷ total units, and nets that minus 1: −1 when no part wins, 0 for a push.
+ */
+function compositeNet(parts: readonly NetPart[], d1: number, d2: number): Fraction {
+  let units = 0
+  let returned = Fraction.ZERO
+  for (const part of parts) {
+    units += part.units
+    const pay = part.pays.get(part.match === 'total' ? String(d1 + d2) : `${d1}-${d2}`)
+    if (pay !== undefined) {
+      returned = returned.add(Fraction.of(BigInt(part.units) * (pay.num + pay.den), pay.den))
+    }
+  }
+  return returned.div(Fraction.of(units)).sub(Fraction.ONE)
+}
+
+/**
+ * The first roll, low face first, on which a composite returns some but not all of its stake: a
+ * net strictly between −1 and 0.
+ */
+function partialLoss(parts: readonly NetPart[]): { dice: string; net: Fraction } | null {
+  const lost = Fraction.of(-1)
+  for (const { d1, d2 } of DICE_CLASSES) {
+    const net = compositeNet(parts, d1, d2)
+    if (net.compare(lost) > 0 && net.isNegative()) return { dice: `${d1}-${d2}`, net }
+  }
+  return null
 }
 
 function checkSideBets(cfg: MachineConfigInput, add: Add): void {
@@ -383,7 +540,7 @@ function checkSideBets(cfg: MachineConfigInput, add: Add): void {
         checkUniquePoints(bet, points, at, add)
         break
       case 'handLength':
-        checkHandLength(bet, at, add)
+        checkHandLength(cfg, bet, at, add)
         break
       case 'pointRun':
         checkPointRun(cfg, bet, at, add)
@@ -411,7 +568,11 @@ function checkUniquePoints(
   }
 }
 
-function checkHandLength(bet: HandLengthConfig, at: Path, add: Add): void {
+function checkHandLength(cfg: MachineConfigInput, bet: HandLengthConfig, at: Path, add: Add): void {
+  if (cfg.variant !== 'traditional') {
+    add(at, 'Hot Shooter Jackpot is defined for traditional craps only (Shoot To Win, Roll To Win)')
+    return
+  }
   if (bet.tiers.length === 0) add([...at, 'tiers'], 'the pay table is empty')
   bet.tiers.forEach((tier, index) => {
     const previous = bet.tiers[index - 1]
@@ -450,27 +611,48 @@ function checkCountTable(
   }
 }
 
-/** Lists of type ids elsewhere in the config must name offered bets, once each. */
+/**
+ * The families a working control can switch OFF. Line flats, come and don't come points and
+ * one-roll bets always work (rules spec §2.4).
+ */
+const SWITCHABLE: ReadonlySet<BetTypeConfig['family']> = new Set([
+  'odds',
+  'numberVsSeven',
+  'hardway',
+])
+
+/**
+ * Lists of type ids elsewhere in the config must name offered bets, once each. The lists that
+ * switch bets ON and OFF may name only bets that can be OFF.
+ */
 function checkTypeReferences(cfg: MachineConfigInput, add: Add): void {
-  const check = (types: readonly string[], at: Path) => {
+  const check = (types: readonly string[], at: Path, switches: boolean) => {
     types.forEach((typeId, index) => {
-      if (!Object.hasOwn(cfg.catalog, typeId)) {
+      const type = Object.hasOwn(cfg.catalog, typeId) ? cfg.catalog[typeId] : undefined
+      if (type === undefined) {
         add([...at, index], `"${typeId}" is not a bet type in the catalog`)
       } else if (types.indexOf(typeId) !== index) {
         add([...at, index], `${typeId} is listed twice`)
+      } else if (switches && !SWITCHABLE.has(type.family)) {
+        add(
+          [...at, index],
+          `${typeId} always works, like every line and one-roll bet (rules spec §2.4); only odds, number and hardway bets can be OFF`,
+        )
       }
     })
   }
-  check(cfg.workingToggle.types, ['workingToggle', 'types'])
+  check(cfg.workingToggle.types, ['workingToggle', 'types'], true)
   const autoOff = cfg.comeOut.autoOff
   if (autoOff !== null) {
-    check(autoOff.carried, ['comeOut', 'autoOff', 'carried'])
-    check(autoOff.newlyPlaced, ['comeOut', 'autoOff', 'newlyPlaced'])
+    check(autoOff.carried, ['comeOut', 'autoOff', 'carried'], true)
+    check(autoOff.newlyPlaced, ['comeOut', 'autoOff', 'newlyPlaced'], true)
   }
   const newPlacedOff = cfg.afterSevenOut.newPlacedOff
-  if (newPlacedOff !== null) check(newPlacedOff.types, ['afterSevenOut', 'newPlacedOff', 'types'])
+  if (newPlacedOff !== null) {
+    check(newPlacedOff.types, ['afterSevenOut', 'newPlacedOff', 'types'], true)
+  }
   cfg.exclusiveGroups.forEach((group, index) => {
-    check(group.types, ['exclusiveGroups', index, 'types'])
+    check(group.types, ['exclusiveGroups', index, 'types'], false)
   })
 }
 
@@ -524,6 +706,11 @@ export interface NumberBetType extends TypeBase {
   readonly kind: NumberTypeConfig['kind']
   readonly numbers: readonly PointNumber[]
   readonly pays: ReadonlyMap<PointNumber, Ratio>
+  /**
+   * The numbers whose winnings round otherwise than `payoutRounding`
+   * (`/catalog/<t>/payoutRoundingByNumber`); `payoutRoundingFor` applies them.
+   */
+  readonly payoutRoundingByNumber: ReadonlyMap<PointNumber, Rounding>
   /** The commission on each number, overrides applied; null for place, big and place to lose. */
   readonly commission: ReadonlyMap<PointNumber, CommissionRule> | null
   readonly afterWin: 'stay' | 'return'
@@ -594,10 +781,33 @@ export interface PointRunBetType {
 export type CompiledSideBet =
   CollectSetBetType | UniquePointsBetType | HandLengthBetType | PointRunBetType
 
+/**
+ * C&E, horn, world or horn high: one bet that settles once, with one rounding, on the net per unit
+ * its parts' pays give (plan §0 #15). It is placed, shown and taken down as one bet whose type id
+ * is the composite's id. Validation guarantees that every part is a one-roll bet, that the parts
+ * share `afterWin` and `payoutRounding`, and that no roll loses only part of the bet.
+ *
+ * - `units`: the parts' units added up; a $4 horn is four $1 units.
+ * - `match`: outcomes are keyed by total when every part is, otherwise by dice, low face first.
+ * - `pays`: the net per unit staked on each outcome that wins, as a ratio "to 1": a horn on a 2
+ *   pays 27:4, as its one unit on the 2 returns 31 and the other three are lost.
+ * - `pushes`: the outcomes that net exactly 0, such as the world bet on a 7. Every outcome in
+ *   neither list loses the whole bet.
+ * - `afterWin`, `payoutRounding`: the parts' own, which they share.
+ */
 export interface CompositeBet {
+  readonly family: 'composite'
   readonly id: string
+  /** The composite's id again: what a bet on the composite carries as its `typeId`. */
+  readonly typeId: string
   readonly label: string
   readonly parts: readonly { readonly typeId: string; readonly units: number }[]
+  readonly units: number
+  readonly match: 'total' | 'dice'
+  readonly pays: ReadonlyMap<string, Ratio>
+  readonly pushes: ReadonlySet<string>
+  readonly afterWin: 'stay' | 'return'
+  readonly payoutRounding: Rounding
 }
 
 /** Per-type limits with the config defaults filled in. */
@@ -605,6 +815,18 @@ export interface TypeLimits {
   readonly min: Cents
   readonly max: Cents
   readonly increment: Cents
+}
+
+/**
+ * The minimum for a whole round, checked when the dice are rolled ("BETS ARE NOT VALID YET!").
+ * `totalRound`: the counted bets must add up to `amount`; `perBet`: each must be at least it.
+ */
+export interface MinTotal {
+  readonly amount: Cents
+  readonly scope: 'totalRound' | 'perBet'
+  /** Whether bets switched OFF count toward it. */
+  readonly countOff: boolean
+  readonly countSideBets: boolean
 }
 
 /**
@@ -628,7 +850,13 @@ export interface MachineConfig {
     readonly tableMax: Cents | null
     /** Limits for every bet type and side bet, defaults applied. */
     readonly byType: ReadonlyMap<string, TypeLimits>
-    readonly minTotal: MachineConfigInput['limits']['minTotal']
+    /**
+     * Stake units by number, for the types that set them (`/limits/perType/<t>/incrementByNumber`;
+     * for odds, the parent's point). `typeLimits(cfg, typeId, number)` applies them.
+     */
+    readonly incrementByNumber: ReadonlyMap<string, ReadonlyMap<PointNumber, Cents>>
+    /** Null when the machine has no minimum for the round. */
+    readonly minTotal: MinTotal | null
   }
   readonly chips: readonly Cents[]
   readonly catalog: ReadonlyMap<string, CompiledBetType>
@@ -650,6 +878,22 @@ export interface MachineConfig {
   readonly flow: MachineConfigInput['flow']
   readonly pace: MachineConfigInput['pace']
   readonly provenance: Provenance
+  /**
+   * JSON pointers of the values this config sets that the engine plays otherwise (plan §0 #23):
+   * the coach shows an "approximation" note on a machine that has any. Today only Shoot To Win's
+   * `/offBets/consumeCredit: false`: every OFF bet keeps its stake on the layout, so it still uses
+   * credit (`availableCredit`, rules spec §4.5).
+   */
+  readonly notModelled: readonly string[]
+}
+
+/**
+ * The values of `input` the engine does not model (`MachineConfig.notModelled`, plan §0 #23).
+ * OFF chips that use no credit are one: nothing documents what happens when such a chip turns ON
+ * without the credit to back it, so every OFF bet keeps its stake (M4 integration decision).
+ */
+export function notModelledPointers(input: MachineConfigInput): string[] {
+  return input.offBets.consumeCredit ? [] : ['/offBets/consumeCredit']
 }
 
 /**
@@ -664,7 +908,9 @@ const memo = new WeakMap<object, MachineConfig>()
 
 /**
  * Validates `input` and builds its engine form, or throws a `ConfigError` listing every problem.
- * Results are memoized by input object, so treat inputs as immutable (presets are frozen).
+ * Results are memoized by input object. A valid input is deep-frozen when it is first compiled, so
+ * an edit in place throws instead of leaving a stale compiled config in the memo: to change a
+ * config, copy it. An invalid input is left as it was, for the caller to fix.
  */
 export function compileConfig(input: unknown): MachineConfig {
   const key = typeof input === 'object' && input !== null ? input : null
@@ -673,16 +919,23 @@ export function compileConfig(input: unknown): MachineConfig {
   const result = MachineConfigSchema.safeParse(input)
   if (!result.success) throw new ConfigError(result.error.issues.map(toConfigIssue))
   const compiled = build(deepFreeze(result.data))
-  if (key !== null) memo.set(key, compiled)
+  if (key !== null) memo.set(deepFreeze(key), compiled)
   return compiled
 }
 
-/** Freezes a plain JSON value and everything inside it; returns it for chaining. */
+/**
+ * Freezes a plain JSON value and everything inside it, including what sits below an object that
+ * was frozen only shallowly; returns it for chaining.
+ */
 export function deepFreeze<T>(value: T): T {
-  if (value !== null && typeof value === 'object' && !Object.isFrozen(value)) {
-    Object.freeze(value)
-    for (const item of Object.values(value)) deepFreeze(item)
+  const seen = new WeakSet<object>()
+  const visit = (item: unknown): void => {
+    if (item === null || typeof item !== 'object' || seen.has(item)) return
+    seen.add(item)
+    Object.freeze(item)
+    for (const child of Object.values(item)) visit(child)
   }
+  visit(value)
   return value
 }
 
@@ -700,11 +953,12 @@ function build(input: MachineConfigInput): MachineConfig {
   }
   const composites = new Map<string, CompositeBet>()
   for (const [id, { label, parts }] of Object.entries(input.composites)) {
-    composites.set(id, Object.freeze({ id, label, parts }))
+    composites.set(id, compileComposite(id, label, parts, catalog))
   }
   const { limits, money } = input
   const byType = new Map<string, TypeLimits>()
-  for (const typeId of [...catalog.keys(), ...sideBets.keys()]) {
+  const incrementByNumber = new Map<string, ReadonlyMap<PointNumber, Cents>>()
+  for (const typeId of [...catalog.keys(), ...composites.keys(), ...sideBets.keys()]) {
     const own = limits.perType?.[typeId]
     byType.set(
       typeId,
@@ -714,6 +968,13 @@ function build(input: MachineConfigInput): MachineConfig {
         increment: cents(own?.increment ?? money.betIncrement),
       }),
     )
+    if (own?.incrementByNumber !== undefined) {
+      const units = Object.entries(own.incrementByNumber).flatMap(
+        ([n, unit]): [PointNumber, Cents][] =>
+          unit === undefined ? [] : [[Number(n) as PointNumber, cents(unit)]],
+      )
+      incrementByNumber.set(typeId, new Map(units))
+    }
   }
   return Object.freeze({
     input,
@@ -729,7 +990,11 @@ function build(input: MachineConfigInput): MachineConfig {
       max: cents(limits.max),
       tableMax: limits.tableMax === undefined ? null : cents(limits.tableMax),
       byType,
-      minTotal: limits.minTotal,
+      incrementByNumber,
+      minTotal:
+        limits.minTotal === null
+          ? null
+          : Object.freeze({ ...limits.minTotal, amount: cents(limits.minTotal.amount) }),
     }),
     chips: Object.freeze(input.chips.map(cents)),
     catalog,
@@ -750,6 +1015,7 @@ function build(input: MachineConfigInput): MachineConfig {
     flow: input.flow,
     pace: input.pace,
     provenance: input.provenance,
+    notModelled: Object.freeze(notModelledPointers(input)),
   })
 }
 
@@ -857,15 +1123,62 @@ function compileNumberBet(type: NumberTypeConfig, base: TypeBase): NumberBetType
       commission.set(n, own === undefined ? fallback : compileCommission(own))
     }
   }
+  const byNumber = Object.entries(type.payoutRoundingByNumber ?? {}).flatMap(
+    ([n, rule]): [PointNumber, Rounding][] =>
+      rule === undefined ? [] : [[Number(n) as PointNumber, rounding(rule)]],
+  )
   return Object.freeze({
     ...base,
     family: type.family,
     kind: type.kind,
     numbers: Object.freeze([...type.numbers]),
     pays: payMap(type.numbers, type.pays),
+    payoutRoundingByNumber: new Map(byNumber),
     commission,
     afterWin: type.afterWin,
     comeOutDefault: type.comeOutDefault,
+  })
+}
+
+/**
+ * A composite in engine form (plan §0 #15): its net per unit on each of the 21 rolls, from its
+ * parts' compiled pays, filed as a win (a ratio in lowest terms, "27:4"), a push or a loss.
+ */
+function compileComposite(
+  id: string,
+  label: string,
+  parts: CompositeBet['parts'],
+  catalog: ReadonlyMap<string, CompiledBetType>,
+): CompositeBet {
+  const types = parts.map(({ typeId, units }) => {
+    const type = catalog.get(typeId)
+    if (type?.family !== 'oneRoll') throw new Error(`Validated composite ${id} lists ${typeId}`)
+    return { units, type }
+  })
+  const first = types[0]
+  if (first === undefined) throw new Error(`Validated composite ${id} has no parts`)
+  const match = types.every(({ type }) => type.match === 'total') ? 'total' : 'dice'
+  const net = types.map(({ units, type }) => ({ units, match: type.match, pays: type.pays }))
+  const pays = new Map<string, Ratio>()
+  const pushes = new Set<string>()
+  for (const { d1, d2 } of DICE_CLASSES) {
+    const key = match === 'total' ? String(d1 + d2) : `${d1}-${d2}`
+    const { num, den } = compositeNet(net, d1, d2)
+    if (num === 0n) pushes.add(key)
+    else if (num > 0n) pays.set(key, Object.freeze({ num, den, label: `${num}:${den}` }))
+  }
+  return Object.freeze({
+    family: 'composite',
+    id,
+    typeId: id,
+    label,
+    parts,
+    units: parts.reduce((sum, part) => sum + part.units, 0),
+    match,
+    pays,
+    pushes,
+    afterWin: first.type.afterWin,
+    payoutRounding: first.type.payoutRounding,
   })
 }
 

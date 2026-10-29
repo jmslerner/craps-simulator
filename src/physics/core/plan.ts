@@ -12,6 +12,7 @@ import { framePose, touchesDuring, type DieIndex, type Recording } from './recor
 import { chooseEndOffset } from './remap.ts'
 import {
   flatOrientation,
+  hashRest,
   rotationShowing,
   visualTopFace,
   type DieRest,
@@ -57,9 +58,11 @@ export interface PlaybackPlan {
 
 /**
  * Plans the playback of `rec` so the dice land showing `dice`. `prevRest` is the rest state the
- * recording started from; its offsets are where each body's drawn faces start. Throws a
- * RangeError if the recording was made with other params or does not start at `prevRest`, since
- * either would make the dice jump on the first frame or land showing the wrong faces.
+ * recording was thrown from, poses and offsets; its offsets are where each body's drawn faces
+ * start. Throws a RangeError if the recording was made with other params, if frame 0 is not at
+ * prevRest's poses, or if prevRest is not the rest the throw was asked for (`rec.restHash`), as
+ * when its offsets are stale: any of these would make the dice jump on the first frame or show
+ * the wrong faces.
  */
 export function buildPlaybackPlan(
   rec: Recording,
@@ -77,6 +80,11 @@ export function buildPlaybackPlan(
     if (!startsAt(framePose(rec, 0, die), prevRest[die].pose)) {
       throw new RangeError(`buildPlaybackPlan: die ${die} does not start at its prevRest pose`)
     }
+  }
+  if (hashRest(prevRest) !== rec.restHash) {
+    throw new RangeError(
+      'buildPlaybackPlan: prevRest is not the rest this recording was thrown from: stale offsets?',
+    )
   }
   const starts = [prevRest[0].offset, prevRest[1].offset] as const
   const assign = (faces: readonly [DieFace, DieFace]) => {
@@ -135,14 +143,19 @@ export function faceShown(plan: PlaybackPlan, die: DieIndex, frame: number): Die
 /** One ulp of a Float32 near 1: the most storing a value as Float32 moves it, relatively. */
 const F32_EPSILON = 2 ** -23
 
-/** Whether a recorded pose is `pose` stored as Float32, with its quaternion normalised. */
+/**
+ * Whether a recorded pose is `pose` stored as Float32, with its quaternion normalised. A
+ * quaternion and its negation are the same rotation (|q·q′| = 1), so either sign matches.
+ */
 function startsAt(recorded: Pose, pose: Pose): boolean {
   const stored = (value: number, wanted: number) =>
     Math.abs(value - wanted) <= F32_EPSILON * Math.max(1, Math.abs(wanted))
   const q = normalize(pose.q)
+  const turned = (sign: number) =>
+    recorded.q.every((value, k) => stored(value, sign * (q[k] ?? Number.NaN)))
   return (
     recorded.p.every((value, k) => stored(value, pose.p[k] ?? Number.NaN)) &&
-    recorded.q.every((value, k) => stored(value, q[k] ?? Number.NaN))
+    (turned(1) || turned(-1))
   )
 }
 
@@ -218,12 +231,12 @@ export function clearance(
   params: PhysicsParams,
   cutoff = 1,
 ): number {
-  const self = framePose(rec, frame, die)
+  const pose = framePose(rec, frame, die)
   const other = framePose(rec, frame, die === 0 ? 1 : 0)
   return Math.min(
-    floorGap(self, params.die),
-    domeGap(self, params, cutoff),
-    diceGap(self, other, params.die, cutoff),
+    floorGap(pose, params.die),
+    domeGap(pose, params, cutoff),
+    diceGap(pose, other, params.die, cutoff),
   )
 }
 

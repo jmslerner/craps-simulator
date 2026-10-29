@@ -96,7 +96,10 @@ describe('sources', () => {
 
   it('link to their documents', () => {
     expect(sourceUrl('CW')).toMatch(/^https:\/\/clearwatercasino\.com\//)
-    expect(sourceUrl('WOV-38668')).toBe('https://wizardofvegas.com/forum/gambling/craps/38668/')
+    // "/craps/38668/" opens a list of threads; any slug after the number opens thread 38668.
+    expect(sourceUrl('WOV-38668')).toBe(
+      'https://wizardofvegas.com/forum/gambling/craps/38668-thread/',
+    )
     expect(sourceUrl('USER')).toBeNull()
     expect(sourceUrl('NOPE')).toBeNull()
     for (const [key, url] of Object.entries(SOURCES)) {
@@ -163,16 +166,22 @@ describe('listAssumptions', () => {
   it('lists the default machine’s key unknowns', () => {
     const pointers = listAssumptions(compileConfig(craplessBubble)).map((a) => a.pointer)
     for (const unknown of [
+      '/catalog/place/pays',
       '/catalog/place/pays/2',
       '/catalog/place/pays/3',
+      '/catalog/passOdds/pays',
+      '/catalog/comeOdds/pays',
       '/catalog/buy/commission/rearm',
       '/catalog/buy/commission/refundOnTakeDown',
+      '/afterSevenOut/newPlacedOff/trigger',
+      '/oddsOffReturnedAtPointMade',
       '/money/payoutRounding',
       '/pace/rollsPerHour',
     ]) {
       expect(pointers).toContain(unknown)
     }
     expect(pointers).not.toContain('/catalog/buy/commission/timing')
+    expect(pointers).not.toContain('/catalog/passOdds/limit')
   })
 })
 
@@ -204,6 +213,12 @@ describe('coverage and stale entries', () => {
         message: 'provenance cannot describe itself',
       },
     ])
+  })
+
+  it('leaves keys that are not JSON pointers to the schema, which reports the key itself', () => {
+    const cfg = copy(craplessBubble)
+    cfg.provenance = { 'catalog/place': { status: 'assumed', note: 'not a pointer' } }
+    expect(provenanceIssues(cfg)).toEqual([])
   })
 
   it('prunes entries whose values were deleted', () => {

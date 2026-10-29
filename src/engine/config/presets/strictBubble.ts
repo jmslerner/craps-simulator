@@ -50,6 +50,12 @@ const VIG_ASSUMED = {
   note: 'Up-front vig is not refunded and is re-collected when a winner stays up: the conservative choice (rules spec §9 #3). A sub-cent charge rounds up to the cent; no minimum.',
 } as const
 
+const SAME_NUMBER = {
+  status: 'assumed',
+  source: 'IB §2.6',
+  note: '"The Buy/Place bets are excluding bets from the Lay bet" does not say where; reading it as the same number is assumed, as for Shoot To Win (rules spec §5.2).',
+} as const
+
 const LUCKY_ROLLER = {
   status: 'verified',
   source: 'IB §6.2',
@@ -342,7 +348,9 @@ export const strictBubble: MachineConfigInput = deepFreeze({
     types: ['place', 'lay', 'buy', 'passOdds', 'comeOdds', 'dontPassOdds', 'dontComeOdds', 'hard'],
   },
   comeOut: { autoOff: null },
-  afterSevenOut: { newPlacedOff: { types: ['place', 'buy'], until: 'playerOn' } },
+  afterSevenOut: {
+    newPlacedOff: { types: ['place', 'buy'], trigger: 'sevenOut', until: 'playerOn' },
+  },
   layAutoOn: { afterPointMade: true, afterSeven: true },
   oddsOffReturnedAtPointMade: true,
   offBets: { consumeCredit: true },
@@ -423,7 +431,12 @@ export const strictBubble: MachineConfigInput = deepFreeze({
     '/catalog/come': {
       status: 'verified',
       source: 'IB §2.4',
-      note: 'Placed only after a point is set; a contract bet once it travels.',
+      note: 'Placed after a point is set; a contract bet once it travels.',
+    },
+    '/catalog/come/window': {
+      status: 'assumed',
+      source: 'IB §2.4',
+      note: 'Taken only in the point phase (rules spec §3.1); the IB §2.4 text also allows a Come bet after the pass point is made (rules spec §9 #26).',
     },
     '/catalog/come/afterWin': RETURNED,
     '/catalog/dontCome': {
@@ -659,7 +672,12 @@ export const strictBubble: MachineConfigInput = deepFreeze({
     '/workingToggle': {
       status: 'verified',
       source: 'IB §3.2',
-      note: '"Set bets On/Off" covers Place, Lay, Buy, Odds and Hard Ways and stays until changed; no per-bet toggle.',
+      note: '"Set bets On/Off" covers Place, Lay, Buy, Odds and Hard Ways and stays until changed.',
+    },
+    '/workingToggle/perBet': {
+      status: 'assumed',
+      source: 'IB §3.2',
+      note: 'IB §3.2 describes only the one Set bets On/Off button; no per-bet toggle is documented.',
     },
     '/comeOut': {
       status: 'verified',
@@ -670,6 +688,11 @@ export const strictBubble: MachineConfigInput = deepFreeze({
       status: 'verified',
       source: 'IB §3.2',
       note: 'After a 7-out, new Place and Buy bets are set OFF until the player taps Set bets On.',
+    },
+    '/afterSevenOut/newPlacedOff/trigger': {
+      status: 'assumed',
+      source: 'IB §3.2',
+      note: '"After a 7 (7-out) is rolled" is read as a seven-out only, so place and buy bets made after a come-out 7 work; it may be any 7 (rules spec §9 #6).',
     },
     '/afterSevenOut/newPlacedOff/until': {
       status: 'assumed',
@@ -682,9 +705,9 @@ export const strictBubble: MachineConfigInput = deepFreeze({
       note: '"Lay bets become enabled after a Point is reestablished or a 7 is rolled."',
     },
     '/oddsOffReturnedAtPointMade': {
-      status: 'verified',
+      status: 'assumed',
       source: 'IB §3.2',
-      note: '"Odds bets are removed when a Point is reestablished" while set OFF.',
+      note: '"Odds bets are removed when a Point is reestablished" while set OFF, read as: OFF odds are returned when the point is made. The research marks this reading unverified (core.md §5.1).',
     },
     '/offBets': {
       status: 'verified',
@@ -696,6 +719,8 @@ export const strictBubble: MachineConfigInput = deepFreeze({
       source: 'IB §2.3, §2.5, §2.6',
       note: "Pass vs Don't Pass and Come vs Don't Come; Buy and Place exclude Lay. Place and Buy may share a number.",
     },
+    '/exclusiveGroups/2/scope': SAME_NUMBER,
+    '/exclusiveGroups/3/scope': SAME_NUMBER,
     '/excludeLineVsLayBuy': {
       status: 'assumed',
       source: 'IB221',

@@ -75,10 +75,13 @@ const REJECTED_SOURCES: ReadonlySet<string> = new Set(['CRAPSEE', 'TZ'])
 /** Wizard of Vegas forum threads are cited by number, e.g. "WOV-11344". */
 const FORUM_THREAD = /^WOV-(\d+)$/
 
-/** The URL behind a source key, or null for an unknown key or a user observation. */
+/**
+ * The URL behind a source key, or null for an unknown key or a user observation. The forum finds a
+ * thread by the number before its title slug, so any slug works; a bare number opens a thread list.
+ */
 export function sourceUrl(key: string): string | null {
   const thread = FORUM_THREAD.exec(key)
-  if (thread !== null) return `https://wizardofvegas.com/forum/gambling/craps/${thread[1]}/`
+  if (thread !== null) return `https://wizardofvegas.com/forum/gambling/craps/${thread[1]}-thread/`
   const url = Object.hasOwn(SOURCES, key) ? SOURCES[key] : undefined
   return url === undefined || url === '' ? null : url
 }

@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { cents, formatCents, type Rounding } from '../../core/money.ts'
+import { typeLimits } from '../../bets/limits.ts'
+import { payoutRoundingFor } from '../../bets/types.ts'
 import {
   compileConfig,
   validateConfig,
@@ -99,22 +101,31 @@ describe('provenance of the presets', () => {
     }
   })
 
-  it('gives pays, vig, working defaults and limits their own entries, not a blanket one', () => {
-    const researched = ['pays', 'payTable', 'tiers', 'topAward', 'commission', 'limit', 'afterWin']
+  it('covers every value of every bet type and side bet at the type level or deeper, never with a blanket entry', () => {
     const loose: string[] = []
     for (const id of PRESET_IDS) {
       const { provenance } = PRESETS[id]
       for (const pointer of leafPointers(PRESETS[id])) {
-        const [, block, typeId, field] = pointer.split('/')
-        if ((block !== 'catalog' && block !== 'sideBets') || !researched.includes(field ?? '')) {
-          continue
-        }
+        const [, block, typeId] = pointer.split('/')
+        if (block !== 'catalog' && block !== 'sideBets') continue
+        const type = `/${block}/${typeId}`
         const owner = governingEntry(provenance, pointer)?.pointer ?? ''
-        if (!owner.startsWith(`/${block}/${typeId}`) && owner !== `/${block}`)
-          loose.push(`${id}${pointer}`)
+        if (owner !== type && !owner.startsWith(`${type}/`)) loose.push(`${id}${pointer}`)
       }
     }
     expect(loose).toEqual([])
+  })
+
+  it('cites the research’s sources for machine rounding', () => {
+    const source = (id: PresetId, pointer: string) =>
+      governingEntry(PRESETS[id].provenance, pointer)?.entry.source
+    // Only the 2018 report of $2 paying $2.34 tells rounding up from rounding to the nearest cent.
+    for (const n of [6, 8]) {
+      expect(source('traditionalBubble', `/catalog/place/payoutRoundingByNumber/${n}`)).toBe(
+        'WOV-30281; WOV-11344; WOV-32511',
+      )
+    }
+    expect(source('traditionalLive345', '/money/payoutRounding')).toBe('LVA-RND; HAR-PA')
   })
 })
 
@@ -142,6 +153,12 @@ describe('craplessBubble: the Interblock heads-up crapless machine', () => {
     expect(status('/variant')).toBe('verified')
   })
 
+  it('takes Come only in the point phase [A]', () => {
+    expect(cfg.catalog.get('come')).toMatchObject({ window: 'point' })
+    expect(status('/catalog/come')).toBe('verified')
+    expect(status('/catalog/come/window')).toBe('assumed')
+  })
+
   it('works place and buy bets on the come-out [V]', () => {
     for (const typeId of ['place', 'buy']) {
       expect(cfg.catalog.get(typeId)).toMatchObject({ comeOutDefault: 'on' })
@@ -150,9 +167,14 @@ describe('craplessBubble: the Interblock heads-up crapless machine', () => {
     expect(cfg.working.comeOutAutoOff).toBeNull()
   })
 
-  it('starts place and buy placed after a seven-out OFF until the player sets bets ON [V; until A]', () => {
-    expect(cfg.working.afterSevenOut).toEqual({ types: ['place', 'buy'], until: 'playerOn' })
+  it('starts place and buy placed after a seven-out OFF until the player sets bets ON [V; trigger and until A]', () => {
+    expect(cfg.working.afterSevenOut).toEqual({
+      types: ['place', 'buy'],
+      trigger: 'sevenOut',
+      until: 'playerOn',
+    })
     expect(status('/afterSevenOut/newPlacedOff/types')).toBe('verified')
+    expect(status('/afterSevenOut/newPlacedOff/trigger')).toBe('assumed')
     expect(status('/afterSevenOut/newPlacedOff/until')).toBe('assumed')
   })
 
@@ -176,7 +198,7 @@ describe('craplessBubble: the Interblock heads-up crapless machine', () => {
     expect(status('/catalog/buy/commission/rounding')).toBe('assumed')
   })
 
-  it('takes 2x odds on all ten points at true odds [R]', () => {
+  it('takes 2x odds [R] on all ten points at true odds [A]', () => {
     for (const typeId of ['passOdds', 'comeOdds']) {
       const odds = cfg.catalog.get(typeId)
       expect(odds?.family).toBe('odds')
@@ -188,12 +210,15 @@ describe('craplessBubble: the Interblock heads-up crapless machine', () => {
       expect(net(cfg, typeId, 11)).toBe('3:1')
       expect(net(cfg, typeId, 6)).toBe('6:5')
       expect(status(`/catalog/${typeId}/limit`)).toBe('reported')
-      expect(status(`/catalog/${typeId}/pays/12`)).toBe('reported')
+      // Live crapless tables report these pays; Interblock's par sheet is not public.
+      for (const n of cfg.ruleset.points) {
+        expect(status(`/catalog/${typeId}/pays/${n}`)).toBe('assumed')
+      }
     }
     expect(cfg.catalog.get('comeOdds')).toMatchObject({ comeOutDefault: 'off' })
   })
 
-  it('places 2/12 at 11:2 and 3/11 at 11:4 [A], the rest at 9:5, 7:5 and 7:6 [V]', () => {
+  it('places 2/12 at 11:2, 3/11 at 11:4 and the rest at 9:5, 7:5 and 7:6, all [A]', () => {
     expect([2, 12].map((n) => net(cfg, 'place', n))).toEqual(['11:2', '11:2'])
     expect([3, 11].map((n) => net(cfg, 'place', n))).toEqual(['11:4', '11:4'])
     expect([4, 5, 6, 8, 9, 10].map((n) => net(cfg, 'place', n))).toEqual([
@@ -204,8 +229,9 @@ describe('craplessBubble: the Interblock heads-up crapless machine', () => {
       '7:5',
       '9:5',
     ])
-    for (const n of [2, 3, 11, 12]) expect(status(`/catalog/place/pays/${n}`)).toBe('assumed')
-    expect(status('/catalog/place/pays/6')).toBe('verified')
+    // Interblock v2.5.1 removed its pay tables, so even the standard pays on 4 to 10 are assumed.
+    for (const n of cfg.ruleset.points) expect(status(`/catalog/place/pays/${n}`)).toBe('assumed')
+    expect(status('/catalog/place')).toBe('verified')
   })
 
   it('floors payouts to the cent and rounds commission up to the cent [A]', () => {
@@ -237,7 +263,9 @@ describe('craplessBubble: the Interblock heads-up crapless machine', () => {
       types: ['place', 'buy', 'passOdds', 'comeOdds', 'hard'],
     })
     expect(status('/workingToggle/types')).toBe('verified')
+    expect(status('/workingToggle/perBet')).toBe('assumed')
     expect(cfg.working.oddsOffReturnedAtPointMade).toBe(true)
+    expect(status('/oddsOffReturnedAtPointMade')).toBe('assumed')
   })
 
   it('pays the field 2:1 on 2 and 12 [R]', () => {
@@ -302,8 +330,11 @@ describe('craplessBubble: the Interblock heads-up crapless machine', () => {
       [5, '30:1', 'anySeven'],
       [10, '155:1', 'anySeven'],
     ])
-    expect(status('/sideBets/luckyRollerAll/pays')).toBe('reported')
-    expect(status('/sideBets/luckyRollerAll/placement')).toBe('verified')
+    for (const id of ['luckyRollerLow', 'luckyRollerHigh', 'luckyRollerAll']) {
+      expect(status(`/sideBets/${id}/targets`)).toBe('verified')
+      expect(status(`/sideBets/${id}/pays`)).toBe('reported')
+      expect(status(`/sideBets/${id}/placement`)).toBe('verified')
+    }
   })
 
   it('plays at a self-paced 120 rolls per hour [A], the player always shooting', () => {
@@ -319,8 +350,23 @@ describe('the other presets', () => {
   it('traditionalBubble is Shoot To Win as on the Clearwater card', () => {
     const cfg = compiled('traditionalBubble')
     const status = (pointer: string) => statusAt(cfg.provenance, pointer)
-    expect(cfg.catalog.get('place')?.payoutRounding).toEqual({ mode: 'ceil', increment: 1 })
-    expect(status('/catalog/place/payoutRounding')).toBe('reported')
+    // Place 6/8 round up to the cent [R]; 4/5/9/10 round down [A] (rules spec §0.2 #3, §4.2).
+    const place = cfg.catalog.get('place')
+    if (place?.family !== 'numberVsSeven') throw new Error('no place bets')
+    expect(place.numbers.map((n) => [n, payoutRoundingFor(place, n).mode])).toEqual([
+      [4, 'floor'],
+      [5, 'floor'],
+      [6, 'ceil'],
+      [8, 'ceil'],
+      [9, 'floor'],
+      [10, 'floor'],
+    ])
+    expect(status('/catalog/place/payoutRounding')).toBe('assumed')
+    expect(status('/catalog/place/payoutRoundingByNumber/6')).toBe('reported')
+    expect(status('/catalog/place/payoutRoundingByNumber/8')).toBe('reported')
+    // OFF chips use no credit on the machine [V STWO]; the trainer keeps their stake (plan §0 #23).
+    expect(cfg.notModelled).toEqual(['/offBets/consumeCredit'])
+    expect(status('/offBets/consumeCredit')).toBe('verified')
     expect(cfg.catalog.get('dontPassOdds')).toMatchObject({ limit: { basis: 'stake' } })
     expect(cfg.catalog.get('dontComeOdds')).toMatchObject({ limit: { basis: 'win' } })
     expect(cfg.catalog.get('dontPass')).toMatchObject({
@@ -335,6 +381,19 @@ describe('the other presets', () => {
     })
     expect(commission(cfg, 'lay', 4)).toMatchObject({ basis: 'win', timing: 'onWin' })
     expect(cfg.working.comeOutAutoOff?.carried).toEqual(['comeOdds', 'place', 'buy', 'hard', 'big'])
+    expect(status('/comeOut/autoOff/carried')).toBe('verified')
+    expect(status('/comeOut/autoOff/newlyPlaced')).toBe('assumed')
+    // CW §21 bars these "for the same roll"; the same-number reading is assumed.
+    expect(
+      cfg.exclusiveGroups.map((g, i) => [g.scope, status(`/exclusiveGroups/${i}/scope`)]),
+    ).toEqual([
+      ['global', 'verified'],
+      ['global', 'verified'],
+      ['sameNumber', 'assumed'],
+      ['sameNumber', 'assumed'],
+      ['sameNumber', 'assumed'],
+      ['sameNumber', 'assumed'],
+    ])
     expect(cfg.working.toggle.types).toHaveLength(10)
     expect(cfg.working.offBetsConsumeCredit).toBe(false)
     expect(cfg.flow.historyLength).toBe(27)
@@ -346,6 +405,24 @@ describe('the other presets', () => {
 
   it('strictBubble is Interblock traditional with up-front vig on buy and lay', () => {
     const cfg = compiled('strictBubble')
+    const status = (pointer: string) => statusAt(cfg.provenance, pointer)
+    // The Interblock readings it shares with the crapless machine.
+    expect(cfg.working.afterSevenOut).toEqual({
+      types: ['place', 'buy'],
+      trigger: 'sevenOut',
+      until: 'playerOn',
+    })
+    for (const pointer of [
+      '/afterSevenOut/newPlacedOff/trigger',
+      '/workingToggle/perBet',
+      '/oddsOffReturnedAtPointMade',
+      '/catalog/come/window',
+      '/exclusiveGroups/2/scope',
+      '/exclusiveGroups/3/scope',
+    ]) {
+      expect(status(pointer), pointer).toBe('assumed')
+    }
+    expect(status('/afterSevenOut/newPlacedOff/types')).toBe('verified')
     expect(commission(cfg, 'buy', 5)).toMatchObject({
       basis: 'stake',
       timing: 'upfront',
@@ -367,6 +444,46 @@ describe('the other presets', () => {
     expect(
       shooter?.family === 'pointRun' && `${shooter.topAward.num}:${shooter.topAward.den}`,
     ).toBe('999:1')
+  })
+
+  it('models every value but Shoot To Win’s OFF chips that use no credit (plan §0 #23)', () => {
+    expect(PRESET_IDS.map((id) => [id, compiled(id).notModelled])).toEqual([
+      ['craplessBubble', []],
+      ['traditionalBubble', ['/offBets/consumeCredit']],
+      ['strictBubble', []],
+      ['traditionalLive345', []],
+    ])
+  })
+
+  it('traditionalLive345 takes odds and composites only in units that pay whole dollars [A]', () => {
+    const cfg = compiled('traditionalLive345')
+    const status = (pointer: string) => statusAt(cfg.provenance, pointer)
+    const units = (typeId: string) =>
+      cfg.ruleset.points.map((n) => typeLimits(cfg, typeId, n).increment)
+    for (const typeId of ['passOdds', 'comeOdds']) {
+      expect(units(typeId)).toEqual([100, 200, 500, 500, 200, 100])
+      expect(status(`/limits/perType/${typeId}/incrementByNumber`)).toBe('assumed')
+    }
+    for (const typeId of ['dontPassOdds', 'dontComeOdds']) {
+      expect(units(typeId)).toEqual([200, 300, 600, 600, 300, 200])
+      expect(status(`/limits/perType/${typeId}/incrementByNumber`)).toBe('assumed')
+    }
+    expect(typeLimits(cfg, 'passOdds').increment).toBe(100)
+    const composites = [...cfg.composites.keys()].map((id) => [id, typeLimits(cfg, id)])
+    expect(composites).toEqual([
+      ['ce', { min: 200, max: 500_000, increment: 200 }],
+      ['horn', { min: 400, max: 500_000, increment: 400 }],
+      ['hornHigh2', { min: 500, max: 500_000, increment: 500 }],
+      ['hornHigh3', { min: 500, max: 500_000, increment: 500 }],
+      ['hornHigh11', { min: 500, max: 500_000, increment: 500 }],
+      ['hornHigh12', { min: 500, max: 500_000, increment: 500 }],
+      ['world', { min: 500, max: 500_000, increment: 500 }],
+    ])
+    for (const [id] of composites) expect(status(`/limits/perType/${String(id)}`)).toBe('assumed')
+    // Each composite's unit is a whole dollar on each of its parts.
+    for (const composite of cfg.composites.values()) {
+      expect(typeLimits(cfg, composite.id).increment).toBe(composite.units * 100)
+    }
   })
 
   it('traditionalLive345 pays whole dollars with 3-4-5x odds and a 3:1 field 12', () => {
@@ -434,7 +551,7 @@ function fingerprint(id: PresetId): string {
     switch (type.family) {
       case 'line':
         return [
-          `${head} line ${type.side}/${type.window}: pays ${pay(type.pays)} ${tag(`${at}/pays`)}; ` +
+          `${head} line ${type.side}/${type.window} ${tag(`${at}/window`)}: pays ${pay(type.pays)} ${tag(`${at}/pays`)}; ` +
             `${after} ${tag(`${at}/afterWin`)}` +
             (type.side === 'dont'
               ? `; on a number ${type.onNumber} ${tag(`${at}/onNumber`)}, ` +
@@ -455,8 +572,11 @@ function fingerprint(id: PresetId): string {
           )}`,
         ]
       case 'numberVsSeven': {
+        const byNumber = [...type.payoutRoundingByNumber].map(
+          ([n, rule]) => `, on ${n} ${round(rule)} ${tag(`${at}/payoutRoundingByNumber/${n}`)}`,
+        )
         const lines = [
-          `${head} ${type.kind}: payouts ${round(type.payoutRounding)} ${roundingTag(type.typeId)}; ` +
+          `${head} ${type.kind}: payouts ${round(type.payoutRounding)} ${roundingTag(type.typeId)}${byNumber.join('')}; ` +
             `${after} ${tag(`${at}/afterWin`)}; come-out ${type.comeOutDefault} ${tag(`${at}/comeOutDefault`)}`,
           `    pays ${table(
             `${at}/pays`,
@@ -524,8 +644,15 @@ function fingerprint(id: PresetId): string {
     `limits: ${money(limits.min)} ${tag('/limits/min')} to ${money(limits.max)} ${tag('/limits/max')}; table ${limits.tableMax === null ? '-' : money(limits.tableMax)}; ` +
       `minimum total ${limits.minTotal === null ? '-' : `${money(limits.minTotal.amount)} ${tag('/limits/minTotal/amount')} ${limits.minTotal.scope}, OFF bets count ${yesNo(limits.minTotal.countOff)} ${tag('/limits/minTotal/countOff')}, side bets count ${yesNo(limits.minTotal.countSideBets)} ${tag('/limits/minTotal/countSideBets')}`}`,
     ...Object.entries(input.limits.perType ?? {}).map(([typeId, own]) =>
-      `  ${typeId} ${tag(`/limits/perType/${typeId}`)}: ${own.min === undefined ? '' : `min ${money(own.min)} `}${own.max === undefined ? '' : `max ${money(own.max)} `}${own.increment === undefined ? '' : `step ${money(own.increment)}`}`.trimEnd(),
+      `  ${typeId} ${tag(`/limits/perType/${typeId}`)}: ${own.min === undefined ? '' : `min ${money(own.min)} `}${own.max === undefined ? '' : `max ${money(own.max)} `}${own.increment === undefined ? '' : `step ${money(own.increment)} `}${
+        own.incrementByNumber === undefined
+          ? ''
+          : `steps ${Object.entries(own.incrementByNumber)
+              .map(([n, unit]) => `${n}=${money(unit ?? 0)}`)
+              .join(' ')} ${tag(`/limits/perType/${typeId}/incrementByNumber`)}`
+      }`.trimEnd(),
     ),
+    `not modelled: ${list(cfg.notModelled)}`,
     `chips ${tag('/chips')}: ${cfg.chips.map(money).join(' ')}`,
     'catalog:',
     ...[...cfg.catalog.values()].flatMap(describe),
@@ -536,11 +663,11 @@ function fingerprint(id: PresetId): string {
     ),
     'side bets:',
     ...[...cfg.sideBets.values()].map(describeSide),
-    `working: toggle ${tag('/workingToggle')} global ${yesNo(w.toggle.global)}, per bet ${yesNo(w.toggle.perBet)}, ${w.toggle.scope}, covers ${list(w.toggle.types)}`,
-    `  come-out auto-OFF ${tag('/comeOut/autoOff')}: ${w.comeOutAutoOff === null ? '-' : `carried ${list(w.comeOutAutoOff.carried)}; new ${list(w.comeOutAutoOff.newlyPlaced)}; back ON at ${w.comeOutAutoOff.reOnAt}`}`,
-    `  after a seven-out ${tag('/afterSevenOut/newPlacedOff')}: ${w.afterSevenOut === null ? '-' : `new ${list(w.afterSevenOut.types)} OFF until ${w.afterSevenOut.until} ${tag('/afterSevenOut/newPlacedOff/until')}`}`,
+    `working: toggle ${tag('/workingToggle')} global ${yesNo(w.toggle.global)}, per bet ${yesNo(w.toggle.perBet)} ${tag('/workingToggle/perBet')}, ${w.toggle.scope}, covers ${list(w.toggle.types)}`,
+    `  come-out auto-OFF ${tag('/comeOut/autoOff')}: ${w.comeOutAutoOff === null ? '-' : `carried ${list(w.comeOutAutoOff.carried)} ${tag('/comeOut/autoOff/carried')}; new ${list(w.comeOutAutoOff.newlyPlaced)} ${tag('/comeOut/autoOff/newlyPlaced')}; back ON at ${w.comeOutAutoOff.reOnAt}`}`,
+    `  after a seven-out ${tag('/afterSevenOut/newPlacedOff')}: ${w.afterSevenOut === null ? '-' : `new ${list(w.afterSevenOut.types)} OFF after ${w.afterSevenOut.trigger} ${tag('/afterSevenOut/newPlacedOff/trigger')} until ${w.afterSevenOut.until} ${tag('/afterSevenOut/newPlacedOff/until')}`}`,
     `  lay auto-ON ${tag('/layAutoOn')}: ${w.layAutoOn === null ? '-' : `after point made ${yesNo(w.layAutoOn.afterPointMade)}, after a 7 ${yesNo(w.layAutoOn.afterSeven)}`}; OFF odds returned at point made ${yesNo(w.oddsOffReturnedAtPointMade)} ${tag('/oddsOffReturnedAtPointMade')}; OFF bets use credit ${yesNo(w.offBetsConsumeCredit)} ${tag('/offBets/consumeCredit')}`,
-    `exclusive ${tag('/exclusiveGroups')}: ${cfg.exclusiveGroups.length === 0 ? '-' : cfg.exclusiveGroups.map((g) => `${g.types.join('|')} (${g.scope})`).join(', ')}; line vs lay/buy ${yesNo(cfg.excludeLineVsLayBuy)} ${tag('/excludeLineVsLayBuy')}`,
+    `exclusive ${tag('/exclusiveGroups')}: ${cfg.exclusiveGroups.length === 0 ? '-' : cfg.exclusiveGroups.map((g, i) => `${g.types.join('|')} (${g.scope} ${tag(`/exclusiveGroups/${i}/scope`)})`).join(', ')}; line vs lay/buy ${yesNo(cfg.excludeLineVsLayBuy)} ${tag('/excludeLineVsLayBuy')}`,
     `flow: shooter ${flow.shooter.mode} ${tag('/flow/shooter')}; invalid roll ${flow.invalidRoll} ${tag('/flow/invalidRoll')}; puck reset ${flow.puckReset} ${tag('/flow/puckReset')}; buttons ${list(flow.groupButtons.buttons)} (${flow.groupButtons.condition}) ${tag('/flow/groupButtons')}; history ${flow.historyLength} ${tag('/flow/historyLength')}; macros ${list(flow.macros)} ${tag('/flow/macros')}; labels ${cfg.payLabelStyle}`,
     `pace: ${pace.rollsPerHour} rolls/hour ${tag('/pace/rollsPerHour')}; bet window ${pace.betWindowSec ?? '-'} ${tag('/pace/betWindowSec')}; shooter window ${pace.shooterWindowSec ?? '-'} ${tag('/pace/shooterWindowSec')}`,
     `assumed (${assumptions.length}): ${assumptions.map((a) => a.pointer).join(', ')}`,

@@ -25,9 +25,9 @@ One win, loss or push of a bet. A bet that stays up after winning starts a new d
 
 Over a bet's lifecycle under the policy:
 
-  R = Σ_decisions stake + Σ commission charged
+  R = Σ_decisions stake + Σ commission paid up front
 
-The commission sum includes up-front vig at placement and on increases, vig re-collected when a winner stays up (`rearm`), and vig taken from wins. Refunded vig is subtracted.
+Commission paid up front is the vig charged at placement and on increases, and the vig re-collected when a winner stays up (`rearm`), whether the win or credit pays it: each pays for a decision still to come. Refunded vig is subtracted. Commission deducted from a win (`timing: onWin`) is **not** added: it only reduces what the win returns, so it counts in the loss L and not in R. This is rules spec §0.1's divisor ("stake + vig" for up-front vig, the stake alone otherwise), and it gives the published edges (plan §0 #22).
 
 ### Edge
 
@@ -39,7 +39,8 @@ L is the lifecycle loss: everything the player put in (stakes and commission) mi
 - When up-front vig is charged once and not re-collected (`rearm: none`), the lifecycle is the honest long-run figure. Buy 4 with 5% up front:
   - Each decision wins with P = 1/3 and stays up, so E[decisions] = 3/2.
   - E[R] = 3/2 × s + s/20 and E[L] = s/20 (the final lost stake is offset by the expected winnings).
-  - edge = 1/31. With the vig re-collected on every win (`recollectFromWin`), it is 1/21; with 5% of the stake taken from wins, 1/60.
+  - edge = 1/31. With the vig re-collected on every win (`recollectFromWin`), it is 1/21.
+- Buy 4 with 5% of the stake taken from each win (Shoot To Win): R holds only the stakes, E[R] = 3/2 × s, and each decision loses s/60 on average, so E[L] = 3/2 × s/60 and the edge is 1/60, the published value. Adding the commission to R would give 1/61.
 
 ### Nominal edge and breakage
 
@@ -93,7 +94,7 @@ Odds never change the flat bet's expected loss; they only add money wagered at z
 
 ### Standing cost per roll
 
-The long-run expected loss per roll if you keep the bet up and re-bet it whenever allowed (the layout meter). Every formula is exact and based on renewal:
+The long-run expected loss per roll if you keep the bet up and re-bet it whenever allowed (the layout meter). Every formula is exact and based on renewal: the expected loss per bet or decision times how many are made per roll. Where that rate has no closed form, it comes from the exact renewal solve:
 
 | Bet type | Standing cost per roll |
 |---|---|
@@ -101,7 +102,9 @@ The long-run expected loss per roll if you keep the bet up and re-bet it wheneve
 | pass | loss per decision × π(comeOut) |
 | come | loss per decision × (1 − π(comeOut)) |
 | Fire (`uniquePointsMade`) | loss per bet ÷ E[rolls per hand] |
-| `collectSet` | loss per bet × 1/6 |
+| `collectSet` placed `afterSevenOrStart`, ending on any 7 (Interblock Lucky Roller) | loss per bet × 1/6. A new bet waits for a 7 and every 7 ends the bet, so exactly one bet is made per 7 |
+| `collectSet` placed `noneOfTypeActive` (Shoot To Win Lucky Roller) | loss per bet ÷ E[rolls per bet]. A completed set can be bet again before any 7, so more than 1/6 of a bet is made per roll; E[rolls until the set is complete or a 7], which is below 6, comes from the exact renewal solve |
+| `collectSet` placed `newHand` | loss per bet ÷ E[rolls per hand]: one bet per hand |
 
 | Constant | Traditional | Crapless |
 |---|---|---|

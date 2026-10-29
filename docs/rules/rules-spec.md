@@ -178,10 +178,10 @@ A hand of 154 or more rolls has odds of about 1 in 5.59 billion.
 ### 2.3 Roll pipeline (`table/roll.ts`)
 
 1. Take the dice from the RNG (scripted dice only in tests). Then `advanceRound(before)` gives the transition.
-2. Effective working status = `bet.working ?? globalToggle ?? policyDefault(type, phaseBefore, carried?, placedAfterSevenOut?)` (§2.4).
+2. Effective working status = `bet.working ?? heldAfterSevenOut ?? globalToggle ?? policyDefault(type, phaseBefore, carried?)`, below any machine rule that forces a bet OFF (§2.4).
 3. `decide` every bet independently against the **before** state. The bet on N and the box bet traveling to N are separate decisions.
 4. Odds take their parent's decision. If the parent resolves while the odds are not working, the odds are **returned**: `push(offReturned)`.
-5. Settle each bet: exact amount → round → commission (§4). Update the ledger.
+5. Settle each bet: exact amount → round → commission (§4). Update the ledger. Once every bet is settled, up-front vig is re-collected from the winners that stay up, in settlement order, against the credit the whole roll left (§4.5).
 6. Apply the results:
    - Resolved bets are removed or stay, per `afterWin`.
    - Box bets travel. A travelled bet starts with 0 odds.
@@ -189,10 +189,10 @@ A hand of 154 or more rolls has odds of about 1 in 5.59 billion.
 7. Commit the round state.
 8. Machine post-roll actions:
    - **STW:** on POINT_ESTABLISHED, auto-OFF chips turn ON. When the next phase is a come-out, carried types go OFF.
-   - **IB:** lay bets turn back ON after a point is made or any 7. OFF odds are returned when their point is made.
+   - **IB:** lay bets turn back ON after a point is made or any 7. OFF odds are returned when their point is made. The engine and the oracle read IB §3.2's "Odds bets are removed when a Point is reestablished" as: when the pass point is made, every odds bet that is OFF comes down and is returned, come odds whose come bet the roll does not decide included (`/oddsOffReturnedAtPointMade` [A]). Odds whose own bet is decided while they are OFF are returned by step 4 in any case.
    - Auto re-bets happen per `afterWin`.
    - Side-bet windows open or close.
-   - **IB:** after a SEVEN_OUT, Place/Buy bets placed in the next window are flagged OFF.
+   - **IB:** after a SEVEN_OUT, Place/Buy bets placed in the next window are held OFF (a machine hold, not the bet's own setting; §2.4).
 9. Betting window. On `roll`, validate the minimum (active bets only), credit and limits.
 
 ### 2.4 Working rules by machine family: come-out defaults and toggles
@@ -212,10 +212,12 @@ A hand of 154 or more rolls has odds of about 1 in 5.59 billion.
 - **LIVE:** per bet, verbally.
 - **STW:** All On; All Off; per-chip OFF "from the upcoming roll onward" on the 10 types in §0.2 #1. Whether All On can override the come-out auto-OFF is undocumented [A: no].
 - **IB:** "Set bets Off" covers Place, Lay, Buy, Odds (take and give) and Hardways [V].
+  - "Set bets On" returns every covered bet to its machine default (`setGlobalWorking(null)`), so Come odds stay OFF on the come-out and are returned on a come-out 7. It does not force them ON (`setGlobalWorking(false)` would make them work) [A, plan §0 #21, §9 #28]. IB §3.2 does not say which; if the player's machine works Come odds on the come-out after Set bets On, change the mapping and its scenario together.
+  - The post-seven-out OFF is a machine hold on the bets placed in that window, not the bets' own setting. It outranks the button, so a Set bets On pressed before the seven-out does not reach it, and it ends when the player presses Set bets On (a Set bets Off leaves it, as those bets are OFF either way) or, under `until: pointEstablished`, when the point is established [V IB §3.2; reading §9 #29]. On a machine with per-bet toggles (no preset has both), setting the bet ON turns it ON, and setting it back to its default leaves it held; a toggle that lasts `nextRollOnly` resets the player's settings, not the hold.
 
 **Config** (§5.1):
 - A type's come-out default is `/catalog/<type>/comeOutDefault` (`on` or `off`). In the point phase every bet works unless it is switched OFF. Odds carry a default only when their parent is a come or don't come bet: pass-line odds never face a come-out roll.
-- STW's auto-OFF is `/comeOut/autoOff`. The machine forces those bets OFF for the come-out roll and back ON when the point is established; player toggles do not override it [A, §9 #7].
+- STW's auto-OFF is `/comeOut/autoOff`. The machine forces those bets OFF for the come-out roll and back ON when the point is established; player toggles do not override it [A, §9 #7]. Its `carried` and `newlyPlaced` lists both name come odds, place, buy, hardways and Big 6/8, so every chip of those types is OFF on the come-out, carried [V CW §4] or new [A], and their `/catalog/<t>/comeOutDefault` decides none of them. A bet's config paths name the rule's parts, so the assumed `newlyPlaced` shows on any number that depends on it.
 - IB's post-seven-out rule is `/afterSevenOut/newPlacedOff`, its lay re-enable is `/layAutoOn`, and its return of OFF odds is `/oddsOffReturnedAtPointMade`.
 - The ON/OFF control is `/workingToggle`: a `global` button, `perBet` toggles, the `types` it covers, and whether OFF lasts `untilChanged` or for the `nextRollOnly`. Whether OFF bets use credit is `/offBets/consumeCredit`.
 
@@ -348,11 +350,12 @@ Non-US paytables: 15:2 → 5.556%; 19:2 → 4.545% [WOO-HE].
 
 ### 4.1 Representation
 
-- **Amounts:** money is integer `Cents`. Stakes must be multiples of `money.betIncrement` (or of `perType.increment`).
+- **Amounts:** money is integer `Cents`. Stakes must be multiples of `money.betIncrement` (or of `perType.increment`, or of the type's unit on the bet's number, `perType.incrementByNumber`; for odds, the parent's point).
+- **Malformed or extreme input** is refused, never thrown: amounts are safe integers of cents, an addition is checked against the limits before it is summed, a deposit may not carry the ledger past `Number.MAX_SAFE_INTEGER`, and scripted dice must be an object with two whole faces from 1 to 6 (plan §4.6).
 - **Payout ratios:** stored as exact `Ratio` "to 1"; `parseRatio` converts "for 1".
 - **Win amount:**
   - `winExact = stake × num/den` (a Fraction).
-  - `winPaid = round(winExact, catalog[type].payoutRounding ?? money.payoutRounding)`.
+  - `winPaid = round(winExact, catalog[type].payoutRoundingByNumber[n] ?? catalog[type].payoutRounding ?? money.payoutRounding)`, where `n` is the number a number bet sits on (`payoutRoundingFor` in `src/engine/bets/types.ts`). A lay's commission base, its potential win, rounds the same way.
   - Round **once** per bet settlement. Composite bets (horn, world, C&E) settle as a single bet using their whole-bet net table.
 - **Credited:** `credited = (stake if returned) + winPaid − vigOnWin − vigRearmFromWin`.
 - **Composites in the config:** `/composites/<id>` lists the component one-roll bets and their units: C&E = C + E; horn = 2, 3, 11, 12; world = horn + Any 7; horn high X = horn + a second unit on X. The whole-bet net table (§3.4) follows from the parts. With whole-dollar machine bets every part is a whole number of cents, so settling the parts and settling the whole give the same result; which path the engine takes is open (§9 #25).
@@ -363,7 +366,9 @@ Non-US paytables: 15:2 → 5.556%; 19:2 → 4.545% [WOO-HE].
 | Context | Payout rounding | Commission rounding | Tag |
 |---|---|---|---|
 | STW, place 6/8 (7:6) | `{ceil, 1}`: $1 → $1.17; $2 → $2.34 | — | R (7craps 2012; Aruze STW 2018) |
-| Machine, all other fractional payouts | `{floor, 1}` | `{ceil, 1}` | A (conservative; no report exists) |
+| Machine, all other fractional payouts (STW place 4/5/9/10 included) | `{floor, 1}` | `{ceil, 1}` | A (conservative; no report exists) |
+
+STW's place type rounds `{floor, 1}` (`/catalog/place/payoutRounding` [A]) with `{ceil, 1}` overrides on 6 and 8 only (`/catalog/place/payoutRoundingByNumber/6` and `/8` [R]): whole-dollar bets on 4/5/9/10 pay whole cents anyway, but a stake in cents shows the difference ($1.01 on 5 pays $1.41, on 6 $1.18).
 | LIVE | `{floor, 100}` (whole dollars, "keep the change") | floor to whole dollar, $1 minimum | V [LVA-RND, HAR-PA] |
 
 `src/engine/core/money.ts` implements all four modes (`ROUNDING_MODES`: floor, ceil, halfUp, halfEven). Its `TO_THE_PENNY = {floor, 1}` is the A default.
@@ -469,7 +474,9 @@ Odds never change the flat bet's dollar loss per decision: 7/495 × flat (T) or 
 | Lucky Shooter | 1–100 credits [V IBLS] | V |
 | Fire Bet (MD live) | $1–$5 in $1 steps [V MD-C] | V |
 | OFF bets and credit | STW: OFF chips use no credit and don't count toward the minimum [V STWO]. IB: every placed bet reduces Playable, ON or OFF; the minimum must be met by active bets [V IB] | V |
+| OFF bets and credit, trainer | **Deviation:** STW's `/offBets/consumeCredit: false` is not modelled. Every OFF bet keeps its stake on the layout and so still uses credit, on every machine, because no source says what happens when an OFF chip turns ON without the credit to back it. The trainer never lets a player bet more than a machine would; on STW it lets them bet less. `MachineConfig.notModelled` lists the pointer, and the coach shows an "approximation" note on that machine (plan §0 #23) | — |
 | Upfront vig | Must be covered by credit at placement; declining removes the bet [V IB §3.3] | V |
+| Re-collected vig and credit | Up-front vig is "re-paid on every win" [V HAR-PA]. **Reading:** the re-collection is judged after all of the roll's settlements, against the credit they leave, in settlement order, so the vig comes out of the roll's payouts. A live $1 lay on 4 wins 50¢, paid as $0, and owes its $1 vig again: with $0 credit and an Any 7 paying $25 on the same roll, the $1 comes out of the $25 and the lay stays. Only when the credit after the whole roll cannot pay does the bet come down, as declining the vig removes it [IB §3.3]; what its win paid toward the vig is refunded and its stake returned. Credit that exactly covers the vig pays it | V / reading |
 | Cash-out | IB: only with no bets on the table; ticket or hand pay [V IB] | V |
 
 ---
@@ -489,11 +496,12 @@ The last column is where each knob lives in `MachineConfigInput` (`src/engine/co
 | | `catalog[]` | Presence = offered. Per type: `pays` per number, `commission`, `afterWin`, `comeOutDefault`, `payoutRounding`+ | `/catalog/<t>`, keyed by type id rather than an array, so pointers stay stable. Each type names its `family`; line types give `side` and `window`, number bets their `kind` |
 | Money | `money.payoutRounding`, `money.betIncrement` | `RoundingRule{mode: floor/ceil/halfUp/halfEven, increment}` | `/money/payoutRounding`, `/money/betIncrement`; also `/money/startingBankroll` |
 | | `catalog[t].payoutRounding`+ | Per-type override; needed for place 6/8 ceil vs wrong-way floor | `/catalog/<t>/payoutRounding` |
+| | `catalog[t].payoutRoundingByNumber`+ | Number bets: overrides the type's rounding on the numbers it lists (STW place 6/8 ceil, 4/5/9/10 floor) | `/catalog/<t>/payoutRoundingByNumber/<n>` |
 | | `catalog[t].commission` (+ per-number override+) | `CommissionInput`; per-number override needed for live "on win for 4/10 only" | `/catalog/<t>/commission`, `/catalog/<t>/commissionByNumber/<n>` |
 | Pays | place / buy / lay / PTL / odds / field / props / hops / hardways / big | Exact ratios. Crapless place 2/12 ∈ {11:2, 5:1}; 3/11 ∈ {11:4, 13:5}. `payLabelStyle`+ ∈ {to, for} affects display only | `/catalog/<t>/pays/<n>`; one-roll bets key pays by total or by dice pair, low face first. Each ratio string keeps the machine's own wording ("9 to 5", "31 for 1"), so `/payLabelStyle` is `asWritten` unless a uniform `to` or `for` is wanted |
-| Limits | `limits.{min, max, tableMax, perType}`; `minTotal{amount, scope: perBet/totalRound, countOff: false, countSideBets: ?}`+ | — | `/limits/min`, `/limits/max`, `/limits/tableMax`, `/limits/perType/<t>/{min,max,increment}`; `/limits/minTotal` (null when there is none) |
+| Limits | `limits.{min, max, tableMax, perType}`; `minTotal{amount, scope: perBet/totalRound, countOff: false, countSideBets: ?}`+ | `perType.incrementByNumber`+: the stake unit on each number listed, for odds (the parent's point), number bets and hardways; amounts must be multiples of it, odds caps floor to it, and the smallest new bet is the minimum rounded up to it | `/limits/min`, `/limits/max`, `/limits/tableMax`, `/limits/perType/<t>/{min,max,increment}`, `/limits/perType/<t>/incrementByNumber/<n>`; `/limits/minTotal` (null when there is none) |
 | Odds | `odds.take{multiplier per point}`, `odds.lay{multiplier, basis: stake/win}` per parent type+ | Don't Pass and Don't Come can differ (STW) | Each odds type: `/catalog/<t>/parent` (its line type), `/catalog/<t>/pays/<n>`, `/catalog/<t>/limit/basis`, `/catalog/<t>/limit/multiple/<n>` (whole multiples; 3-4-5× is 3, 4 and 5 by point) |
-| Working | `comeOut.autoOff{carried[], newlyPlaced[], reOnAt: pointEstablished}`+; `afterSevenOut.newPlacedOff{types[], until: playerOn/pointEstablished}`+; `layAutoOn{afterPointMade, afterSeven}`+; `oddsOffReturnedAtPointMade`+ | §2.4 | `/comeOut/autoOff`, `/afterSevenOut/newPlacedOff` and `/layAutoOn` (each null when the machine has no such rule), `/oddsOffReturnedAtPointMade`; per-type defaults in `/catalog/<t>/comeOutDefault` |
+| Working | `comeOut.autoOff{carried[], newlyPlaced[], reOnAt: pointEstablished}`+; `afterSevenOut.newPlacedOff{types[], trigger: sevenOut/anySeven, until: playerOn/pointEstablished}`+; `layAutoOn{afterPointMade, afterSeven}`+; `oddsOffReturnedAtPointMade`+ | §2.4; `trigger` is §9 #6 (default `sevenOut`) | `/comeOut/autoOff`, `/afterSevenOut/newPlacedOff` (with `/afterSevenOut/newPlacedOff/trigger`) and `/layAutoOn` (each null when the machine has no such rule), `/oddsOffReturnedAtPointMade`; per-type defaults in `/catalog/<t>/comeOutDefault` |
 | | `workingToggle{global, scope, types[]}` | STW 10 types; IB 5 types | `/workingToggle`, plus `perBet`: whether single bets can be switched |
 | | `offBets.consumeCredit`+ | STW false; IB true | `/offBets/consumeCredit` |
 | Mutability | `dontPassAfterPoint`+ | locked / reduceRemove | `/catalog/<don't pass type>/onNumber` |
@@ -531,14 +539,14 @@ Column names below are the preset ids `traditionalBubble`, `craplessBubble`, `st
 | Big 6/8; hardways | 1:1; 7:1 / 9:1 [V CW] | —; 7:1 / 9:1 [A, IB par] | 1:1; 7:1 / 9:1 [A] | 1:1; 7:1 / 9:1 [V] |
 | Field 2 / 12 | 2:1 / 2:1 [V CW §8] | 2:1 / 2:1 [R VA] | 2:1 / 2:1 [V IB default] | 2:1 / **3:1** [V WOO-B] |
 | Props / hops | Any 7 4:1, C 7:1, E 15:1, C&E 3:1 / 7:1, horn 30 / 15 / 15 / 30, hops 30 / 15 [V CW] | same [R IB screen: 5/8/16/31 "for 1"] | same [R] | same, "to 1" [V MD-C, HAR-PA] |
-| Payout rounding | place 6/8 `{ceil, 1}` [R]; others `{floor, 1}` [A] | `{floor, 1}` [A] | `{floor, 1}` [A] | `{floor, 100}` [V] |
+| Payout rounding | place 6/8 `{ceil, 1}` [R] (`payoutRoundingByNumber`); place 4/5/9/10 and everything else `{floor, 1}` [A] | `{floor, 1}` [A] | `{floor, 1}` [A] | `{floor, 100}` [V] |
 | Commission rounding | `{ceil, 1}` (only lay can hit sub-cent) [A] | `{ceil, 1}` [A] | `{ceil, 1}` [A] | `{floor, 100}`, minimum 100 [V HAR-PA] |
-| Bet increment | $1 [A] | $1 [A] | $1 [A] | $1; bot grid $5 / $6 [V] |
+| Bet increment | $1 [A] | $1 [A] | $1 [A] | $1; bot grid $5 / $6 [V]. Odds only in the units that pay whole dollars (§3.1): take $1 / $2 / $5 on 4-10 / 5-9 / 6-8, lay $2 / $3 / $6 (`incrementByNumber`) [A]. Composites in whole-dollar units per number: C&E $2, horn $4, horn high and world $5, each also its minimum [A, §9 #27] |
 | Minimum | $1 per bet; **$3 total** [A; R range $1–$5] | $1 per bet; **$5 total** [A; R $1–$6, G3 $5] | $5 total [A] | $10 line [A] |
 | Maximum per wager | $500 [A; WA cap V] | $500 [A] | $500 [A] | $5,000; odds may exceed [A] |
 | Come-out working | STW policy (§2.4) [V; new chips A] | IB policy (§2.4) [V] | IB policy [V] | LIVE: place/buy OFF, come odds OFF→returned, DC odds ON, lay ON, PTL ON, hard ON, Big ON [V/R] |
 | Toggle | 10 types, "from the upcoming roll onward" [V STWO] | Place, Buy, Odds, Hard; persists [V IB] | Place, Lay, Buy, Odds, Hard [V IB] | per bet |
-| OFF bets use credit | no [V STWO] | yes [V IB] | yes [V IB] | n/a |
+| OFF bets use credit | no [V STWO]; **not modelled**: the trainer's OFF chips still use credit (`notModelled`, §4.5, plan §0 #23) | yes [V IB] | yes [V IB] | n/a |
 | DP after point / DC after travel | locked [V CW §11e] / removable [A] | n/a | reduce/remove, no re-bet until next cycle [V IB §2.3] / same [A] | reduce/remove, no re-add or increase [V MD-C] / same [V] |
 | Exclusive | Pass×DP, Come×DC (global); Place×{PTL, Lay}, Buy×{Lay, PTL} on the same number [V CW §21; same-number scope A]. Place + Buy on one number allowed [A] | Place + Buy on one number if the paytable allows [V IB] | Pass×DP, Come×DC; Place×Lay, Buy×Lay; `excludeLineVsLayBuy` ON [setting V IB221; ON A] | none (Doey-Don't allowed) [A] |
 | afterWin | Pass stay; DP/DC `stayIfFirstRoll`; Come `stayIf11`; place, buy, hard, field, lay, PTL, props, hops, big stay [V CW §29–32] | Pass stay (chips "pushed to the next round") [V IB §2]; place/buy/hard stay [A]; one-roll return, with Keep Bets On/Repeat as UI [A] | same as crapless | Pass stay; Come return; number bets stay; one-roll return [A] |
@@ -571,16 +579,16 @@ Column names below are the preset ids `traditionalBubble`, `craplessBubble`, `st
 
 **Semantics.**
 1. The come-out lists partition 2–12 with 7 a natural, and equal the variant's lists (§2.1). Crapless has no bar; traditional bars 2 or 12.
-2. Crapless offers no don't bets.
+2. Crapless offers no don't bets, no put bets and no Hot Shooter Jackpot.
 3. Line types: one per side and window. A don't bet states `onNumber` and `rebetAfterRemove`; a do bet does not. `stayIfFirstRoll` is for don't bets only, `stayIf11` for a come bet only.
 4. Odds: the parent exists and is a line type, with at most one odds type per parent. Pays and limits cover exactly the variant's points. `comeOutDefault` is given exactly when the parent is placed in the point phase.
-5. Number bets: numbers are points of the variant (big bets: 6 and 8), listed once. Every offered number has a pay ratio, and no other number does. Buy and lay carry a commission and no other kind does. Per-number commissions name offered numbers. Commission taken from wins is never refunded or re-collected.
+5. Number bets: numbers are points of the variant (big bets: 6 and 8), listed once. Every offered number has a pay ratio, and no other number does. Buy and lay carry a commission and no other kind does. Per-number commissions and per-number payout roundings name offered numbers. Commission taken from wins is never refunded or re-collected.
 6. Hardways: numbers are 4, 6, 8 and 10, listed once, each with a pay ratio.
 7. One-roll bets: at least one winning outcome, keyed by a total ("2" to "12") or a dice pair written low face first ("2-5").
-8. Composites combine one-roll bets from the catalog, each once. Composite and side-bet ids do not reuse a bet type id.
+8. Composites combine one-roll bets from the catalog, each once. Composite and side-bet ids do not reuse a bet type id. A composite settles as one bet (§9 #25), so its parts agree on `afterWin` and on payout rounding, and on each of the 21 dice outcomes its net per unit is positive (a win), exactly 0 (a push) or −1 (a loss), never strictly between −1 and 0.
 9. Side bets: pay tables are non-empty. Lucky Roller targets exclude 7. Fire counts fit `countedPoints` (points of the variant), and an immediate-pay count has a pay. Hot Shooter tiers rise in rolls. Lucky Shooter is traditional only, and its hit counts fit its box numbers.
-10. Type lists (toggle, auto-OFF, after-seven-out, exclusive groups, per-type limits) name offered types, once each.
-11. Limits: the minimum is at most the maximum, and both are multiples of the bet increment. The table maximum is at least the per-bet maximum. Per-type minimums are multiples of their increment. Chips go up in size and are multiples of the bet increment.
+10. Type lists (toggle, auto-OFF, after-seven-out, exclusive groups, per-type limits) name offered types, once each. The lists that switch bets ON and OFF (toggle, both auto-OFF lists, after-seven-out) name only odds, number and hardway types, the bets that can be OFF (§2.4). Per-type limits may also name a composite.
+11. Limits: the minimum is at most the maximum, and both are multiples of the bet increment. The table maximum is at least the per-bet maximum. Per-type minimums and maximums, including those a type inherits, are multiples of its increment, and the minimum total is a multiple of the bet increment. Chips go up in size and are multiples of the bet increment. Per-number units (`incrementByNumber`) belong only to odds, number bets and hardways, name only numbers the type takes bets on (for odds, the variant's points), and are multiples of the type's increment; the type's minimum need not be a multiple of a unit, as the smallest bet on that number is the minimum rounded up to it.
 12. Every provenance pointer names a value in the config, outside the provenance itself.
 
 `configHash` is a 64-bit FNV-1a hash of the config's canonical JSON (sorted keys), leaving out `name` and `provenance`. Reordering keys, renaming a config or editing provenance keeps cached analysis valid; changing any rule value gives a new hash.
@@ -838,7 +846,7 @@ The strategy lab (bots, progressions and Monte Carlo comparisons) is deferred pa
 | 4 | IB crapless odds cap (shown only in game) and place 2/12, 3/11 payouts | 2× [R]; 11:2 / 11:4 [A] |
 | 5 | IB come-out status for hardways, Big 6/8, come odds; carried place bets after a point is made | ON / ON / OFF / ON [A] |
 | 6 | IB post-7-out auto-OFF: lasts until the player taps ON or until the point; triggered by a seven-out or any 7 | until player ON; seven-out [A] |
-| 7 | STW place/buy/hard bets newly placed during the come-out window; can All On override the auto-OFF? | OFF; no [A] |
+| 7 | STW place/buy/hard bets newly placed during the come-out window; can All On override the auto-OFF? | OFF; no [A]. Carried in `/comeOut/autoOff/newlyPlaced` [A], which outranks the types' `comeOutDefault`, so those defaults decide no chip on the come-out (§2.4) |
 | 8 | STW Don't Come removable after travel; DP lay-odds basis (literal stake basis vs intended win basis) | removable [A]; stake basis [V literal] |
 | 9 | IB Don't Pass: contract (§2.1.1 table) vs removable (§2.3 text) | removable [V text] |
 | 10 | Hot Shooter: does the count include the 7-out? Grand at 50 vs 51 | definition A; 50 [A/V] |
@@ -856,9 +864,11 @@ The strategy lab (bots, progressions and Monte Carlo comparisons) is deferred pa
 | 22 | STW shooter rotation at point established | cosmetic |
 | 23 | Rejected or low-quality claims to keep out of the data: CRAPSEE (6:5 / 6-for-5 place 6/8, 8:1 hard 6/8, 60–120 rounds/hr), TZ, bubble-craps.com paytables | — |
 | 24 | Not searched this turn (WebSearch budget exhausted) | rolls/hr measurements, current LV crapless paytables, Lucky Roller par sheets |
-| 25 | Composite settlement: §4.1 settles horn, world and C&E as one bet on the whole-bet net table; plan §4.5 expands them into their component bets. The two agree on whole-dollar machine bets | the config stores the parts; M4c decides [A] |
+| 25 | Composite settlement: §4.1 settles horn, world and C&E as one bet on the whole-bet net table; plan §4.5 expands them into their component bets. The two agree on whole-dollar machine bets | **Resolved by plan §0 #15:** one bet, settled once with one rounding on the net per unit derived from its parts' pays, Σ(winning units × (pay + 1)) ÷ total units − 1. The config stores the parts; validation requires them to agree on `afterWin` and rounding, and rejects a composite that could lose only part of its stake (a net strictly between −1 and 0) |
 | 26 | Interblock's text lets a Come bet be placed after the pass point is made (IB §2.4); CW, and the window this spec uses, allow Come only in the point phase | point phase only (§3.1) |
-| 27 | Whether per-bet minimums apply to each part of a composite (a $1 horn is four 25¢ parts) | apply limits to the composite total [A] |
+| 27 | Whether per-bet minimums apply to each part of a composite (a $1 horn is four 25¢ parts) | **Resolved by plan §0 #15:** limits, increments and minimums apply to the composite's total stake |
+| 28 | Interblock "Set bets On": does it force the covered bets ON (`setGlobalWorking(false)`: Come odds then work on the come-out) or return them to the machine's defaults (`setGlobalWorking(null)`)? IB §3.2 does not say | **Defaults** (`null`) [A, plan §0 #21]: it ends the post-seven-out OFF, and Come odds stay OFF on the come-out (returned on a come-out 7). The coach marks it assumed; a crapless scenario pins it (`tests/scenarios/working.test.ts`) |
+| 29 | The post-seven-out OFF on a machine with per-bet toggles (no preset has both): does setting the bet back to its default end it? | **No** [reading]: the OFF is the machine's hold on the bet, not the bet's own setting. Setting the bet ON turns it ON; setting it back to its default leaves it held until Set bets On (or the point, under `until: pointEstablished`, which releases only the hold, not a player's own OFF); a `nextRollOnly` toggle reset leaves the hold |
 
 ---
 
@@ -896,7 +906,7 @@ The strategy lab (bots, progressions and Monte Carlo comparisons) is deferred pa
 | LVA-CL / RENO / RND / PTS | https://www.lasvegasadvisor.com/question/crapless-craps/ ; https://www.lasvegasadvisor.com/question/reno-dont-bets/ ; https://www.lasvegasadvisor.com/question/rounding-down-6-5-blackjack/ ; https://www.lasvegasadvisor.com/question/etgs-player-points/ |
 | VA | https://vegasadvantage.com/electronic-table-games/ |
 | VV-STW / VV-DTG | https://www.casino.org/vitalvegas/the-casino-game-were-loving-right-now-shoot-to-win-craps/ ; https://www.casino.org/vitalvegas/hybrid-stadium-craps-rolls-into-downtown-grand/ |
-| WOV-n | https://wizardofvegas.com/forum/gambling/craps/<n>/ (n = 9005, 11344, 24510, 28274, 36080, 36634, 37778, 35576, 38668, 37046 [3PM], 37179 [Dolly]) |
+| WOV-n | https://wizardofvegas.com/forum/gambling/craps/<n>-thread/ (n = 9005, 11344, 24510, 28274, 30281, 32511, 36080, 36634, 37778, 35576, 38668, 37046 [3PM], 37179 [Dolly]). The forum finds a thread by the number before its title slug, so any slug works; the bare `<n>/` opens a list of threads instead |
 | SHRT | https://blog.seminolehardrocktampa.com/?p=755 |
 | G3-MOH | https://g3newswire.com/interblock-installs-crapless-craps-at-mohegan-sun/ |
 | TCA / GGB | https://topclassactions.com/lawsuit-settlements/closed-settlements/isle-of-capri-fan-club-loyalty-program-class-action-settlement ; https://ggbmagazine.com/article/players-sue-interblock-florida-casino-over-etg |

@@ -1,22 +1,35 @@
 import { describe, expect, it } from 'vitest'
-import { domeGap, touching } from './gap.ts'
+import { contactAt, diceGap, domeGap, floorGap } from './gap.ts'
 import { DEFAULT_PARAMS, paramsFingerprint } from './params.ts'
 import { synthesizeRest } from './plan.ts'
-import { fromAxisAngle, multiply, type Vec3 } from './quat.ts'
+import { fromAxisAngle, IDENTITY, multiply, type Vec3 } from './quat.ts'
 import {
+  deeper,
   FLOATS_PER_DIE,
   FLOATS_PER_FRAME,
+  NO_DEPTH,
   readPoses,
   type DieIndex,
   type Recording,
 } from './recording.ts'
-import { posesOf, upAxis, type DicePoses, type Pose } from './restPose.ts'
-import { apexHeights, checkRecording, depthProfile } from './validity.ts'
+import {
+  hashRest,
+  posesOf,
+  restOf,
+  upAxis,
+  type DicePoses,
+  type Pose,
+  type RestState,
+} from './restPose.ts'
+import { apexHeights, checkRecording, checkStart, depthProfile } from './validity.ts'
 
 const params = DEFAULT_PARAMS
 const STEPS = params.stepsPerFrame
 
-/** A second of the dice at `poses` frame by frame (one pose pair for all, or one per frame). */
+/**
+ * A second of the dice at `poses` frame by frame (one pose pair for all, or one per frame), each
+ * held through the frame's steps.
+ */
 function recorded(poses: DicePoses | readonly DicePoses[], settleFrame = 10): Recording {
   const frameCount = 60
   const at = (frame: number): DicePoses =>
@@ -25,12 +38,14 @@ function recorded(poses: DicePoses | readonly DicePoses[], settleFrame = 10): Re
       : (poses as DicePoses)
   const frames = new Float32Array(frameCount * FLOATS_PER_FRAME)
   const contacts = new Uint8Array((frameCount - 1) * STEPS + 1)
+  let stepDepths = NO_DEPTH
   for (let frame = 0; frame < frameCount; frame++) {
     at(frame).forEach((pose, die) => {
       frames.set([...pose.p, ...pose.q], frame * FLOATS_PER_FRAME + die * FLOATS_PER_DIE)
     })
-    const flags = touching(readPoses(frames, frame), params)
-    contacts.fill(flags, Math.max(0, (frame - 1) * STEPS + 1), frame * STEPS + 1)
+    const { byte, depths } = contactAt(readPoses(frames, frame), params)
+    contacts.fill(byte, Math.max(0, (frame - 1) * STEPS + 1), frame * STEPS + 1)
+    stepDepths = deeper(stepDepths, depths)
   }
   const finalPoses = readPoses(frames, frameCount - 1)
   const finalUpAxis = [upAxis(finalPoses[0].q), upAxis(finalPoses[1].q)] as const
@@ -40,12 +55,14 @@ function recorded(poses: DicePoses | readonly DicePoses[], settleFrame = 10): Re
     frameRate: 60,
     stepsPerFrame: STEPS,
     contacts,
+    stepDepths,
     settleFrame,
     finalPoses,
     finalUpAxis,
     source: 'pop',
     seed: 0,
     paramsFingerprint: paramsFingerprint(params),
+    restHash: hashRest(restOf(at(0))),
   }
 }
 
@@ -118,6 +135,17 @@ describe('checkRecording', () => {
     expect(into([x, 1.42, z])).toEqual([])
   })
 
+  it('rejects a die that sank too deep between frames, where only the steps saw it', () => {
+    const rec = recorded(rest)
+    const between = (surface: 'floor' | 'dome' | 'dice', depth: number) =>
+      reasons({ ...rec, stepDepths: { ...rec.stepDepths, [surface]: depth } })
+    for (const surface of ['floor', 'dome', 'dice'] as const) {
+      expect(between(surface, params.validity.maxOverlap)).toEqual([])
+      expect(between(surface, 0.1001)).toEqual(['overlap'])
+    }
+    expect(between('dice', Number.NaN)).toEqual(['overlap'])
+  })
+
   it('rejects a NaN anywhere', () => {
     const rec = recorded(rest)
     rec.frames[5 * FLOATS_PER_FRAME + 4] = Number.NaN
@@ -131,6 +159,71 @@ describe('checkRecording', () => {
   })
 })
 
+describe('checkStart', () => {
+  const VALID = { valid: true, reasons: [] }
+  const OVERLAP = { valid: false, reasons: ['overlap'] }
+  const start = (poses: DicePoses) => checkStart(restOf(poses))
+  /** Two dice lying flat side by side along x, unturned, `apart` between their centres. */
+  const sideBySide = (apart: number): RestState =>
+    restOf([
+      { p: [-apart / 2, 0.5, 0], q: IDENTITY },
+      { p: [apart / 2, 0.5, 0], q: IDENTITY },
+    ])
+  const { maxOverlap } = params.validity
+
+  it('accepts the rests throws leave, and starts as awkward as a cocked or a stacked die', () => {
+    expect(start(rest)).toEqual(VALID)
+    expect(checkStart(synthesizeRest(4, [6, 6]))).toEqual(VALID)
+    // Die 0 resting on die 1.
+    expect(start(withDie(0, { p: [rest[1].p[0], 1.5, rest[1].p[2]] }))).toEqual(VALID)
+    // Die 1 leaning 35° on an edge, its lowest point on the floor.
+    const q = multiply(fromAxisAngle([1, 0, 0], 0.6), rest[1].q)
+    const raised = 1 - floorGap({ q, p: [0, 1, 0] }, params.die)
+    expect(start(withDie(1, { q, p: [rest[1].p[0], raised, rest[1].p[2]] }))).toEqual(VALID)
+  })
+
+  it('rejects a die sunk deeper than maxOverlap into the other, the floor or the dome', () => {
+    expect(maxOverlap).toBe(0.1)
+    expect(checkStart(sideBySide(0.901))).toEqual(VALID)
+    expect(checkStart(sideBySide(0.899))).toEqual(OVERLAP)
+    // The audit's start: die 1 moved to die 0 plus 0.7 u along x, 0.467 u into it.
+    const [x, y, z] = rest[0].p
+    expect(start(withDie(1, { p: [x + 0.7, y, z] }))).toEqual(OVERLAP)
+    expect(start(withDie(0, { p: [x, 0.401, z] }))).toEqual(VALID)
+    expect(start(withDie(0, { p: [x, 0.399, z] }))).toEqual(OVERLAP)
+    expect(start(atWall(0.09))).toEqual(VALID)
+    expect(start(atWall(0.11))).toEqual(OVERLAP)
+  })
+
+  it('judges the poses as a Float32 frame will hold them, too', () => {
+    // 0.1 u deep in doubles, a hair under the limit; as Float32 the centres are 2.4e-8 u closer.
+    const limit = sideBySide(0.9)
+    expect(-diceGap(limit[0].pose, limit[1].pose, params.die)).toBeLessThanOrEqual(maxOverlap)
+    expect(checkStart(limit)).toEqual(OVERLAP)
+  })
+
+  it('rejects a die whose centre is outside the dome or below the floor', () => {
+    const escaped = { valid: false, reasons: ['escaped', 'overlap'] }
+    expect(start(withDie(1, { p: [0, 0.5, 9] }))).toEqual(escaped)
+    expect(start(withDie(1, { p: [0, -0.2, 3] }))).toEqual(escaped)
+  })
+
+  it('rejects poses that are not finite, and a quaternion without a length', () => {
+    const broken: Partial<Pose>[] = [
+      { p: [0, Number.NaN, 0] },
+      { q: [0, Number.POSITIVE_INFINITY, 0, 1] },
+      { q: [0, 0, 0, 0] },
+      { q: [1e200, 0, 0, 1e200] },
+    ]
+    for (const change of broken) {
+      expect(start(withDie(1, change))).toEqual({ valid: false, reasons: ['nonfinite'] })
+    }
+    // A quaternion of any other length is a rotation.
+    const [qx, qy, qz, qw] = rest[1].q
+    expect(start(withDie(1, { q: [3 * qx, 3 * qy, 3 * qz, 3 * qw] }))).toEqual(VALID)
+  })
+})
+
 describe('depthProfile', () => {
   it('separates the deepest frame, sustained contact and the rest, per surface', () => {
     const height = (frame: number) =>
@@ -138,12 +231,20 @@ describe('depthProfile', () => {
     const frames = Array.from({ length: 60 }, (_, frame) =>
       withDie(0, { p: [rest[0].p[0], height(frame), rest[0].p[2]] }),
     )
-    const { floor, dome, dice } = depthProfile(recorded(frames, 40))
-    expect(floor.deepest).toBeCloseTo(0.08, 6)
+    const rec = recorded(frames, 40)
+    const { floor, dome, dice } = depthProfile(rec)
+    expect(floor.frame).toBeCloseTo(0.08, 6)
     // The impact at frame 30 came out of the air; only the first rest was sustained contact.
     expect(floor.sustained).toBeCloseTo(0.01, 6)
     expect(floor.atRest).toBeCloseTo(0.002, 6)
-    for (const away of [dome, dice]) expect(away.deepest).toBeLessThan(0)
+    for (const away of [dome, dice]) expect(away.frame).toBeLessThan(0)
+    // The steps are the recording's own: here each frame's poses held through its steps.
+    expect([floor.step, dome.step, dice.step]).toEqual([
+      rec.stepDepths.floor,
+      rec.stepDepths.dome,
+      rec.stepDepths.dice,
+    ])
+    expect(floor.step).toBeCloseTo(0.08, 6)
   })
 
   it('has no rest depth for a throw that never settled', () => {

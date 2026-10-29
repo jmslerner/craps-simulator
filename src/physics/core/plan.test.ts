@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from 'vitest'
 import { DIE_FACES, FACE_NORMALS, rotationAngleDeg, rotationAt, type DieFace } from './cube.ts'
 import { domeFaces } from './dome.ts'
-import { circumradius, domeGap, touching } from './gap.ts'
+import { circumradius, contactAt, domeGap } from './gap.ts'
 import { analyticHop } from './hop.ts'
 import { DEFAULT_PARAMS, type PhysicsParams } from './params.ts'
 import {
@@ -29,13 +29,23 @@ import {
   type Vec3,
 } from './quat.ts'
 import {
+  deeper,
   FLOATS_PER_DIE,
   FLOATS_PER_FRAME,
   framePose,
+  NO_DEPTH,
   readPoses,
   type Recording,
 } from './recording.ts'
-import { posesOf, tiltDeg, visualTopFace, type DicePoses, type RestState } from './restPose.ts'
+import {
+  posesOf,
+  restOf,
+  tiltDeg,
+  upAxis,
+  visualTopFace,
+  type DicePoses,
+  type RestState,
+} from './restPose.ts'
 import { simulateThrow } from './simulate.ts'
 import { initPhysics } from './world.ts'
 
@@ -67,32 +77,38 @@ beforeAll(async () => {
     }
     const seed = prng.nextUint32()
     const roll = { d1: face(prng), d2: face(prng) }
-    const { recording } = simulateThrow(seed, posesOf(rest))
+    const { recording } = simulateThrow(seed, rest)
     const plan = buildPlaybackPlan(recording, roll, rest, 'snap')
     samples.push({ plan, prevRest: rest, dice: roll })
     rest = plan.rest
   }
 }, 60_000)
 
-/** A recording of the dice at the given poses, one pair per frame, with its contacts flagged. */
+/**
+ * A recording of the dice at the given poses, one pair per frame, held through each frame's steps,
+ * with its contacts and depths read from them.
+ */
 function recordingOf(frames: readonly DicePoses[], settleFrame = frames.length - 1): Recording {
   const { stepsPerFrame } = params
   const frameCount = frames.length
   const data = new Float32Array(frameCount * FLOATS_PER_FRAME)
   const contacts = new Uint8Array((frameCount - 1) * stepsPerFrame + 1)
+  let stepDepths = NO_DEPTH
   frames.forEach((poses, frame) => {
     poses.forEach(({ p, q }, die) => {
       data.set([...p, ...q], frame * FLOATS_PER_FRAME + die * FLOATS_PER_DIE)
     })
-    const flags = touching(readPoses(data, frame), params)
-    contacts.fill(flags, Math.max(0, (frame - 1) * stepsPerFrame + 1), frame * stepsPerFrame + 1)
+    const { byte, depths } = contactAt(readPoses(data, frame), params)
+    contacts.fill(byte, Math.max(0, (frame - 1) * stepsPerFrame + 1), frame * stepsPerFrame + 1)
+    stepDepths = deeper(stepDepths, depths)
   })
-  const rec = analyticHop(1, frames[0] ?? posesOf(synthesizeRest(1, [1, 1])))
+  const rec = analyticHop(1, restOf(frames[0] ?? posesOf(synthesizeRest(1, [1, 1]))))
   return {
     ...rec,
     frames: data,
     frameCount,
     contacts,
+    stepDepths,
     settleFrame,
     finalPoses: readPoses(data, frameCount - 1),
   }
@@ -176,7 +192,7 @@ describe('1000 random (seed, d1, d2) plans', () => {
       .sort((a, b) => a - b)
     const quantile = (q: number) => rates[Math.ceil(q * rates.length) - 1] ?? Number.NaN
     expect(rates.length).toBeGreaterThan(1000)
-    // Measured on these seeds: 1477 of 1478 switches hidden; min 7.0, p1 13.0, p5 18.7 and
+    // Measured on these seeds: 1475 of 1476 switches hidden; min 7.0, p1 13.0, p5 18.7 and
     // p50 32.3 rad/s.
     expect(quantile(0.01)).toBeGreaterThanOrEqual(params.snap.minTurnRate)
     expect(quantile(0.05)).toBeGreaterThan(12)
@@ -222,19 +238,21 @@ describe('the swap logic', () => {
     // A body keeps its drawn face 1 time in 6 by itself; taking the cheaper of the two
     // assignments, with ties to the straight one, raises that to 684/2592 = 19/72 exactly.
     const rest = synthesizeRest(4, [5, 2])
-    const recording = analyticHop(8, posesOf(rest))
-    const showing = (die: 0 | 1, top: DieFace) =>
-      remapCandidates(recording.finalUpAxis[die], top)[0] ?? 0
+    const poses = posesOf(rest)
+    const { finalUpAxis } = analyticHop(8, rest)
+    const showing = (die: 0 | 1, top: DieFace) => remapCandidates(finalUpAxis[die], top)[0] ?? 0
+    // The same hop from each rest: offsets change only which rest the recording names.
+    const hops = new Map<string, Recording>()
     let kept = 0
     let swaps = 0
     for (const d1 of DIE_FACES) {
       for (const d2 of DIE_FACES) {
         for (const top0 of DIE_FACES) {
           for (const top1 of DIE_FACES) {
-            const prevRest: RestState = [
-              { pose: rest[0].pose, offset: showing(0, top0) },
-              { pose: rest[1].pose, offset: showing(1, top1) },
-            ]
+            const prevRest = restOf(poses, [showing(0, top0), showing(1, top1)])
+            const key = `${top0}${top1}`
+            const recording = hops.get(key) ?? analyticHop(8, prevRest)
+            hops.set(key, recording)
             expect(visualTopFace(recording.finalPoses[0].q, prevRest[0].offset)).toBe(top0)
             const plan = buildPlaybackPlan(recording, { d1, d2 }, prevRest, 'snap')
             if (plan.swapped) swaps++
@@ -249,7 +267,7 @@ describe('the swap logic', () => {
 
   it('handles doubles and the analytic hop', () => {
     const rest = synthesizeRest(4, [5, 2])
-    const recording = analyticHop(8, posesOf(rest))
+    const recording = analyticHop(8, rest)
     for (const value of DIE_FACES) {
       const plan = buildPlaybackPlan(recording, { d1: value, d2: value }, rest, 'snap')
       expect(plan.swapped).toBe(false)
@@ -261,7 +279,10 @@ describe('the swap logic', () => {
 
 describe('buildPlaybackPlan refuses a recording it cannot continue', () => {
   const rest = synthesizeRest(6, [1, 3])
-  const recording = analyticHop(2, posesOf(rest))
+  const recording = analyticHop(2, rest)
+  /** The faces drawn at frame 0 with each die's offset in `prevRest`. */
+  const startFaces = (prevRest: RestState) =>
+    dice.map((die) => visualTopFace(framePose(recording, 0, die).q, prevRest[die].offset))
 
   it('accepts the rest the recording started from, as Float32 rounds it', () => {
     const rounded: RestState = [
@@ -293,12 +314,44 @@ describe('buildPlaybackPlan refuses a recording it cannot continue', () => {
     }
   })
 
+  it('takes a quaternion and its negation as the same rotation', () => {
+    const negated: RestState = [
+      rest[0],
+      {
+        ...rest[1],
+        pose: { ...rest[1].pose, q: rest[1].pose.q.map((x) => -x) as unknown as Quat },
+      },
+    ]
+    const plan = buildPlaybackPlan(recording, { d1: 2, d2: 4 }, negated, 'snap')
+    expect(plan).toEqual(buildPlaybackPlan(recording, { d1: 2, d2: 4 }, rest, 'snap'))
+    expect(dice.map((die) => faceShown(plan, die, 0))).toEqual([1, 3])
+  })
+
+  it('throws a RangeError when the offsets are stale: the right poses, other offsets', () => {
+    // The audit's probe: such a rest would draw other faces at frame 0, so the dice would change
+    // the moment the throw began. The recording names the rest it was thrown from.
+    const stale = restOf(posesOf(rest), [
+      rest[0].offset,
+      remapCandidates(upAxis(rest[1].pose.q), 5)[0] ?? 0,
+    ])
+    expect(startFaces(rest)).toEqual([1, 3])
+    expect(startFaces(stale)).toEqual([1, 5])
+    expect(() => buildPlaybackPlan(recording, { d1: 2, d2: 4 }, stale, 'snap')).toThrow(
+      /stale offsets/,
+    )
+    // Thrown from the stale rest, the same hop plans from it.
+    const fromStale = analyticHop(2, stale)
+    expect(fromStale.frames).toEqual(recording.frames)
+    expect(() => buildPlaybackPlan(fromStale, { d1: 2, d2: 4 }, stale, 'snap')).not.toThrow()
+    expect(() => buildPlaybackPlan(fromStale, { d1: 2, d2: 4 }, rest, 'snap')).toThrow(RangeError)
+  })
+
   it('throws a RangeError for a recording made with other params, or planned with them', () => {
     const other: PhysicsParams = { ...params, snap: { ...params.snap, minTurnRate: 9 } }
     expect(() => buildPlaybackPlan(recording, { d1: 2, d2: 4 }, rest, 'snap', other)).toThrow(
       RangeError,
     )
-    const made = analyticHop(2, posesOf(rest), other)
+    const made = analyticHop(2, rest, other)
     expect(() => buildPlaybackPlan(made, { d1: 2, d2: 4 }, rest, 'snap')).toThrow(RangeError)
     expect(() => buildPlaybackPlan(made, { d1: 2, d2: 4 }, rest, 'snap', other)).not.toThrow()
   })

@@ -18,19 +18,36 @@
  */
 import { CUBE_ROTATIONS } from './cube.ts'
 import { domeFaces } from './dome.ts'
-import { circumradius, touching } from './gap.ts'
+import { circumradius, contactAt } from './gap.ts'
 import { DEFAULT_PARAMS, paramsFingerprint, type PhysicsParams } from './params.ts'
 import { createPrng, onCircle, onSphere } from './prng.ts'
 import { fromAxisAngle, length3, multiply, normalize, slerp, yawFromHalfAngle } from './quat.ts'
 import type { Quat, Vec3 } from './quat.ts'
-import { FLOATS_PER_DIE, FLOATS_PER_FRAME, readPoses, type Recording } from './recording.ts'
-import { flatOrientation, upAxis, type DicePoses, type Pose } from './restPose.ts'
+import {
+  deeper,
+  FLOATS_PER_DIE,
+  FLOATS_PER_FRAME,
+  NO_DEPTH,
+  readPoses,
+  type Recording,
+} from './recording.ts'
+import {
+  flatOrientation,
+  hashRest,
+  posesOf,
+  upAxis,
+  type DicePoses,
+  type Pose,
+  type RestState,
+} from './restPose.ts'
 
+/** The hop from the dice at rest in `rest`; the recording carries hashRest(rest), as throws do. */
 export function analyticHop(
   seed: number,
-  start: DicePoses,
+  rest: RestState,
   params: PhysicsParams = DEFAULT_PARAMS,
 ): Recording {
+  const start = posesOf(rest)
   const { hop, validity, settle, timestep, stepsPerFrame } = params
   const prng = createPrng(seed)
   const frameRate = 1 / (timestep * stepsPerFrame)
@@ -81,9 +98,12 @@ export function analyticHop(
 
   const frames = new Float32Array(frameCount * FLOATS_PER_FRAME)
   const contacts = new Uint8Array((frameCount - 1) * stepsPerFrame + 1)
+  let stepDepths = NO_DEPTH
   for (let step = 0; step < contacts.length; step++) {
     const poses = poseAt(step)
-    contacts[step] = touching(poses, params)
+    const { byte, depths } = contactAt(poses, params)
+    contacts[step] = byte
+    stepDepths = deeper(stepDepths, depths)
     if (step % stepsPerFrame !== 0) continue
     poses.forEach(({ p, q }, die) => {
       frames.set([...p, ...q], (step / stepsPerFrame) * FLOATS_PER_FRAME + die * FLOATS_PER_DIE)
@@ -97,12 +117,14 @@ export function analyticHop(
     frameRate,
     stepsPerFrame,
     contacts,
+    stepDepths,
     settleFrame: airFrames,
     finalPoses,
     finalUpAxis: [upAxis(finalPoses[0].q), upAxis(finalPoses[1].q)],
     source: 'hop',
     seed,
     paramsFingerprint: paramsFingerprint(params),
+    restHash: hashRest(rest),
   }
 }
 

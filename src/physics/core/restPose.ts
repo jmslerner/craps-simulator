@@ -8,11 +8,13 @@ import {
   AXES,
   CUBE_ROTATIONS,
   FACE_AXIS,
+  IDENTITY_OFFSET,
   nearestAxis,
   rotationAt,
   type AxisIndex,
   type DieFace,
 } from './cube.ts'
+import { createHasher } from './hash.ts'
 import { conjugate, cross, dot3, length3, multiply, normalize, rotate, UP } from './quat.ts'
 import type { Quat, Vec3 } from './quat.ts'
 
@@ -79,4 +81,36 @@ export function flatOrientation(index: number, yaw: Quat): Quat {
 
 export function posesOf(rest: RestState): DicePoses {
   return [rest[0].pose, rest[1].pose]
+}
+
+/** The rest state of dice at `poses` drawn with `offsets`: by default, each body's own faces. */
+export function restOf(
+  poses: DicePoses,
+  offsets: readonly [number, number] = [IDENTITY_OFFSET, IDENTITY_OFFSET],
+): RestState {
+  return [
+    { pose: poses[0], offset: offsets[0] },
+    { pose: poses[1], offset: offsets[1] },
+  ]
+}
+
+/**
+ * A 16-hex-digit hash of a rest state: both poses as Float32 stores them, and both offsets.
+ * Recordings carry the hash of the rest they were thrown from, so a plan cannot be built from a
+ * prevRest whose offsets have gone stale. A quaternion and its negation turn a body alike, so they
+ * hash alike, and −0 hashes as 0, since JSON cannot keep it apart.
+ */
+export function hashRest(rest: RestState): string {
+  const hasher = createHasher()
+  const mix = (value: number) => hasher.mixFloat(Math.fround(value) + 0)
+  for (const { pose, offset } of rest) {
+    pose.p.forEach(mix)
+    const [x, y, z, w] = pose.q
+    // The sign that makes the first non-zero of w, x, y, z positive, as Float32 rounds them.
+    const lead = [w, x, y, z].map((value) => Math.fround(value)).find((value) => value !== 0)
+    const sign = lead !== undefined && lead < 0 ? -1 : 1
+    for (const value of [x, y, z, w]) mix(sign * value)
+    hasher.mixFloat(offset)
+  }
+  return hasher.digest()
 }

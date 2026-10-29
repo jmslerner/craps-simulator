@@ -15,7 +15,7 @@
 import { domeFaces } from './dome.ts'
 import type { DieParams, PhysicsParams } from './params.ts'
 import type { Quat } from './quat.ts'
-import { contactByte, TOUCH_DIE, TOUCH_DOME, TOUCH_FLOOR } from './recording.ts'
+import { contactByte, TOUCH_DIE, TOUCH_DOME, TOUCH_FLOOR, type SurfaceDepths } from './recording.ts'
 import type { DicePoses, Pose } from './restPose.ts'
 
 /** A rotation as its world-frame body axes, its matrix's columns: [a0x, a0y, a0z, a1x, ...]. */
@@ -93,15 +93,31 @@ export function domeGap(pose: Pose, params: PhysicsParams, cutoff = Infinity): n
  * `contact.touchGap` of. Physics recordings and the analytic hop flag contacts this same way.
  */
 export function touching(poses: DicePoses, params: PhysicsParams): number {
+  return contactAt(poses, params).byte
+}
+
+/**
+ * What one physics step's poses touch, as `touching` flags it, and how deep the dice press into
+ * each surface, from the same gaps: what a recording keeps for every step.
+ */
+export function contactAt(
+  poses: DicePoses,
+  params: PhysicsParams,
+): { readonly byte: number; readonly depths: SurfaceDepths } {
   const { touchGap } = params.contact
   // Above this cutoff the gap functions may return a bound instead, but never one this small.
   const cutoff = 2 * touchGap
-  const between = diceGap(poses[0], poses[1], params.die, cutoff) <= touchGap ? TOUCH_DIE : 0
-  const of = (pose: Pose) =>
-    (floorGap(pose, params.die) <= touchGap ? TOUCH_FLOOR : 0) |
-    (domeGap(pose, params, cutoff) <= touchGap ? TOUCH_DOME : 0) |
-    between
-  return contactByte([of(poses[0]), of(poses[1])])
+  const dice = diceGap(poses[0], poses[1], params.die, cutoff)
+  const floor = poses.map((pose) => floorGap(pose, params.die))
+  const dome = poses.map((pose) => domeGap(pose, params, cutoff))
+  const of = (die: 0 | 1) =>
+    ((floor[die] ?? Number.NaN) <= touchGap ? TOUCH_FLOOR : 0) |
+    ((dome[die] ?? Number.NaN) <= touchGap ? TOUCH_DOME : 0) |
+    (dice <= touchGap ? TOUCH_DIE : 0)
+  return {
+    byte: contactByte([of(0), of(1)]),
+    depths: { floor: -Math.min(...floor), dome: -Math.min(...dome), dice: -dice },
+  }
 }
 
 /** Whether a point is inside the dome's mesh and above the floor. */

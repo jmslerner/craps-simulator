@@ -121,6 +121,8 @@ const OddsTypeSchema = z.strictObject({
 /**
  * Bets that are decided by one number against 7: place, buy and big 6/8 win on the number; lay and
  * place-to-lose win on 7. Buy and lay carry a commission, optionally overridden per number.
+ * `payoutRoundingByNumber` overrides the type's payout rounding on the numbers it lists (Shoot To
+ * Win rounds place 6/8 up to the cent and floors 4/5/9/10).
  */
 const NumberTypeSchema = z.strictObject({
   family: z.literal('numberVsSeven'),
@@ -129,6 +131,7 @@ const NumberTypeSchema = z.strictObject({
   numbers: z.array(PointNumberSchema).min(1),
   pays: PayByPoint,
   payoutRounding: RoundingRuleSchema.optional(),
+  payoutRoundingByNumber: z.partialRecord(PointKeySchema, RoundingRuleSchema).optional(),
   commission: CommissionSchema.optional(),
   commissionByNumber: z.partialRecord(PointKeySchema, CommissionSchema).optional(),
   afterWin: StayOrReturn,
@@ -282,6 +285,11 @@ export const MachineConfigInputSchema = z.strictObject({
     min: PositiveCentsSchema,
     max: PositiveCentsSchema,
     tableMax: PositiveCentsSchema.optional(),
+    /**
+     * Limits of one bet type, composite or side bet. `incrementByNumber` sets the stake unit on
+     * the numbers it lists, for a type whose bets sit on a number (odds: their parent's point), as
+     * a live table takes odds on 6 and 8 in $5 units.
+     */
     perType: z
       .record(
         TypeIdSchema,
@@ -289,6 +297,7 @@ export const MachineConfigInputSchema = z.strictObject({
           min: PositiveCentsSchema.optional(),
           max: PositiveCentsSchema.optional(),
           increment: PositiveCentsSchema.optional(),
+          incrementByNumber: z.partialRecord(PointKeySchema, PositiveCentsSchema).optional(),
         }),
       )
       .optional(),
@@ -345,12 +354,14 @@ export const MachineConfigInputSchema = z.strictObject({
   }),
   /**
    * Interblock: bets of these types placed after a seven-out start OFF until the player sets bets
-   * ON (or the next point is established).
+   * ON (or the next point is established). `trigger`: whether only a seven-out starts this, or any
+   * 7, a come-out 7 included (rules spec §9 #6).
    */
   afterSevenOut: z.strictObject({
     newPlacedOff: z
       .strictObject({
         types: TypeIdList,
+        trigger: z.enum(['sevenOut', 'anySeven']),
         until: z.enum(['playerOn', 'pointEstablished']),
       })
       .nullable(),

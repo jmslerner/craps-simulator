@@ -74,8 +74,9 @@ export interface ValidityParams {
   /** How far a resting die may press into the dome wall and still count as inside, u. */
   readonly wallTolerance: number
   /**
-   * How deep a die may press into the floor, the dome or the other die at any frame, u. Solver
-   * contacts sink a little at impacts; deeper means a die went into or through something.
+   * How deep a die may press into the floor, the dome or the other die at any physics step, u, not
+   * only at the 60 Hz frames shown. Solver contacts sink a little at impacts; deeper means a die
+   * went into or through something. Held at every step, it fails about 1 first throw in 900.
    */
   readonly maxOverlap: number
 }
@@ -168,7 +169,9 @@ export const DEFAULT_PARAMS: PhysicsParams = {
   gravity: -516,
   // 480 Hz rather than the plan's 240 Hz, and stiffer contacts than Rapier's default: at 240 Hz
   // and 30 Hz, dice sat 0.03 u into the floor at rest and overlapped by up to 0.18 u in sustained
-  // contact (6000 throws); now 0.002 u and 0.033 u, for about 4 ms per throw in Node.
+  // contact (6000 throws). Now, per 60 Hz frame, 0.002 u at rest and at most 0.036 u in sustained
+  // contact (`physics-stats --seeds 6000`, base 1, sessions of 10; bases 2 and 3 gave 0.024 and
+  // 0.023 u), and about 5 ms per throw in Node.
   timestep: 1 / 480,
   solverIterations: 8,
   contact: {

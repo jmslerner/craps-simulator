@@ -1,22 +1,23 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
 exports[`preset fingerprints > craplessBubble 1`] = `
-"craplessBubble "Crapless bubble craps" crapless, configHash d254be52d257c433
+"craplessBubble "Crapless bubble craps" crapless, configHash 4537b96ffb0ea61c
 rules [V]: naturals 7; craps -; points 2 3 4 5 6 8 9 10 11 12; bar -; put bets no [V]
 money: payouts floor/$0.01 [A]; bankroll $500 [A]; increment $1 [A]
 limits: $1 [A] to $500 [A]; table -; minimum total $5 [A] totalRound, OFF bets count no [V], side bets count no [A]
+not modelled: -
 chips [A]: $1 $5 $10 $25 $50 $100
 catalog:
-  pass [V] "Pass Line" line do/comeOut: pays 1:1 [V]; after a win stay [V]
-  come [V] "Come" line do/point: pays 1:1 [V]; after a win return [A]
+  pass [V] "Pass Line" line do/comeOut [V]: pays 1:1 [V]; after a win stay [V]
+  come [V] "Come" line do/point [A]: pays 1:1 [V]; after a win return [A]
   passOdds [V] "Pass Odds" odds on pass, come-out n/a
-    pays 2=6:1, 3=3:1, 4=2:1, 5=3:2, 6=6:5, 8=6:5, 9=3:2, 10=2:1, 11=3:1, 12=6:1 [R]
+    pays 2=6:1, 3=3:1, 4=2:1, 5=3:2, 6=6:5, 8=6:5, 9=3:2, 10=2:1, 11=3:1, 12=6:1 [A]
     limit stake 2=2x, 3=2x, 4=2x, 5=2x, 6=2x, 8=2x, 9=2x, 10=2x, 11=2x, 12=2x [R]
   comeOdds [V] "Come Odds" odds on come, come-out off [A]
-    pays 2=6:1, 3=3:1, 4=2:1, 5=3:2, 6=6:5, 8=6:5, 9=3:2, 10=2:1, 11=3:1, 12=6:1 [R]
+    pays 2=6:1, 3=3:1, 4=2:1, 5=3:2, 6=6:5, 8=6:5, 9=3:2, 10=2:1, 11=3:1, 12=6:1 [A]
     limit stake 2=2x, 3=2x, 4=2x, 5=2x, 6=2x, 8=2x, 9=2x, 10=2x, 11=2x, 12=2x [R]
   place [V] "Place" place: payouts floor/$0.01 [A] (default); after a win stay [A]; come-out on [V]
-    pays 2=11:2 [A], 3=11:4 [A], 4=9:5 [V], 5=7:5 [V], 6=7:6 [V], 8=7:6 [V], 9=7:5 [V], 10=9:5 [V], 11=11:4 [A], 12=11:2 [A]
+    pays 2=11:2, 3=11:4, 4=9:5, 5=7:5, 6=7:6, 8=7:6, 9=7:5, 10=9:5, 11=11:4, 12=11:2 [A]
   buy [V] "Buy" buy: payouts floor/$0.01 [A] (default); after a win stay [A]; come-out on [V]
     pays 2=6:1, 3=3:1, 4=2:1, 5=3:2, 6=6:5, 8=6:5, 9=3:2, 10=2:1, 11=3:1, 12=6:1 [V]
     vig on 2 3 4 5 6 8 9 10 11 12: 1/20 of stake upfront [V], rounded ceil/$0.01 [A], min $0 [A], refund no [A], rearm recollectFromWin [A]
@@ -52,30 +53,31 @@ composites:
   ce [V] "C & E" = c + e
   horn [V] "Horn" = snakeEyes + aceDeuce + yo + boxcars
 side bets:
-  luckyRollerLow [R] "Low Rolls" all of 2 3 4 5 6 before anySeven [V]: pays 31 for 1 (30:1) [R]; placed afterSevenOrStart [V]
-  luckyRollerHigh [R] "High Rolls" all of 8 9 10 11 12 before anySeven [V]: pays 31 for 1 (30:1) [R]; placed afterSevenOrStart [V]
-  luckyRollerAll [R] "Roll 'Em All" all of 2 3 4 5 6 8 9 10 11 12 before anySeven [V]: pays 156 for 1 (155:1) [R]; placed afterSevenOrStart [V]
-working: toggle [V] global yes, per bet no, untilChanged, covers place buy passOdds comeOdds hard
+  luckyRollerLow [V] "Low Rolls" all of 2 3 4 5 6 before anySeven [V]: pays 31 for 1 (30:1) [R]; placed afterSevenOrStart [V]
+  luckyRollerHigh [V] "High Rolls" all of 8 9 10 11 12 before anySeven [V]: pays 31 for 1 (30:1) [R]; placed afterSevenOrStart [V]
+  luckyRollerAll [V] "Roll 'Em All" all of 2 3 4 5 6 8 9 10 11 12 before anySeven [V]: pays 156 for 1 (155:1) [R]; placed afterSevenOrStart [V]
+working: toggle [V] global yes, per bet no [A], untilChanged, covers place buy passOdds comeOdds hard
   come-out auto-OFF [V]: -
-  after a seven-out [V]: new place buy OFF until playerOn [A]
-  lay auto-ON [V]: -; OFF odds returned at point made yes [V]; OFF bets use credit yes [V]
+  after a seven-out [V]: new place buy OFF after sevenOut [A] until playerOn [A]
+  lay auto-ON [V]: -; OFF odds returned at point made yes [A]; OFF bets use credit yes [V]
 exclusive [V]: -; line vs lay/buy no [V]
 flow: shooter single [V]; invalid roll reVibrate [R]; puck reset 0 [V]; buttons press across (afterComeOutWithLineOrOneRoll) [V]; history 20 [A]; macros repeatLastBet double [V]; labels asWritten
 pace: 120 rolls/hour [A]; bet window - [R]; shooter window - [R]
-assumed (53): /afterSevenOut/newPlacedOff/until, /catalog/aceDeuce/afterWin, /catalog/any7/afterWin, /catalog/anyCraps/afterWin, /catalog/boxcars/afterWin, /catalog/buy/afterWin, /catalog/buy/commission/minimum, /catalog/buy/commission/rearm, /catalog/buy/commission/refundOnTakeDown, /catalog/buy/commission/rounding, /catalog/c/afterWin, /catalog/come/afterWin, /catalog/comeOdds/comeOutDefault, /catalog/e/afterWin, /catalog/field/afterWin, /catalog/hard/afterWin, /catalog/hard/comeOutDefault, /catalog/hard/pays, /catalog/hop13/afterWin, /catalog/hop14/afterWin, /catalog/hop15/afterWin, /catalog/hop16/afterWin, /catalog/hop22/afterWin, /catalog/hop23/afterWin, /catalog/hop24/afterWin, /catalog/hop25/afterWin, /catalog/hop26/afterWin, /catalog/hop33/afterWin, /catalog/hop34/afterWin, /catalog/hop35/afterWin, /catalog/hop36/afterWin, /catalog/hop44/afterWin, /catalog/hop45/afterWin, /catalog/hop46/afterWin, /catalog/hop55/afterWin, /catalog/place/afterWin, /catalog/place/pays/11, /catalog/place/pays/12, /catalog/place/pays/2, /catalog/place/pays/3, /catalog/snakeEyes/afterWin, /catalog/yo/afterWin, /chips, /flow/historyLength, /limits/max, /limits/min, /limits/minTotal/amount, /limits/minTotal/countSideBets, /money/betIncrement, /money/payoutRounding, /money/startingBankroll, /pace/rollsPerHour, /payLabelStyle"
+assumed (60): /afterSevenOut/newPlacedOff/trigger, /afterSevenOut/newPlacedOff/until, /catalog/aceDeuce/afterWin, /catalog/any7/afterWin, /catalog/anyCraps/afterWin, /catalog/boxcars/afterWin, /catalog/buy/afterWin, /catalog/buy/commission/minimum, /catalog/buy/commission/rearm, /catalog/buy/commission/refundOnTakeDown, /catalog/buy/commission/rounding, /catalog/c/afterWin, /catalog/come/afterWin, /catalog/come/window, /catalog/comeOdds/comeOutDefault, /catalog/comeOdds/pays, /catalog/e/afterWin, /catalog/field/afterWin, /catalog/hard/afterWin, /catalog/hard/comeOutDefault, /catalog/hard/pays, /catalog/hop13/afterWin, /catalog/hop14/afterWin, /catalog/hop15/afterWin, /catalog/hop16/afterWin, /catalog/hop22/afterWin, /catalog/hop23/afterWin, /catalog/hop24/afterWin, /catalog/hop25/afterWin, /catalog/hop26/afterWin, /catalog/hop33/afterWin, /catalog/hop34/afterWin, /catalog/hop35/afterWin, /catalog/hop36/afterWin, /catalog/hop44/afterWin, /catalog/hop45/afterWin, /catalog/hop46/afterWin, /catalog/hop55/afterWin, /catalog/passOdds/pays, /catalog/place/afterWin, /catalog/place/pays, /catalog/place/pays/11, /catalog/place/pays/12, /catalog/place/pays/2, /catalog/place/pays/3, /catalog/snakeEyes/afterWin, /catalog/yo/afterWin, /chips, /flow/historyLength, /limits/max, /limits/min, /limits/minTotal/amount, /limits/minTotal/countSideBets, /money/betIncrement, /money/payoutRounding, /money/startingBankroll, /oddsOffReturnedAtPointMade, /pace/rollsPerHour, /payLabelStyle, /workingToggle/perBet"
 `;
 
 exports[`preset fingerprints > strictBubble 1`] = `
-"strictBubble "Strict machine" traditional, configHash a27a7febb626a38f
+"strictBubble "Strict machine" traditional, configHash 0ba183bdf8e1412a
 rules [V]: naturals 7 11; craps 2 3 12; points 4 5 6 8 9 10; bar 12; put bets no [V]
 money: payouts floor/$0.01 [A]; bankroll $500 [A]; increment $1 [A]
 limits: $1 [A] to $500 [A]; table -; minimum total $5 [A] totalRound, OFF bets count no [V], side bets count no [A]
+not modelled: -
 chips [A]: $1 $5 $10 $25 $50 $100
 catalog:
-  pass [V] "Pass Line" line do/comeOut: pays 1:1 [V]; after a win stay [V]
-  dontPass [V] "Don't Pass" line dont/comeOut: pays 1:1 [V]; after a win stay [A]; on a number reduceRemove [V], re-bet nextCycle [V]
-  come [V] "Come" line do/point: pays 1:1 [V]; after a win return [A]
-  dontCome [V] "Don't Come" line dont/point: pays 1:1 [V]; after a win return [A]; on a number reduceRemove [A], re-bet nextCycle [A]
+  pass [V] "Pass Line" line do/comeOut [V]: pays 1:1 [V]; after a win stay [V]
+  dontPass [V] "Don't Pass" line dont/comeOut [V]: pays 1:1 [V]; after a win stay [A]; on a number reduceRemove [V], re-bet nextCycle [V]
+  come [V] "Come" line do/point [A]: pays 1:1 [V]; after a win return [A]
+  dontCome [V] "Don't Come" line dont/point [V]: pays 1:1 [V]; after a win return [A]; on a number reduceRemove [A], re-bet nextCycle [A]
   passOdds [V] "Pass Odds" odds on pass, come-out n/a
     pays 4=2:1, 5=3:2, 6=6:5, 8=6:5, 9=3:2, 10=2:1 [A]
     limit stake 4=2x, 5=2x, 6=2x, 8=2x, 9=2x, 10=2x [R]
@@ -134,28 +136,29 @@ side bets:
   luckyRollerHigh [V] "High Rolls" all of 8 9 10 11 12 before anySeven [V]: pays 31 for 1 (30:1) [A]; placed afterSevenOrStart [V]
   luckyRollerAll [V] "Roll 'Em All" all of 2 3 4 5 6 8 9 10 11 12 before anySeven [V]: pays 151 for 1 (150:1) [A]; placed afterSevenOrStart [V]
   luckyShooter [V] "Lucky Shooter" hits on 4 5 6 8 9 10: 3=5 for 1 (4:1), 4=15 for 1 (14:1), 5=150 for 1 (149:1) [A]; all + point 1000 for 1 (999:1) [A]; repeat ends yes [A]; placed beforePoint; removable before point yes [A]
-working: toggle [V] global yes, per bet no, untilChanged, covers place lay buy passOdds comeOdds dontPassOdds dontComeOdds hard
+working: toggle [V] global yes, per bet no [A], untilChanged, covers place lay buy passOdds comeOdds dontPassOdds dontComeOdds hard
   come-out auto-OFF [V]: -
-  after a seven-out [V]: new place buy OFF until playerOn [A]
-  lay auto-ON [V]: after point made yes, after a 7 yes; OFF odds returned at point made yes [V]; OFF bets use credit yes [V]
-exclusive [V]: pass|dontPass (global), come|dontCome (global), place|lay (sameNumber), buy|lay (sameNumber); line vs lay/buy yes [A]
+  after a seven-out [V]: new place buy OFF after sevenOut [A] until playerOn [A]
+  lay auto-ON [V]: after point made yes, after a 7 yes; OFF odds returned at point made yes [A]; OFF bets use credit yes [V]
+exclusive [V]: pass|dontPass (global [V]), come|dontCome (global [V]), place|lay (sameNumber [A]), buy|lay (sameNumber [A]); line vs lay/buy yes [A]
 flow: shooter single [V]; invalid roll reVibrate [R]; puck reset 0 [V]; buttons press across inside outside (afterComeOutWithLineOrOneRoll) [V]; history 20 [A]; macros repeatLastBet double [V]; labels asWritten
 pace: 120 rolls/hour [A]; bet window - [R]; shooter window - [R]
-assumed (78): /afterSevenOut/newPlacedOff/until, /catalog/aceDeuce/afterWin, /catalog/any7/afterWin, /catalog/anyCraps/afterWin, /catalog/big/afterWin, /catalog/big/comeOutDefault, /catalog/big/pays, /catalog/boxcars/afterWin, /catalog/buy/afterWin, /catalog/buy/commission/minimum, /catalog/buy/commission/rearm, /catalog/buy/commission/refundOnTakeDown, /catalog/buy/commission/rounding, /catalog/c/afterWin, /catalog/come/afterWin, /catalog/comeOdds/comeOutDefault, /catalog/comeOdds/pays, /catalog/dontCome/afterWin, /catalog/dontCome/onNumber, /catalog/dontCome/rebetAfterRemove, /catalog/dontComeOdds/comeOutDefault, /catalog/dontComeOdds/limit, /catalog/dontComeOdds/pays, /catalog/dontPass/afterWin, /catalog/dontPassOdds/limit, /catalog/dontPassOdds/pays, /catalog/e/afterWin, /catalog/field/afterWin, /catalog/hard/afterWin, /catalog/hard/comeOutDefault, /catalog/hard/pays, /catalog/hop13/afterWin, /catalog/hop14/afterWin, /catalog/hop15/afterWin, /catalog/hop16/afterWin, /catalog/hop22/afterWin, /catalog/hop23/afterWin, /catalog/hop24/afterWin, /catalog/hop25/afterWin, /catalog/hop26/afterWin, /catalog/hop33/afterWin, /catalog/hop34/afterWin, /catalog/hop35/afterWin, /catalog/hop36/afterWin, /catalog/hop44/afterWin, /catalog/hop45/afterWin, /catalog/hop46/afterWin, /catalog/hop55/afterWin, /catalog/lay/afterWin, /catalog/lay/commission/minimum, /catalog/lay/commission/rearm, /catalog/lay/commission/refundOnTakeDown, /catalog/lay/commission/rounding, /catalog/lay/pays, /catalog/passOdds/pays, /catalog/place/afterWin, /catalog/place/pays, /catalog/snakeEyes/afterWin, /catalog/yo/afterWin, /chips, /excludeLineVsLayBuy, /flow/historyLength, /limits/max, /limits/min, /limits/minTotal/amount, /limits/minTotal/countSideBets, /money/betIncrement, /money/payoutRounding, /money/startingBankroll, /pace/rollsPerHour, /payLabelStyle, /sideBets/luckyRollerAll/pays, /sideBets/luckyRollerHigh/pays, /sideBets/luckyRollerLow/pays, /sideBets/luckyShooter/payTable, /sideBets/luckyShooter/removableBeforePoint, /sideBets/luckyShooter/repeatEndsBet, /sideBets/luckyShooter/topAward"
+assumed (84): /afterSevenOut/newPlacedOff/trigger, /afterSevenOut/newPlacedOff/until, /catalog/aceDeuce/afterWin, /catalog/any7/afterWin, /catalog/anyCraps/afterWin, /catalog/big/afterWin, /catalog/big/comeOutDefault, /catalog/big/pays, /catalog/boxcars/afterWin, /catalog/buy/afterWin, /catalog/buy/commission/minimum, /catalog/buy/commission/rearm, /catalog/buy/commission/refundOnTakeDown, /catalog/buy/commission/rounding, /catalog/c/afterWin, /catalog/come/afterWin, /catalog/come/window, /catalog/comeOdds/comeOutDefault, /catalog/comeOdds/pays, /catalog/dontCome/afterWin, /catalog/dontCome/onNumber, /catalog/dontCome/rebetAfterRemove, /catalog/dontComeOdds/comeOutDefault, /catalog/dontComeOdds/limit, /catalog/dontComeOdds/pays, /catalog/dontPass/afterWin, /catalog/dontPassOdds/limit, /catalog/dontPassOdds/pays, /catalog/e/afterWin, /catalog/field/afterWin, /catalog/hard/afterWin, /catalog/hard/comeOutDefault, /catalog/hard/pays, /catalog/hop13/afterWin, /catalog/hop14/afterWin, /catalog/hop15/afterWin, /catalog/hop16/afterWin, /catalog/hop22/afterWin, /catalog/hop23/afterWin, /catalog/hop24/afterWin, /catalog/hop25/afterWin, /catalog/hop26/afterWin, /catalog/hop33/afterWin, /catalog/hop34/afterWin, /catalog/hop35/afterWin, /catalog/hop36/afterWin, /catalog/hop44/afterWin, /catalog/hop45/afterWin, /catalog/hop46/afterWin, /catalog/hop55/afterWin, /catalog/lay/afterWin, /catalog/lay/commission/minimum, /catalog/lay/commission/rearm, /catalog/lay/commission/refundOnTakeDown, /catalog/lay/commission/rounding, /catalog/lay/pays, /catalog/passOdds/pays, /catalog/place/afterWin, /catalog/place/pays, /catalog/snakeEyes/afterWin, /catalog/yo/afterWin, /chips, /excludeLineVsLayBuy, /exclusiveGroups/2/scope, /exclusiveGroups/3/scope, /flow/historyLength, /limits/max, /limits/min, /limits/minTotal/amount, /limits/minTotal/countSideBets, /money/betIncrement, /money/payoutRounding, /money/startingBankroll, /oddsOffReturnedAtPointMade, /pace/rollsPerHour, /payLabelStyle, /sideBets/luckyRollerAll/pays, /sideBets/luckyRollerHigh/pays, /sideBets/luckyRollerLow/pays, /sideBets/luckyShooter/payTable, /sideBets/luckyShooter/removableBeforePoint, /sideBets/luckyShooter/repeatEndsBet, /sideBets/luckyShooter/topAward, /workingToggle/perBet"
 `;
 
 exports[`preset fingerprints > traditionalBubble 1`] = `
-"traditionalBubble "Typical Vegas bubble craps" traditional, configHash 49b0968a540bc9a5
+"traditionalBubble "Typical Vegas bubble craps" traditional, configHash dc6332ab799e58a8
 rules [V]: naturals 7 11; craps 2 3 12; points 4 5 6 8 9 10; bar 12; put bets no [A]
 money: payouts floor/$0.01 [A]; bankroll $500 [A]; increment $1 [A]
 limits: $1 [A] to $500 [A]; table -; minimum total $3 [A] totalRound, OFF bets count no [V], side bets count no [A]
   hotShooter [V]: min $1 max $1,000
+not modelled: /offBets/consumeCredit
 chips [A]: $1 $5 $10 $25 $50 $100
 catalog:
-  pass [V] "Pass Line" line do/comeOut: pays 1 to 1 (1:1) [V]; after a win stay [V]
-  dontPass [V] "Don't Pass" line dont/comeOut: pays 1 to 1 (1:1) [V]; after a win stayIfFirstRoll [V]; on a number locked [V], re-bet allowed [V]
-  come [V] "Come" line do/point: pays 1 to 1 (1:1) [V]; after a win stayIf11 [V]
-  dontCome [V] "Don't Come" line dont/point: pays 1 to 1 (1:1) [V]; after a win stayIfFirstRoll [V]; on a number reduceRemove [A], re-bet allowed [A]
+  pass [V] "Pass Line" line do/comeOut [V]: pays 1 to 1 (1:1) [V]; after a win stay [V]
+  dontPass [V] "Don't Pass" line dont/comeOut [V]: pays 1 to 1 (1:1) [V]; after a win stayIfFirstRoll [V]; on a number locked [V], re-bet allowed [V]
+  come [V] "Come" line do/point [V]: pays 1 to 1 (1:1) [V]; after a win stayIf11 [V]
+  dontCome [V] "Don't Come" line dont/point [V]: pays 1 to 1 (1:1) [V]; after a win stayIfFirstRoll [V]; on a number reduceRemove [A], re-bet allowed [A]
   passOdds [V] "Odds" odds on pass, come-out n/a
     pays 4=2 to 1 (2:1), 5=3 to 2 (3:2), 6=6 to 5 (6:5), 8=6 to 5 (6:5), 9=3 to 2 (3:2), 10=2 to 1 (2:1) [V]
     limit stake 4=2x, 5=2x, 6=2x, 8=2x, 9=2x, 10=2x [V]
@@ -168,7 +171,7 @@ catalog:
   dontComeOdds [V] "Don't Come Odds" odds on dontCome, come-out on [A]
     pays 4=1 to 2 (1:2), 5=2 to 3 (2:3), 6=5 to 6 (5:6), 8=5 to 6 (5:6), 9=2 to 3 (2:3), 10=1 to 2 (1:2) [V]
     limit win 4=2x, 5=2x, 6=2x, 8=2x, 9=2x, 10=2x [V]
-  place [V] "Place" place: payouts ceil/$0.01 [R]; after a win stay [V]; come-out off [V]
+  place [V] "Place" place: payouts floor/$0.01 [A], on 6 ceil/$0.01 [R], on 8 ceil/$0.01 [R]; after a win stay [V]; come-out off [V]
     pays 4=9 to 5 (9:5), 5=7 to 5 (7:5), 6=7 to 6 (7:6), 8=7 to 6 (7:6), 9=7 to 5 (7:5), 10=9 to 5 (9:5) [V]
   buy [V] "Buy" buy: payouts floor/$0.01 [A] (default); after a win stay [V]; come-out off [V]
     pays 4=2 to 1 (2:1), 5=3 to 2 (3:2), 6=6 to 5 (6:5), 8=6 to 5 (6:5), 9=3 to 2 (3:2), 10=2 to 1 (2:1) [V]
@@ -220,18 +223,18 @@ side bets:
   luckyRollerLow [V] "Low Rolls" all of 2 3 4 5 6 before anySeven [V]: pays 30:1 [A]; placed noneOfTypeActive [V]
   luckyRollerHigh [V] "High Rolls" all of 8 9 10 11 12 before anySeven [V]: pays 30:1 [A]; placed noneOfTypeActive [V]
   luckyRollerAll [V] "Roll 'Em All" all of 2 3 4 5 6 8 9 10 11 12 before anySeven [V]: pays 155:1 [A]; placed noneOfTypeActive [V]
-working: toggle [V] global yes, per bet yes, untilChanged, covers passOdds dontPassOdds comeOdds dontComeOdds big place buy placeToLose lay hard
-  come-out auto-OFF [V]: carried comeOdds place buy hard big; new comeOdds place buy hard big; back ON at pointEstablished
+working: toggle [V] global yes, per bet yes [V], untilChanged, covers passOdds dontPassOdds comeOdds dontComeOdds big place buy placeToLose lay hard
+  come-out auto-OFF [V]: carried comeOdds place buy hard big [V]; new comeOdds place buy hard big [A]; back ON at pointEstablished
   after a seven-out [V]: -
   lay auto-ON [A]: -; OFF odds returned at point made no [A]; OFF bets use credit no [V]
-exclusive [V]: pass|dontPass (global), come|dontCome (global), place|placeToLose (sameNumber), place|lay (sameNumber), buy|lay (sameNumber), buy|placeToLose (sameNumber); line vs lay/buy no [A]
+exclusive [V]: pass|dontPass (global [V]), come|dontCome (global [V]), place|placeToLose (sameNumber [A]), place|lay (sameNumber [A]), buy|lay (sameNumber [A]), buy|placeToLose (sameNumber [A]); line vs lay/buy no [A]
 flow: shooter community [V]; invalid roll reshoot [A]; puck reset 0 [A]; buttons across (afterComeOutWithLineOrOneRoll) [V]; history 27 [V]; macros - [V]; labels asWritten
 pace: 100 rolls/hour [A]; bet window 20 [R]; shooter window 20 [R]
-assumed (28): /catalog/buy/commission/rounding, /catalog/dontCome/onNumber, /catalog/dontCome/rebetAfterRemove, /catalog/dontComeOdds/comeOutDefault, /catalog/lay/comeOutDefault, /catalog/lay/commission/rounding, /catalog/placeToLose/comeOutDefault, /chips, /excludeLineVsLayBuy, /flow/invalidRoll, /flow/puckReset, /layAutoOn, /limits/max, /limits/min, /limits/minTotal/amount, /limits/minTotal/countSideBets, /money/betIncrement, /money/payoutRounding, /money/startingBankroll, /oddsOffReturnedAtPointMade, /pace/rollsPerHour, /payLabelStyle, /rules/allowPutBets, /sideBets/hotShooter/countDefinition, /sideBets/hotShooter/qualifyingBet, /sideBets/luckyRollerAll/pays, /sideBets/luckyRollerHigh/pays, /sideBets/luckyRollerLow/pays"
+assumed (34): /catalog/buy/commission/rounding, /catalog/dontCome/onNumber, /catalog/dontCome/rebetAfterRemove, /catalog/dontComeOdds/comeOutDefault, /catalog/lay/comeOutDefault, /catalog/lay/commission/rounding, /catalog/place/payoutRounding, /catalog/placeToLose/comeOutDefault, /chips, /comeOut/autoOff/newlyPlaced, /excludeLineVsLayBuy, /exclusiveGroups/2/scope, /exclusiveGroups/3/scope, /exclusiveGroups/4/scope, /exclusiveGroups/5/scope, /flow/invalidRoll, /flow/puckReset, /layAutoOn, /limits/max, /limits/min, /limits/minTotal/amount, /limits/minTotal/countSideBets, /money/betIncrement, /money/payoutRounding, /money/startingBankroll, /oddsOffReturnedAtPointMade, /pace/rollsPerHour, /payLabelStyle, /rules/allowPutBets, /sideBets/hotShooter/countDefinition, /sideBets/hotShooter/qualifyingBet, /sideBets/luckyRollerAll/pays, /sideBets/luckyRollerHigh/pays, /sideBets/luckyRollerLow/pays"
 `;
 
 exports[`preset fingerprints > traditionalLive345 1`] = `
-"traditionalLive345 "Generous live table" traditional, configHash c2e6321d12e7ccbb
+"traditionalLive345 "Generous live table" traditional, configHash a17489739caa9249
 rules [V]: naturals 7 11; craps 2 3 12; points 4 5 6 8 9 10; bar 12; put bets yes [R]
 money: payouts floor/$1 [V]; bankroll $500 [A]; increment $1 [V]
 limits: $1 [A] to $5,000 [A]; table -; minimum total -
@@ -239,16 +242,24 @@ limits: $1 [A] to $5,000 [A]; table -; minimum total -
   come [A]: min $10
   dontPass [A]: min $10
   dontCome [A]: min $10
-  passOdds [A]: max $25,000
-  comeOdds [A]: max $25,000
-  dontPassOdds [A]: max $30,000
-  dontComeOdds [A]: max $30,000
+  passOdds [A]: max $25,000 steps 4=$1 5=$2 6=$5 8=$5 9=$2 10=$1 [A]
+  comeOdds [A]: max $25,000 steps 4=$1 5=$2 6=$5 8=$5 9=$2 10=$1 [A]
+  dontPassOdds [A]: max $30,000 steps 4=$2 5=$3 6=$6 8=$6 9=$3 10=$2 [A]
+  dontComeOdds [A]: max $30,000 steps 4=$2 5=$3 6=$6 8=$6 9=$3 10=$2 [A]
+  ce [A]: min $2 step $2
+  horn [A]: min $4 step $4
+  hornHigh2 [A]: min $5 step $5
+  hornHigh3 [A]: min $5 step $5
+  hornHigh11 [A]: min $5 step $5
+  hornHigh12 [A]: min $5 step $5
+  world [A]: min $5 step $5
+not modelled: -
 chips [A]: $1 $5 $25 $100 $500
 catalog:
-  pass [V] "Pass Line" line do/comeOut: pays 1 to 1 (1:1) [V]; after a win stay [A]
-  dontPass [V] "Don't Pass Bar 12" line dont/comeOut: pays 1 to 1 (1:1) [V]; after a win stay [A]; on a number reduceRemove [V], re-bet nextCycle [V]
-  come [V] "Come" line do/point: pays 1 to 1 (1:1) [V]; after a win return [A]
-  dontCome [V] "Don't Come Bar 12" line dont/point: pays 1 to 1 (1:1) [V]; after a win return [A]; on a number reduceRemove [V], re-bet nextCycle [V]
+  pass [V] "Pass Line" line do/comeOut [V]: pays 1 to 1 (1:1) [V]; after a win stay [A]
+  dontPass [V] "Don't Pass Bar 12" line dont/comeOut [V]: pays 1 to 1 (1:1) [V]; after a win stay [A]; on a number reduceRemove [V], re-bet nextCycle [V]
+  come [V] "Come" line do/point [V]: pays 1 to 1 (1:1) [V]; after a win return [A]
+  dontCome [V] "Don't Come Bar 12" line dont/point [V]: pays 1 to 1 (1:1) [V]; after a win return [A]; on a number reduceRemove [V], re-bet nextCycle [V]
   passOdds [V] "Odds" odds on pass, come-out n/a
     pays 4=2 to 1 (2:1), 5=3 to 2 (3:2), 6=6 to 5 (6:5), 8=6 to 5 (6:5), 9=3 to 2 (3:2), 10=2 to 1 (2:1) [V]
     limit stake 4=3x, 5=4x, 6=5x, 8=5x, 9=4x, 10=3x [V]
@@ -316,12 +327,12 @@ composites:
   world [V] "World" = aces + aceDeuce + yo + boxcars + any7
 side bets:
   fire [R] "Fire Bet" unique points of 4 5 6 8 9 10: 4=24 to 1 (24:1), 5=249 to 1 (249:1), 6=999 to 1 (999:1) [R]; immediately at never; placed newHand
-working: toggle [V] global no, per bet yes, untilChanged, covers place buy lay placeToLose big hard passOdds comeOdds dontPassOdds dontComeOdds
+working: toggle [V] global no, per bet yes [V], untilChanged, covers place buy lay placeToLose big hard passOdds comeOdds dontPassOdds dontComeOdds
   come-out auto-OFF [V]: -
   after a seven-out [V]: -
   lay auto-ON [V]: -; OFF odds returned at point made no [A]; OFF bets use credit yes [A]
 exclusive [A]: -; line vs lay/buy no [A]
 flow: shooter community [A]; invalid roll noRoll [A]; puck reset 0 [A]; buttons - (always) [A]; history 0 [A]; macros - [A]; labels asWritten
 pace: 144 rolls/hour [R]; bet window - [A]; shooter window - [A]
-assumed (51): /catalog/aceDeuce/afterWin, /catalog/aces/afterWin, /catalog/any7/afterWin, /catalog/anyCraps/afterWin, /catalog/big/afterWin, /catalog/boxcars/afterWin, /catalog/buy/afterWin, /catalog/c/afterWin, /catalog/come/afterWin, /catalog/dontCome/afterWin, /catalog/dontPass/afterWin, /catalog/e/afterWin, /catalog/field/afterWin, /catalog/hard/afterWin, /catalog/hop11, /catalog/hop12, /catalog/hop13, /catalog/hop14, /catalog/hop15, /catalog/hop16, /catalog/hop22, /catalog/hop23, /catalog/hop24, /catalog/hop25, /catalog/hop26, /catalog/hop33, /catalog/hop34, /catalog/hop35, /catalog/hop36, /catalog/hop44, /catalog/hop45, /catalog/hop46, /catalog/hop55, /catalog/hop56, /catalog/hop66, /catalog/lay/afterWin, /catalog/pass/afterWin, /catalog/place/afterWin, /catalog/placeToLose/afterWin, /catalog/yo/afterWin, /chips, /excludeLineVsLayBuy, /exclusiveGroups, /flow, /limits, /money/startingBankroll, /oddsOffReturnedAtPointMade, /offBets, /pace/betWindowSec, /pace/shooterWindowSec, /payLabelStyle"
+assumed (62): /catalog/aceDeuce/afterWin, /catalog/aces/afterWin, /catalog/any7/afterWin, /catalog/anyCraps/afterWin, /catalog/big/afterWin, /catalog/boxcars/afterWin, /catalog/buy/afterWin, /catalog/c/afterWin, /catalog/come/afterWin, /catalog/dontCome/afterWin, /catalog/dontPass/afterWin, /catalog/e/afterWin, /catalog/field/afterWin, /catalog/hard/afterWin, /catalog/hop11, /catalog/hop12, /catalog/hop13, /catalog/hop14, /catalog/hop15, /catalog/hop16, /catalog/hop22, /catalog/hop23, /catalog/hop24, /catalog/hop25, /catalog/hop26, /catalog/hop33, /catalog/hop34, /catalog/hop35, /catalog/hop36, /catalog/hop44, /catalog/hop45, /catalog/hop46, /catalog/hop55, /catalog/hop56, /catalog/hop66, /catalog/lay/afterWin, /catalog/pass/afterWin, /catalog/place/afterWin, /catalog/placeToLose/afterWin, /catalog/yo/afterWin, /chips, /excludeLineVsLayBuy, /exclusiveGroups, /flow, /limits, /limits/perType/ce, /limits/perType/comeOdds/incrementByNumber, /limits/perType/dontComeOdds/incrementByNumber, /limits/perType/dontPassOdds/incrementByNumber, /limits/perType/horn, /limits/perType/hornHigh11, /limits/perType/hornHigh12, /limits/perType/hornHigh2, /limits/perType/hornHigh3, /limits/perType/passOdds/incrementByNumber, /limits/perType/world, /money/startingBankroll, /oddsOffReturnedAtPointMade, /offBets, /pace/betWindowSec, /pace/shooterWindowSec, /payLabelStyle"
 `;

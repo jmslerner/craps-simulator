@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import type { Cents } from '../core/money.ts'
 import { Fraction } from '../core/rational.ts'
 import {
   ConfigError,
@@ -25,6 +26,9 @@ function at(root: unknown, ...path: Path): Record<string, unknown> {
   for (const key of path) current = (current as Record<string, unknown>)[key]
   return current as Record<string, unknown>
 }
+
+/** The list at `path` inside `root`, for editing a copy in place. */
+const listAt = (root: unknown, ...path: Path) => at(root, ...path) as unknown as unknown[]
 
 interface Fixture {
   readonly name: string
@@ -113,8 +117,8 @@ const FIXTURES: readonly Fixture[] = [
   {
     name: 'reported provenance without a source',
     base: 'traditionalBubble',
-    edit: (cfg) => delete at(cfg, 'provenance', '/catalog/place/payoutRounding').source,
-    paths: [['provenance', '/catalog/place/payoutRounding', 'source']],
+    edit: (cfg) => delete at(cfg, 'provenance', '/catalog/place/payoutRoundingByNumber/6').source,
+    paths: [['provenance', '/catalog/place/payoutRoundingByNumber/6', 'source']],
   },
   {
     name: 'assumed provenance without a note',
@@ -400,6 +404,341 @@ const FIXTURES: readonly Fixture[] = [
     edit: (cfg) => (at(cfg).schemaVersion = 2),
     paths: [['schemaVersion']],
   },
+  // Rules and money (rules spec §5.3 #1, #11)
+  {
+    name: 'crapless craps with a don’t bar',
+    base: 'craplessBubble',
+    edit: (cfg) => (cfg.rules.dontBar = 12),
+    paths: [['rules', 'dontBar']],
+    message: /nothing is barred/,
+  },
+  {
+    name: 'crapless craps with put bets',
+    base: 'craplessBubble',
+    edit: (cfg) => (cfg.rules.allowPutBets = true),
+    paths: [['rules', 'allowPutBets']],
+    message: /put bets/,
+  },
+  {
+    name: 'a table maximum below the maximum bet',
+    base: 'craplessBubble',
+    edit: (cfg) => (cfg.limits.tableMax = 10_000),
+    paths: [['limits', 'tableMax']],
+    message: /table maximum is below/,
+  },
+  {
+    name: 'a minimum total that is not a whole number of bet increments',
+    base: 'craplessBubble',
+    edit: (cfg) => (at(cfg, 'limits', 'minTotal').amount = 550),
+    paths: [['limits', 'minTotal', 'amount']],
+    message: /multiple of \$1\.00/,
+  },
+  {
+    name: 'a per-type maximum that is not a whole number of its increments',
+    base: 'traditionalLive345',
+    edit: (cfg) => (at(cfg, 'limits', 'perType', 'passOdds').max = 2_500_050),
+    paths: [['limits', 'perType', 'passOdds', 'max']],
+    message: /multiple of \$1\.00/,
+  },
+  {
+    name: 'a per-type maximum below the minimum it inherits',
+    base: 'craplessBubble',
+    edit: (cfg) => (cfg.limits.perType = { field: { max: 50, increment: 50 } }),
+    paths: [['limits', 'perType', 'field', 'max']],
+    message: /the minimum is above the maximum/,
+  },
+  {
+    name: 'a per-type increment that the inherited limits do not fit',
+    base: 'craplessBubble',
+    edit: (cfg) => (cfg.limits.perType = { field: { increment: 300 } }),
+    paths: [['limits', 'perType', 'field', 'increment']],
+    message: /min and max this type inherits must be a multiple of \$3\.00/,
+  },
+  {
+    name: 'per-number units on a type that takes no number',
+    base: 'craplessBubble',
+    edit: (cfg) => (cfg.limits.perType = { field: { incrementByNumber: { '6': 500 } } }),
+    paths: [['limits', 'perType', 'field', 'incrementByNumber']],
+    message: /only odds, number bets and hardways sit on a number/,
+  },
+  {
+    name: 'a per-number unit on a number the type takes no bet on',
+    base: 'traditionalLive345',
+    edit: (cfg) => (at(cfg, 'limits', 'perType', 'passOdds', 'incrementByNumber')['2'] = 500),
+    paths: [['limits', 'perType', 'passOdds', 'incrementByNumber', '2']],
+    message: /passOdds takes no bet on 2/,
+  },
+  {
+    name: 'a per-number unit on a number a hardway does not offer',
+    base: 'craplessBubble',
+    edit: (cfg) => (cfg.limits.perType = { hard: { incrementByNumber: { '5': 500 } } }),
+    paths: [['limits', 'perType', 'hard', 'incrementByNumber', '5']],
+    message: /hard takes no bet on 5/,
+  },
+  {
+    name: 'a per-number unit off the type’s own increment',
+    base: 'traditionalLive345',
+    edit: (cfg) => (at(cfg, 'limits', 'perType', 'dontPassOdds', 'incrementByNumber')['5'] = 350),
+    paths: [['limits', 'perType', 'dontPassOdds', 'incrementByNumber', '5']],
+    message: /must be a multiple of \$1\.00, the type's increment/,
+  },
+  {
+    name: 'chips out of order',
+    base: 'craplessBubble',
+    edit: (cfg) => (cfg.chips = [100, 1_000, 500]),
+    paths: [['chips', 2]],
+    message: /smallest to largest/,
+  },
+  // Line and odds bets (§5.3 #3, #4)
+  {
+    name: 'two do bets in the same window',
+    base: 'craplessBubble',
+    edit: (cfg) => (at(cfg, 'catalog').pass2 = copy(craplessBubble).catalog.pass),
+    paths: [['catalog', 'pass2', 'side']],
+    message: /pass is already the do bet placed in the comeOut phase/,
+  },
+  {
+    name: 'a don’t bet that does not say how it may change on a number',
+    base: 'traditionalBubble',
+    edit: (cfg) => delete at(cfg, 'catalog', 'dontPass').onNumber,
+    paths: [['catalog', 'dontPass', 'onNumber']],
+    message: /must say how it may change/,
+  },
+  {
+    name: 'a do bet that says how it may change on a number',
+    base: 'traditionalBubble',
+    edit: (cfg) => (at(cfg, 'catalog', 'pass').rebetAfterRemove = 'allowed'),
+    paths: [['catalog', 'pass', 'rebetAfterRemove']],
+    message: /locked once on a number/,
+  },
+  {
+    name: 'stayIfFirstRoll on the pass line',
+    base: 'craplessBubble',
+    edit: (cfg) => (at(cfg, 'catalog', 'pass').afterWin = 'stayIfFirstRoll'),
+    paths: [['catalog', 'pass', 'afterWin']],
+    message: /applies to don't bets/,
+  },
+  {
+    name: 'odds behind a bet that is not in the catalog',
+    base: 'craplessBubble',
+    edit: (cfg) => (at(cfg, 'catalog', 'passOdds').parent = 'passLine'),
+    paths: [['catalog', 'passOdds', 'parent']],
+    message: /"passLine" is not a bet type/,
+  },
+  {
+    name: 'come odds with no come-out default',
+    base: 'craplessBubble',
+    edit: (cfg) => delete at(cfg, 'catalog', 'comeOdds').comeOutDefault,
+    paths: [['catalog', 'comeOdds', 'comeOutDefault']],
+    message: /need a come-out default/,
+  },
+  {
+    name: 'two odds types behind one line bet',
+    base: 'craplessBubble',
+    edit: (cfg) => (at(cfg, 'catalog').passOdds2 = copy(craplessBubble).catalog.passOdds),
+    paths: [['catalog', 'passOdds2', 'parent']],
+    message: /pass already has odds: passOdds/,
+  },
+  {
+    name: 'odds with no limit on a point',
+    base: 'craplessBubble',
+    edit: (cfg) => delete at(cfg, 'catalog', 'passOdds', 'limit', 'multiple')['12'],
+    paths: [['catalog', 'passOdds', 'limit', 'multiple', '12']],
+    message: /odds on 12 need a limit/,
+  },
+  // Number bets and commission (§5.3 #5)
+  {
+    name: 'a rounding override on a number the bet does not offer',
+    base: 'traditionalBubble',
+    edit: (cfg) =>
+      (at(cfg, 'catalog', 'place', 'payoutRoundingByNumber')['11'] = {
+        mode: 'ceil',
+        increment: 1,
+      }),
+    paths: [['catalog', 'place', 'payoutRoundingByNumber', '11']],
+    message: /11 is not one of this bet's numbers/,
+  },
+  {
+    name: 'a commission override on a number the bet does not offer',
+    base: 'traditionalLive345',
+    edit: (cfg) =>
+      (at(cfg, 'catalog', 'buy', 'commissionByNumber')['3'] = at(
+        cfg,
+        'catalog',
+        'buy',
+        'commissionByNumber',
+        '4',
+      )),
+    paths: [['catalog', 'buy', 'commissionByNumber', '3']],
+    message: /3 is not one of this bet's numbers/,
+  },
+  {
+    name: 'commission taken from wins that is refunded on take-down',
+    base: 'traditionalBubble',
+    edit: (cfg) => (at(cfg, 'catalog', 'lay', 'commission').refundOnTakeDown = true),
+    paths: [['catalog', 'lay', 'commission', 'refundOnTakeDown']],
+    message: /nothing can be refunded/,
+  },
+  // One-roll bets (§5.3 #7)
+  {
+    name: 'a one-roll bet with no winning outcome',
+    base: 'craplessBubble',
+    edit: (cfg) => (at(cfg, 'catalog', 'field').pays = {}),
+    paths: [['catalog', 'field', 'pays']],
+    message: /at least one winning outcome/,
+  },
+  {
+    name: 'a one-roll bet on a total that does not exist',
+    base: 'craplessBubble',
+    edit: (cfg) => (at(cfg, 'catalog', 'field', 'pays')['13'] = '1:1'),
+    paths: [['catalog', 'field', 'pays', '13']],
+    message: /total from "2" to "12"/,
+  },
+  {
+    name: 'a hop keyed by a total',
+    base: 'craplessBubble',
+    edit: (cfg) => (at(cfg, 'catalog', 'hop25').pays = { '7': '16 for 1' }),
+    paths: [['catalog', 'hop25', 'pays', '7']],
+    message: /dice pair such as "2-5"/,
+  },
+  // Composites (§5.3 #8; plan §0 #15)
+  {
+    name: 'a composite that lists a part twice',
+    base: 'craplessBubble',
+    edit: (cfg) => listAt(cfg, 'composites', 'ce', 'parts').push({ typeId: 'c', units: 1 }),
+    paths: [['composites', 'ce', 'parts', 2, 'typeId']],
+    message: /c is already a part/,
+  },
+  {
+    name: 'a world bet that loses part of its stake on a 7',
+    base: 'traditionalLive345',
+    edit: (cfg) => (at(cfg, 'catalog', 'any7', 'pays')['7'] = '3 to 1'),
+    paths: [['composites', 'world']],
+    message: /on 1-6 it nets -1\/5 per unit, a partial loss/,
+  },
+  {
+    name: 'composite parts that disagree after a win',
+    base: 'traditionalLive345',
+    edit: (cfg) => (at(cfg, 'catalog', 'e').afterWin = 'stay'),
+    paths: [['composites', 'ce', 'parts', 1, 'typeId']],
+    message: /must agree after a win: c has return, e stay/,
+  },
+  {
+    name: 'composite parts that round winnings differently',
+    base: 'craplessBubble',
+    edit: (cfg) => (at(cfg, 'catalog', 'boxcars').payoutRounding = { mode: 'ceil', increment: 1 }),
+    paths: [['composites', 'horn', 'parts', 3, 'typeId']],
+    message: /boxcars must round winnings like snakeEyes/,
+  },
+  {
+    name: 'a composite increment that the limits it inherits do not fit',
+    base: 'craplessBubble',
+    edit: (cfg) => (cfg.limits.perType = { horn: { increment: 400 } }),
+    paths: [['limits', 'perType', 'horn', 'increment']],
+    message: /the min this type inherits must be a multiple of \$4\.00/,
+  },
+  // Side bets (§5.3 #9)
+  {
+    name: 'a side bet that reuses a bet type id',
+    base: 'craplessBubble',
+    edit: (cfg) => (at(cfg, 'sideBets').field = at(cfg, 'sideBets', 'luckyRollerLow')),
+    paths: [['sideBets', 'field']],
+    message: /"field" is already the id of a bet type/,
+  },
+  {
+    name: 'a Lucky Roller target listed twice',
+    base: 'craplessBubble',
+    edit: (cfg) => (at(cfg, 'sideBets', 'luckyRollerLow').targets = [2, 3, 4, 5, 6, 6]),
+    paths: [['sideBets', 'luckyRollerLow', 'targets', 5]],
+    message: /6 is listed twice/,
+  },
+  {
+    name: 'a Fire bet that counts no points',
+    base: 'traditionalLive345',
+    edit: (cfg) => (at(cfg, 'sideBets', 'fire').countedPoints = []),
+    paths: [
+      ['sideBets', 'fire', 'countedPoints'],
+      ['sideBets', 'fire', 'payTable', '4'],
+      ['sideBets', 'fire', 'payTable', '5'],
+      ['sideBets', 'fire', 'payTable', '6'],
+    ],
+    message: /list the points that count/,
+  },
+  {
+    name: 'a Fire bet paid at once on more points than count',
+    base: 'traditionalLive345',
+    edit: (cfg) => (at(cfg, 'sideBets', 'fire').payImmediatelyAt = 7),
+    paths: [['sideBets', 'fire', 'payImmediatelyAt']],
+    message: /only 6 points count/,
+  },
+  {
+    name: 'a Fire bet paid at once on a count with no pay',
+    base: 'traditionalLive345',
+    edit: (cfg) => (at(cfg, 'sideBets', 'fire').payImmediatelyAt = 3),
+    paths: [['sideBets', 'fire', 'payImmediatelyAt']],
+    message: /no pay for this count/,
+  },
+  {
+    name: 'a count-table key that is not a whole number',
+    base: 'traditionalLive345',
+    edit: (cfg) => (at(cfg, 'sideBets', 'fire', 'payTable').six = '999 to 1'),
+    paths: [['sideBets', 'fire', 'payTable', 'six']],
+    message: /whole number of unique points/,
+  },
+  {
+    name: 'a Lucky Shooter with one box number',
+    base: 'strictBubble',
+    edit: (cfg) => (at(cfg, 'sideBets', 'luckyShooter').points = [4]),
+    paths: [
+      ['sideBets', 'luckyShooter', 'points'],
+      ['sideBets', 'luckyShooter', 'payTable', '3'],
+      ['sideBets', 'luckyShooter', 'payTable', '4'],
+      ['sideBets', 'luckyShooter', 'payTable', '5'],
+    ],
+    message: /list the box numbers/,
+  },
+  {
+    name: 'Hot Shooter on a crapless machine',
+    base: 'craplessBubble',
+    edit: (cfg) => (at(cfg, 'sideBets').hotShooter = copy(traditionalBubble).sideBets.hotShooter),
+    paths: [['sideBets', 'hotShooter']],
+    message: /traditional craps only/,
+  },
+  // Working controls and type lists (§5.3 #10; rules spec §2.4)
+  {
+    name: 'a working toggle that lists a type twice',
+    base: 'craplessBubble',
+    edit: (cfg) => (at(cfg, 'workingToggle').types = ['place', 'buy', 'place']),
+    paths: [['workingToggle', 'types', 2]],
+    message: /place is listed twice/,
+  },
+  {
+    name: 'a working toggle that switches the pass line',
+    base: 'craplessBubble',
+    edit: (cfg) => listAt(cfg, 'workingToggle', 'types').push('pass'),
+    paths: [['workingToggle', 'types', 5]],
+    message: /pass always works/,
+  },
+  {
+    name: 'a come-out auto-OFF that switches the field',
+    base: 'traditionalBubble',
+    edit: (cfg) => listAt(cfg, 'comeOut', 'autoOff', 'newlyPlaced').push('field'),
+    paths: [['comeOut', 'autoOff', 'newlyPlaced', 5]],
+    message: /field always works/,
+  },
+  {
+    name: 'a seven-out rule that switches come bets',
+    base: 'craplessBubble',
+    edit: (cfg) => listAt(cfg, 'afterSevenOut', 'newPlacedOff', 'types').push('come'),
+    paths: [['afterSevenOut', 'newPlacedOff', 'types', 2]],
+    message: /come always works/,
+  },
+  {
+    name: 'an unknown seven-out trigger',
+    base: 'strictBubble',
+    edit: (cfg) => (at(cfg, 'afterSevenOut', 'newPlacedOff').trigger = 'pointMade'),
+    paths: [['afterSevenOut', 'newPlacedOff', 'trigger']],
+  },
 ]
 
 describe('invalid configs', () => {
@@ -446,6 +785,14 @@ describe('invalid configs', () => {
     }
   })
 
+  it('shows the first five issues in the message and counts the rest', () => {
+    const cfg = copy(craplessBubble)
+    for (const n of ['2', '3', '4', '5', '6', '8', '9']) {
+      at(cfg, 'catalog', 'place', 'pays')[n] = '0:1'
+    }
+    expect(() => compileConfig(cfg)).toThrow(/; \/catalog\/place\/pays\/6: .* \(and 2 more\)$/)
+  })
+
   it('stops at structural errors before checking how values relate', () => {
     const cfg = copy(craplessBubble)
     at(cfg, 'catalog', 'place').numbers = 'all'
@@ -463,6 +810,34 @@ describe('valid configs', () => {
       expect(semanticIssues(PRESETS[id]), id).toEqual([])
     }
   })
+
+  it('accepts a Fire bet paid at once on a count its pay table has', () => {
+    const cfg = copy(PRESETS.traditionalLive345)
+    at(cfg, 'sideBets', 'fire').payImmediatelyAt = 6
+    expect(validateConfig(cfg)).toEqual([])
+    expect(compileConfig(cfg).sideBets.get('fire')).toMatchObject({ payImmediatelyAt: 6 })
+  })
+
+  it('accepts Big 6/8 in crapless: Crown Perth deals it at 1:1 (research core.md §8)', () => {
+    const cfg = copy(craplessBubble)
+    at(cfg, 'catalog').big = copy(traditionalBubble).catalog.big
+    expect(validateConfig(cfg)).toEqual([])
+  })
+
+  it('accepts a composite that nets exactly 0 or −1 on some rolls (plan §0 #15)', () => {
+    // The live world bet pushes on 7: any 7's 4 to 1 on one of five units returns 5/5.
+    expect(validateConfig(PRESETS.traditionalLive345)).toEqual([])
+    // Field + any 7 returns 2/2 on 3, 4, 9, 10 and 11, a push, and loses it all on 5, 6 and 8.
+    const cfg = copy(PRESETS.traditionalLive345)
+    at(cfg, 'composites').fieldSeven = {
+      label: 'Field Seven',
+      parts: [
+        { typeId: 'field', units: 1 },
+        { typeId: 'any7', units: 1 },
+      ],
+    }
+    expect(validateConfig(cfg)).toEqual([])
+  })
 })
 
 describe('compileConfig', () => {
@@ -475,16 +850,49 @@ describe('compileConfig', () => {
     expect(compileConfig(twin)).toBe(fromTwin)
   })
 
-  it('freezes its own copy and leaves the caller’s object alone', () => {
+  it('never returns a stale config after the caller edits its input in place', () => {
+    const mine = copy(craplessBubble)
+    compileConfig(mine)
+    try {
+      at(mine, 'catalog', 'place', 'pays')['6'] = '6:5'
+    } catch {
+      // A frozen input refuses the edit; either way the compiled config must match the input.
+    }
+    const again = compileConfig(mine)
+    expect(again.configHash).toBe(configHashOf(mine))
+    expect(numberType(again, 'place').pays.get(6)?.label).toBe(mine.catalog.place?.pays['6'])
+  })
+
+  it('freezes a valid input all the way down, so it cannot drift from its compiled form', () => {
     const mine = copy(traditionalBubble)
     const cfg = compileConfig(mine)
-    expect(Object.isFrozen(mine)).toBe(false)
-    expect(Object.isFrozen(mine.rules.points)).toBe(false)
-    expect(Object.isFrozen(mine.catalog.place)).toBe(false)
+    for (const part of [mine, mine.rules.points, mine.catalog.place, mine.provenance]) {
+      expect(Object.isFrozen(part)).toBe(true)
+    }
+    expect(() => {
+      at(mine, 'catalog', 'place', 'pays')['6'] = '6 to 5'
+    }).toThrow(TypeError)
+    expect(compileConfig(mine)).toBe(cfg)
     expect(Object.isFrozen(cfg)).toBe(true)
     expect(Object.isFrozen(cfg.input.catalog)).toBe(true)
     expect(Object.isFrozen(cfg.input.provenance)).toBe(true)
     expect(cfg.input).toEqual(mine)
+  })
+
+  it('freezes below an object that was frozen only shallowly', () => {
+    const mine = Object.freeze(copy(craplessBubble))
+    compileConfig(mine)
+    expect(Object.isFrozen(mine.catalog.place)).toBe(true)
+    expect(Object.isFrozen(mine.limits.minTotal)).toBe(true)
+  })
+
+  it('leaves an invalid input unfrozen, for the caller to fix', () => {
+    const mine = copy(craplessBubble)
+    at(mine, 'catalog', 'place', 'pays')['6'] = '0:1'
+    expect(() => compileConfig(mine)).toThrow(ConfigError)
+    expect(Object.isFrozen(mine)).toBe(false)
+    at(mine, 'catalog', 'place', 'pays')['6'] = '7:6'
+    expect(compileConfig(mine).configHash).toBe(compileConfig(craplessBubble).configHash)
   })
 
   it('parses ratios, keeping the machine’s wording as the label', () => {
@@ -534,13 +942,62 @@ describe('compileConfig', () => {
     const live = compileConfig(PRESETS.traditionalLive345)
     expect(live.limits.byType.get('pass')).toEqual({ min: 1_000, max: 500_000, increment: 100 })
     expect(live.limits.byType.get('passOdds')).toEqual({ min: 100, max: 2_500_000, increment: 100 })
+    expect(live.limits.minTotal).toBeNull()
+    expect(live.limits.tableMax).toBeNull()
   })
 
-  it('applies per-type rounding over the config default', () => {
+  it('compiles the minimum total and the table maximum to cents', () => {
+    const cfg = compileConfig(craplessBubble)
+    // Typed as Cents, like every other compiled amount.
+    const amount: Cents | undefined = cfg.limits.minTotal?.amount
+    expect(amount).toBe(500)
+    expect(cfg.limits.minTotal).toEqual({
+      amount: 500,
+      scope: 'totalRound',
+      countOff: false,
+      countSideBets: false,
+    })
+    expect(Object.isFrozen(cfg.limits.minTotal)).toBe(true)
+    const capped = copy(craplessBubble)
+    capped.limits.tableMax = 200_000
+    const tableMax: Cents | null = compileConfig(capped).limits.tableMax
+    expect(tableMax).toBe(200_000)
+  })
+
+  it('applies per-type rounding over the config default, and per-number rounding over that', () => {
     const stw = compileConfig(traditionalBubble)
-    expect(stw.catalog.get('place')?.payoutRounding).toEqual({ mode: 'ceil', increment: 1 })
+    const place = numberType(stw, 'place')
+    expect(place.payoutRounding).toEqual({ mode: 'floor', increment: 1 })
+    expect([...place.payoutRoundingByNumber]).toEqual([
+      [6, { mode: 'ceil', increment: 1 }],
+      [8, { mode: 'ceil', increment: 1 }],
+    ])
     expect(stw.catalog.get('placeToLose')?.payoutRounding).toEqual({ mode: 'floor', increment: 1 })
     expect(stw.catalog.get('lay')?.payoutRounding).toEqual({ mode: 'floor', increment: 1 })
+    expect(numberType(stw, 'lay').payoutRoundingByNumber.size).toBe(0)
+  })
+
+  it('compiles per-number stake units, keyed by number, for the types that set them', () => {
+    const live = compileConfig(PRESETS.traditionalLive345)
+    expect([...(live.limits.incrementByNumber.get('passOdds') ?? [])]).toEqual([
+      [4, 100],
+      [5, 200],
+      [6, 500],
+      [8, 500],
+      [9, 200],
+      [10, 100],
+    ])
+    expect(live.limits.incrementByNumber.get('dontComeOdds')?.get(6)).toBe(600)
+    expect(live.limits.incrementByNumber.has('place')).toBe(false)
+    expect(compileConfig(craplessBubble).limits.incrementByNumber.size).toBe(0)
+  })
+
+  it('lists the values it does not model (plan §0 #23)', () => {
+    expect(compileConfig(traditionalBubble).notModelled).toEqual(['/offBets/consumeCredit'])
+    expect(compileConfig(craplessBubble).notModelled).toEqual([])
+    const credit = copy(craplessBubble)
+    credit.offBets.consumeCredit = false
+    expect(compileConfig(credit).notModelled).toEqual(['/offBets/consumeCredit'])
   })
 
   it('resolves commission per number, overrides included', () => {
@@ -572,6 +1029,85 @@ describe('compileConfig', () => {
       [45, 29n],
       [50, 99n],
     ])
+  })
+})
+
+describe('compiled composites (plan §0 #15)', () => {
+  /** A composite's wins as "key=num:den" and its pushes as "key=push", outcome order kept. */
+  function nets(cfg: MachineConfig, id: string): string[] {
+    const composite = cfg.composites.get(id)
+    if (composite === undefined) throw new Error(`${cfg.id} has no composite ${id}`)
+    return [
+      ...[...composite.pays].map(([key, { num, den }]) => `${key}=${num}:${den}`),
+      ...[...composite.pushes].map((key) => `${key}=push`),
+    ]
+  }
+
+  it('compiles each composite as one bet type of its own id, keyed by total', () => {
+    const cfg = compileConfig(craplessBubble)
+    expect(cfg.composites.get('horn')).toMatchObject({
+      family: 'composite',
+      id: 'horn',
+      typeId: 'horn',
+      label: 'Horn',
+      units: 4,
+      match: 'total',
+      afterWin: 'return',
+      payoutRounding: { mode: 'floor', increment: 1 },
+    })
+    expect(nets(cfg, 'horn')).toEqual(['2=27:4', '3=3:1', '11=3:1', '12=27:4'])
+    expect(nets(cfg, 'ce')).toEqual(['2=3:1', '3=3:1', '11=7:1', '12=3:1'])
+    expect(cfg.composites.get('horn')?.pays.get('12')?.label).toBe('27:4')
+  })
+
+  it('derives the world bet’s push on 7 and the horn high nets from the parts', () => {
+    const live = compileConfig(PRESETS.traditionalLive345)
+    expect(nets(live, 'world')).toEqual(['2=26:5', '3=11:5', '11=11:5', '12=26:5', '7=push'])
+    expect(nets(live, 'hornHigh11')).toEqual(['2=26:5', '3=11:5', '11=27:5', '12=26:5'])
+    expect(live.composites.get('world')).toMatchObject({ units: 5, afterWin: 'return' })
+  })
+
+  it('takes after-win and rounding from the parts', () => {
+    expect(compileConfig(traditionalBubble).composites.get('ce')?.afterWin).toBe('stay')
+    const cfg = copy(craplessBubble)
+    for (const id of ['snakeEyes', 'aceDeuce', 'yo', 'boxcars']) {
+      at(cfg, 'catalog', id).payoutRounding = { mode: 'halfUp', increment: 1 }
+    }
+    expect(compileConfig(cfg).composites.get('horn')?.payoutRounding).toEqual({
+      mode: 'halfUp',
+      increment: 1,
+    })
+  })
+
+  it('keys a composite with a dice-matched part by dice, low face first', () => {
+    const cfg = copy(PRESETS.traditionalLive345)
+    at(cfg, 'composites').acesAndHop = {
+      label: 'Aces and Hop 1-1',
+      parts: [
+        { typeId: 'aces', units: 1 },
+        { typeId: 'hop11', units: 1 },
+      ],
+    }
+    const compiled = compileConfig(cfg)
+    expect(compiled.composites.get('acesAndHop')?.match).toBe('dice')
+    // Both parts win on 1-1: each returns 31 of its unit, so the bet nets 30:1.
+    expect(nets(compiled, 'acesAndHop')).toEqual(['1-1=30:1'])
+  })
+
+  it('gives composites limits: the config defaults, or their own per-type limits', () => {
+    expect(compileConfig(craplessBubble).limits.byType.get('horn')).toEqual({
+      min: 100,
+      max: 50_000,
+      increment: 100,
+    })
+    const cfg = copy(craplessBubble)
+    cfg.limits.perType = { horn: { min: 400, increment: 400 } }
+    expect(validateConfig(cfg)).toEqual([])
+    expect(compileConfig(cfg).limits.byType.get('horn')).toEqual({
+      min: 400,
+      max: 50_000,
+      increment: 400,
+    })
   })
 })
 
