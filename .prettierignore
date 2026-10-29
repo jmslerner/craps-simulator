@@ -1,5 +1,7 @@
 # The research and plans under docs/ stay exactly as written.
 docs/**
+# The user's agent instructions, like the docs, keep their own layout.
+CLAUDE.md
 
 # Generated output.
 /dist/

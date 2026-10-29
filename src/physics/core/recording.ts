@@ -29,8 +29,11 @@ export const TOUCH_ANY = TOUCH_FLOOR | TOUCH_DOME | TOUCH_DIE
 const BITS_PER_DIE = 3
 
 export interface Recording {
-  /** frameCount × 2 dice × [px, py, pz, qx, qy, qz, qw]: body poses, not the drawn faces. */
-  readonly frames: Float32Array
+  /**
+   * frameCount × 2 dice × [px, py, pz, qx, qy, qz, qw]: body poses, not the drawn faces. Over a
+   * plain ArrayBuffer, so `frames.buffer` can go in a postMessage transfer list.
+   */
+  readonly frames: Float32Array<ArrayBuffer>
   readonly frameCount: number
   readonly frameRate: number
   /** Physics steps per frame: frame f is the state after step f × stepsPerFrame. */
@@ -39,7 +42,7 @@ export interface Recording {
    * One byte of TOUCH_* flags per step, for steps 0 (the start poses) to the last frame's step:
    * (frameCount − 1) × stepsPerFrame + 1 bytes. Read it with touchesAt and touchesDuring.
    */
-  readonly contacts: Uint8Array
+  readonly contacts: Uint8Array<ArrayBuffer>
   /**
    * The first frame at which both dice are at rest, or -1 if they never settled. The frames after
    * it confirm the rest; the last frame equals `finalPoses`.

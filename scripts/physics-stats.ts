@@ -116,9 +116,11 @@ function report(samples: readonly Sample[], chain: number, verbose: boolean): vo
   const depthRow = (pick: (attempt: (typeof attempts)[number]) => Depths) => {
     const of = (key: keyof Depths) => attempts.map((attempt) => pick(attempt)[key])
     const deepest = sorted(of('deepest'))
+    const sustained = Math.max(...of('sustained'))
+    const atRest = Math.max(...of('atRest').filter(Number.isFinite))
     return (
       `deepest ${u(Math.max(...deepest))} (p99 ${u(quantile(deepest, 0.99))}), ` +
-      `sustained ${u(Math.max(...of('sustained')))}, at rest ${u(Math.max(...of('atRest').filter(Number.isFinite)))}`
+      `sustained ${u(sustained)}, at rest ${u(atRest)}`
     )
   }
 
@@ -156,12 +158,11 @@ function report(samples: readonly Sample[], chain: number, verbose: boolean): vo
   const chi2 = [...faces.values()].reduce((sum, k) => sum + (k - expected) ** 2 / expected, 0)
 
   const { pop, dome, timestep, solverIterations, contact } = DEFAULT_PARAMS
+  const physics = `${hz(1 / timestep)}, ${solverIterations} solver iterations`
+  const turns = [turnRates[0] ?? NaN, quantile(turnRates, 0.05), quantile(turnRates, 0.5)]
   const rows: [string, string][] = [
     ['throws', `${n} in sessions of ${chain}`],
-    [
-      'physics',
-      `${hz(1 / timestep)}, ${solverIterations} solver iterations, contacts ${hz(contact.frequency)}`,
-    ],
+    ['physics', `${physics}, contacts ${hz(contact.frequency)}`],
     ['popper', `${pop.launchMin}-${pop.launchMax} u/s, spin ${pop.spinMin}-${pop.spinMax} rad/s`],
     ['first attempt valid', `${firstValid}/${n} (${pct(firstValid, n)})`],
     ['invalid reasons', [...reasons].map(([r, k]) => `${r} ${k}`).join(', ') || 'none'],
@@ -179,10 +180,7 @@ function report(samples: readonly Sample[], chain: number, verbose: boolean): vo
     ['per physics attempt', `mean ${ms(totalMs / physicsAttempts)}`],
     ['touching something', `${pct(touchingSteps, steps)} of die-steps`],
     ['face snap hidden', `${hidden}/${switches.length} switches (${pct(hidden, switches.length)})`],
-    [
-      '  turn rate there',
-      `min ${rate(turnRates[0] ?? NaN)}, p5 ${rate(quantile(turnRates, 0.05))}, p50 ${rate(quantile(turnRates, 0.5))}`,
-    ],
+    ['  turn rate there', `min ${rate(turns[0])}, p5 ${rate(turns[1])}, p50 ${rate(turns[2])}`],
     ['natural top faces', [...faces].map(([face, k]) => `${face}:${k}`).join(' ')],
     ['  uniformity', `χ² ${chi2.toFixed(2)} on 5 dof (p = .05 at 11.07)`],
   ]
@@ -227,6 +225,6 @@ const sec = (s: number) => (Number.isFinite(s) ? `${s.toFixed(2)} s` : 'never')
 const ms = (value: number) => `${value.toFixed(1)} ms`
 const u = (value: number) => `${value.toFixed(3)} u`
 const hz = (value: number) => `${value.toFixed(0)} Hz`
-const rate = (value: number) => `${value.toFixed(1)} rad/s`
+const rate = (value = NaN) => `${value.toFixed(1)} rad/s`
 
 process.exitCode = await main(process.argv.slice(2))

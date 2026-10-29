@@ -219,8 +219,8 @@ export default defineConfig([
   },
   ...LAYERS.flatMap(importBlocks),
   {
-    // Applies to core tests too: randomized tests use pinned seeds.
-    files: filesIn(CORE_DIRS),
+    // Applies to core tests and everything under tests/ too: randomized tests use pinned seeds.
+    files: [...filesIn(CORE_DIRS), 'tests/**/*.{ts,tsx}'],
     rules: {
       'no-restricted-properties': ['error', mathRandom],
     },

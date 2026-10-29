@@ -6,19 +6,19 @@ A browser app for practising electronic **bubble craps**, with a **live coach** 
 - Canonical rules: `docs/rules/rules-spec.md`, written from the verified research in `docs/rules/research/`.
 
 ## Commands
-- `npm run verify` runs typecheck, lint, all tests, the build and the bundle check. A milestone is done only when this is green, plus its own acceptance checks.
+- `npm run verify` runs typecheck, lint, the Prettier check, all tests, coverage (gated on `src/engine/**`: 90% lines, 85% branches), the build and the bundle check. A milestone is done only when this is green, plus its own acceptance checks.
 - `npm test` runs the core, ui and physics Vitest projects. Use `npx vitest run --project core` (or `ui`, `physics`) for one project, and `npm run test:slow` for Monte Carlo and audit.
 - `npm run e2e` runs Playwright against a `vite build --mode e2e` preview.
 - `node scripts/<name>.ts` runs scripts with Node 24's native type stripping. Node is 24.13.1, so jsdom stays pinned at 29.1.1.
 
 ## Hard rules
 - **Never commit, push, stash, reset or check out files with git.** The user has not asked for commits.
-- **Layering:** engine → exact → coach → ui. `sim` uses engine and exact. `physics/core` uses only Rapier and itself. The shells are `ui`, `dome`, `persistence` and `workers`. Core code (`src/{engine,exact,coach,sim,physics/core}`) must not use DOM or Node APIs, `Math.random`, `Date`, `performance`, `crypto` or timers. It also must not import react, three, zustand, idb-keyval, ui, dome, persistence or workers. These rules are enforced by tsconfig, ESLint and `tests/architecture.test.ts`. Unit tests beside core modules (`*.test.ts`) run under Node and are type-checked by `tsconfig.test.json`, so they may use Node APIs, the clock, timers and `Math.floor/round/ceil`; they still may not import those libraries or shells, or use `Math.random`.
-- **Money is integer cents** (branded `Cents`). Exact amounts are BigInt `Fraction`s, rounded once by an explicit `Rounding` from the machine config. `Math.floor/round/ceil` are allowed only in `engine/core/{money,rational}.ts`. Never use floats for money or percentages; format with `Fraction.formatPercent`.
+- **Layering:** engine → exact → coach → ui, and `engine/core` imports only itself. `sim` uses engine and exact. `physics/core` uses only Rapier and itself. The shells are `ui`, `dome`, `persistence` and `workers`. Core code (`src/{engine,exact,coach,sim,physics/core}`) must not use DOM or Node APIs, `Math.random`, `Date`, `performance`, `crypto` or timers. It also must not import react, three, zustand, idb-keyval, ui, dome, persistence or workers. These rules are enforced by tsconfig, ESLint and `tests/architecture.test.ts`. Unit tests beside core modules (`*.test.ts`) run under Node and are type-checked by `tsconfig.test.json`, so they may use Node APIs, the clock, timers and `Math.floor/round/ceil`; they still may not import those libraries or shells, or use `Math.random`.
+- **Money is integer cents** (branded `Cents`). Exact amounts are BigInt `Fraction`s, rounded once by an explicit `Rounding` from the machine config. In engine, exact and coach, `Math.floor/round/ceil/trunc`, `toFixed`, `toPrecision` and `Fraction#toNumber` are allowed only in `engine/core/{money,rational}.ts`. Never use floats for money or percentages; format with `formatCents` and `Fraction.formatPercent`.
 - **Dice come only from engine RNG state.** It is seedable, so tests and replays are reproducible. Physics and animation use separately derived seeds and never decide outcomes. The 3D dome animates to dice the engine already chose.
 - **Machine behaviour is data:** the zod-validated `MachineConfigInput`, with provenance for each JSON pointer (`verified` / `reported` / `assumed`). Never hard-code a payout, commission rule, odds cap or working default in rule code.
 - **Coach numbers are computed, never typed in.** Every displayed number is a `CoachNumber` traced to `src/exact/`. The content lint rejects literal percentages, dollar amounts and ratios in `coach/content/**`.
-- **Oracle independence:** `tests/oracle/**` is written from `docs/rules/rules-spec.md` with its own rule constants. It must never import from `src/engine/bets`, `src/engine/round` or `src/engine/settle`, and never copy their logic. Shared rule code cannot catch its own bugs.
+- **Oracle independence:** oracle modules (`tests/oracle/*.ts`) are written from `docs/rules/rules-spec.md` with their own rule constants. They must never import `src/exact`, `src/engine/{bets,round,settle,table,session}`, the engine barrel or `config/rulesets.ts`, directly or through another module, and never copy engine logic. Only `tests/oracle/dispatchChain.ts` may drive the reducer, and it still may not import `src/exact`. Oracle tests (`tests/oracle/*.test.ts`) may import the engine and solver they compare against. Shared rule code cannot catch its own bugs.
 - **State is JSON-safe:** `TableState` and the session log contain no bigint, Map, Set or class instances. `Fraction`s cross worker and IndexedDB boundaries through `toWire`/`fromWire`.
 - **Syntax:** relative imports with a `.ts`/`.tsx` extension; `import type` for types; no enums, namespaces or parameter properties (`erasableSyntaxOnly`). Prettier: no semicolons, single quotes, 100-character width.
 
@@ -26,7 +26,7 @@ A browser app for practising electronic **bubble craps**, with a **live coach** 
 - Rule tables are written **test-first from the rules spec**, in the same milestone as each bet family.
 - Every researched machine fact becomes a scenario test plus a provenance entry.
 - Published exact values (`tests/golden/published.test.ts`) must match with exact rational equality, never `toBeCloseTo`.
-- Randomized tests use pinned seeds, so failures are reproducible.
+- Randomized tests use pinned seeds, so failures are reproducible. `Math.random` is banned in all of `tests/**`.
 
 | Bug class | Caught by |
 |---|---|

@@ -13,7 +13,7 @@ import {
 } from './rulesets.ts'
 
 /**
- * The machine-config format (plan §4.4 plus the research knobs in rules spec §7). A config is
+ * The machine-config format (plan §4.4 plus every knob in rules spec §5.1). A config is
  * plain JSON: presets are written in it, the machine editor edits it, and sessions store it. Every
  * object is strict, so a misspelt key is an error rather than a silently ignored setting.
  *

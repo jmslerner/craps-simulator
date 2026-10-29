@@ -60,10 +60,27 @@ export function hopTypes(
   )
 }
 
-/** The same provenance entry for `/catalog/<id>` of every hop in `combos`. */
+/**
+ * Provenance for every hop in `combos`: `type` at `/catalog/<id>`, and optionally separate entries
+ * for its pays and its after-win rule when they rest on different evidence.
+ */
 export function hopProvenance(
   combos: readonly string[],
-  entry: ProvenanceEntry,
+  entries: {
+    readonly type: ProvenanceEntry
+    readonly pays?: ProvenanceEntry
+    readonly afterWin?: ProvenanceEntry
+  },
 ): Record<string, ProvenanceEntry> {
-  return Object.fromEntries(combos.map((combo) => [`/catalog/${hopId(combo)}`, entry]))
+  return Object.fromEntries(
+    combos.flatMap((combo) => {
+      const at = `/catalog/${hopId(combo)}`
+      const own: [string, ProvenanceEntry | undefined][] = [
+        [at, entries.type],
+        [`${at}/pays`, entries.pays],
+        [`${at}/afterWin`, entries.afterWin],
+      ]
+      return own.filter((entry): entry is [string, ProvenanceEntry] => entry[1] !== undefined)
+    }),
+  )
 }

@@ -146,11 +146,13 @@ describe('architecture scanner layering', () => {
 })
 
 describe('architecture scanner oracle independence', () => {
-  it('keeps oracle modules off the engine rules, rulesets, barrel and solver', () => {
+  it('keeps oracle modules off the engine rules, reducer, rulesets, barrel and solver', () => {
     const forbidden = [
       '../../src/engine/bets/families/line.ts',
       '../../src/engine/round/round.ts',
       '../../src/engine/settle/settle.ts',
+      '../../src/engine/table/reducer.ts',
+      '../../src/engine/session/replay.ts',
       '../../src/engine/config/rulesets.ts',
       '../../src/engine/index.ts',
       '../../src/exact/chain.ts',
@@ -193,10 +195,12 @@ describe('architecture scanner oracle independence', () => {
     const source = [
       imp('../../src/engine/index.ts'),
       imp('../../src/engine/round/round.ts'),
+      imp('../../src/engine/table/reducer.ts'),
+      imp('../../src/engine/session/replay.ts'),
       imp('../../src/engine/config/rulesets.ts'),
       imp('../../src/exact/chain.ts'),
     ].join('')
-    expect(check('tests/oracle/dispatchChain.ts', source)).toEqual(['oracle-independence@4'])
+    expect(check('tests/oracle/dispatchChain.ts', source)).toEqual(['oracle-independence@6'])
   })
 
   it('bans Math.random in oracle modules and oracle tests alike', () => {
@@ -206,6 +210,27 @@ describe('architecture scanner oracle independence', () => {
     expect(check('tests/oracle/closedForm.test.ts', 'const { random } = Math')).toEqual([
       'seeded-random@1',
     ])
+  })
+})
+
+describe('architecture scanner seeded tests', () => {
+  it('bans Math.random everywhere under tests/, so randomized tests reproduce', () => {
+    const source = 'const r = Math.random()\nconst { random } = Math\n'
+    for (const file of [
+      'tests/scenarios/dsl.ts',
+      'tests/golden/published.test.ts',
+      'tests/properties/money.prop.test.ts',
+      'tests/slow/mc.slow.test.ts',
+      'tests/architecture/scanner.ts',
+    ]) {
+      expect(check(file, source), file).toEqual(['seeded-random@1', 'seeded-random@2'])
+    }
+  })
+
+  it('leaves e2e specs and scripts to their own rules', () => {
+    const source = 'const r = Math.random()\n'
+    expect(check('e2e/smoke.spec.ts', source)).toEqual([])
+    expect(check('scripts/physics-stats.ts', source)).toEqual([])
   })
 })
 

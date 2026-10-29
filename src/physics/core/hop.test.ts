@@ -88,7 +88,7 @@ interface Case {
   readonly rec: Recording
 }
 
-let real: Case[] = []
+const real: Case[] = []
 const synthetic: Case[] = adversarialStarts().map((start, k) => ({
   start,
   rec: analyticHop(deriveSeed(9, k), start),

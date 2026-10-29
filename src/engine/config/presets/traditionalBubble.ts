@@ -472,7 +472,11 @@ export const traditionalBubble: MachineConfigInput = deepFreeze({
       source: 'STWO (game screen)',
       note: 'Chip values are set from a keypad on the machine; these are a trainer default.',
     },
-    '/catalog/pass': { status: 'verified', source: 'CW §5' },
+    '/catalog/pass': {
+      status: 'verified',
+      source: 'CW §5',
+      note: 'Wins on 7 or 11, loses on 2, 3 or 12; cannot be cancelled after the point.',
+    },
     '/catalog/pass/afterWin': {
       status: 'verified',
       source: 'CW §29',
@@ -484,13 +488,21 @@ export const traditionalBubble: MachineConfigInput = deepFreeze({
       note: 'Offered "if available"; no new or larger bet after the point; cannot be cancelled after the point (rules spec §0.2 #5).',
     },
     '/catalog/dontPass/afterWin': DONT_RIDES,
-    '/catalog/come': { status: 'verified', source: 'CW §9' },
+    '/catalog/come': {
+      status: 'verified',
+      source: 'CW §9',
+      note: 'Placed only after the point is established; cannot be cancelled once it travels.',
+    },
     '/catalog/come/afterWin': {
       status: 'verified',
       source: 'CW §31',
       note: 'A come bet that wins on 11 on its first roll stays in the come box.',
     },
-    '/catalog/dontCome': { status: 'verified', source: 'CW §14' },
+    '/catalog/dontCome': {
+      status: 'verified',
+      source: 'CW §14',
+      note: 'Offered "if available"; pushes on 12.',
+    },
     '/catalog/dontCome/afterWin': DONT_RIDES,
     '/catalog/dontCome/onNumber': {
       status: 'assumed',
@@ -573,22 +585,36 @@ export const traditionalBubble: MachineConfigInput = deepFreeze({
       source: 'CW §8, §32',
       note: '2 to 1 on 2 and 12, 1 to 1 on 3, 4, 9, 10 and 11; winners ride.',
     },
-    '/catalog/any7': { status: 'verified', source: 'CW §26, §32' },
-    '/catalog/anyCraps': { status: 'verified', source: 'CW §27, §32' },
+    '/catalog/any7': {
+      status: 'verified',
+      source: 'CW §26, §32',
+      note: 'Pays 4 to 1; winners ride.',
+    },
+    '/catalog/anyCraps': {
+      status: 'verified',
+      source: 'CW §27, §32',
+      note: 'Pays 7 to 1 on 2, 3 or 12; winners ride.',
+    },
     '/catalog/c': {
       status: 'verified',
       source: 'CW §22, §32',
       note: '"The same rules as ANY CRAPS apply to this bet spot."',
     },
-    '/catalog/e': { status: 'verified', source: 'CW §23, §32' },
+    '/catalog/e': {
+      status: 'verified',
+      source: 'CW §23, §32',
+      note: 'Pays 15 to 1 on 11; winners ride.',
+    },
     '/catalog/horn2': HORN_SINGLE,
     '/catalog/horn3': HORN_SINGLE,
     '/catalog/horn11': HORN_SINGLE,
     '/catalog/horn12': HORN_SINGLE,
     ...hopProvenance(ALL_HOPS, {
-      status: 'verified',
-      source: 'CW §28, §32; STWO §7.1',
-      note: 'All 15 easy and 6 hard hops; 15 to 1 easy, 30 to 1 hard; winners ride.',
+      type: {
+        status: 'verified',
+        source: 'CW §28, §32; STWO §7.1',
+        note: 'All 15 easy and 6 hard hops; 15 to 1 easy, 30 to 1 hard; winners ride.',
+      },
     }),
     '/composites': {
       status: 'verified',

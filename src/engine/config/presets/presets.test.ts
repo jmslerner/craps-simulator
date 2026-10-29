@@ -87,6 +87,18 @@ describe('provenance of the presets', () => {
     }
   })
 
+  it('explains every entry with a note, and sources every entry that is not assumed', () => {
+    for (const id of PRESET_IDS) {
+      const entries = Object.entries(PRESETS[id].provenance)
+      expect(
+        entries.filter(([, entry]) => !entry.note).map(([pointer]) => pointer),
+        id,
+      ).toEqual([])
+      const unsourced = entries.filter(([, e]) => e.status !== 'assumed' && !e.source)
+      expect(unsourced, id).toEqual([])
+    }
+  })
+
   it('gives pays, vig, working defaults and limits their own entries, not a blanket one', () => {
     const researched = ['pays', 'payTable', 'tiers', 'topAward', 'commission', 'limit', 'afterWin']
     const loose: string[] = []
@@ -404,6 +416,11 @@ function fingerprint(id: PresetId): string {
     const items = entries.map(([key, text], i) => `${key}=${text}${same ? '' : ` ${tags[i]}`}`)
     return `${items.join(', ')}${same && tags[0] ? ` ${tags[0]}` : ''}`
   }
+  /** A type's own rounding, or the config default it inherits, with the matching status. */
+  const roundingTag = (typeId: string) =>
+    input.catalog[typeId]?.payoutRounding === undefined
+      ? `${tag('/money/payoutRounding')} (default)`
+      : tag(`/catalog/${typeId}/payoutRounding`)
   const vig = (rule: CommissionRule, pointer: string) =>
     `${rule.rate.toWire().join('/')} of ${rule.basis} ${rule.timing} ${tag(`${pointer}/timing`)}, ` +
     `rounded ${round(rule.rounding)} ${tag(`${pointer}/rounding`)}, min ${money(rule.minimum)} ` +
@@ -418,7 +435,11 @@ function fingerprint(id: PresetId): string {
       case 'line':
         return [
           `${head} line ${type.side}/${type.window}: pays ${pay(type.pays)} ${tag(`${at}/pays`)}; ` +
-            `${after} ${tag(`${at}/afterWin`)}; on a number ${type.onNumber}, re-bet ${type.rebetAfterRemove}`,
+            `${after} ${tag(`${at}/afterWin`)}` +
+            (type.side === 'dont'
+              ? `; on a number ${type.onNumber} ${tag(`${at}/onNumber`)}, ` +
+                `re-bet ${type.rebetAfterRemove} ${tag(`${at}/rebetAfterRemove`)}`
+              : ''),
         ]
       case 'odds':
         return [
@@ -435,7 +456,7 @@ function fingerprint(id: PresetId): string {
         ]
       case 'numberVsSeven': {
         const lines = [
-          `${head} ${type.kind}: payouts ${round(type.payoutRounding)} ${tag(`${at}/payoutRounding`)}; ` +
+          `${head} ${type.kind}: payouts ${round(type.payoutRounding)} ${roundingTag(type.typeId)}; ` +
             `${after} ${tag(`${at}/afterWin`)}; come-out ${type.comeOutDefault} ${tag(`${at}/comeOutDefault`)}`,
           `    pays ${table(
             `${at}/pays`,
@@ -467,7 +488,8 @@ function fingerprint(id: PresetId): string {
           `${head} one roll by ${type.match}: pays ${table(
             `${at}/pays`,
             [...type.pays].map(([k, r]) => [k, pay(r)]),
-          )}; ` + `${after} ${tag(`${at}/afterWin`)}; payouts ${round(type.payoutRounding)}`,
+          )}; ` +
+            `${after} ${tag(`${at}/afterWin`)}; payouts ${round(type.payoutRounding)} ${roundingTag(type.typeId)}`,
         ]
     }
   }

@@ -146,6 +146,21 @@ const FIXTURES: readonly Fixture[] = [
     keepProvenance: true,
   },
   {
+    name: 'a provenance key that is not a JSON pointer',
+    base: 'craplessBubble',
+    edit: (cfg) => (at(cfg, 'provenance')['catalog/place'] = { status: 'assumed', note: 'x' }),
+    paths: [['provenance', 'catalog/place']],
+    message: /invalid key: must be a JSON pointer/,
+    keepProvenance: true,
+  },
+  {
+    name: 'a bet type id that is not camelCase',
+    base: 'craplessBubble',
+    edit: (cfg) => (at(cfg, 'catalog')['place-6'] = at(cfg, 'catalog', 'place')),
+    paths: [['catalog', 'place-6']],
+    message: /invalid key: must be camelCase/,
+  },
+  {
     name: 'a negative odds multiple',
     base: 'craplessBubble',
     edit: (cfg) => (at(cfg, 'catalog', 'passOdds', 'limit', 'multiple')['4'] = -1),
@@ -355,6 +370,18 @@ const FIXTURES: readonly Fixture[] = [
     paths: [['limits', 'min']],
   },
   {
+    name: 'per-type limits for a type that is not offered',
+    base: 'craplessBubble',
+    edit: (cfg) => (cfg.limits.perType = { lay: { min: 500 } }),
+    paths: [['limits', 'perType', 'lay']],
+  },
+  {
+    name: 'a per-type minimum above its maximum',
+    base: 'traditionalBubble',
+    edit: (cfg) => (at(cfg, 'limits', 'perType', 'hotShooter').min = 200_000),
+    paths: [['limits', 'perType', 'hotShooter', 'min']],
+  },
+  {
     name: 'a chip that is not a whole number of bet increments',
     base: 'craplessBubble',
     edit: (cfg) => (cfg.chips = [100, 550, 1_000]),
@@ -452,6 +479,8 @@ describe('compileConfig', () => {
     const mine = copy(traditionalBubble)
     const cfg = compileConfig(mine)
     expect(Object.isFrozen(mine)).toBe(false)
+    expect(Object.isFrozen(mine.rules.points)).toBe(false)
+    expect(Object.isFrozen(mine.catalog.place)).toBe(false)
     expect(Object.isFrozen(cfg)).toBe(true)
     expect(Object.isFrozen(cfg.input.catalog)).toBe(true)
     expect(Object.isFrozen(cfg.input.provenance)).toBe(true)

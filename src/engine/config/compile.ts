@@ -40,7 +40,7 @@ type Add = (path: Path, message: string) => void
 
 /**
  * Checks that relate config values to each other, after the schema has checked each value on its
- * own (plan §4.4, rules spec §7.3). Each issue is located like a zod issue.
+ * own (plan §4.4, rules spec §5.3). Each issue is located like a zod issue.
  */
 export function semanticIssues(cfg: MachineConfigInput): ConfigIssue[] {
   const issues: ConfigIssue[] = []
@@ -81,9 +81,18 @@ export class ConfigError extends Error {
   }
 }
 
-function toConfigIssue(zodIssue: { path: PropertyKey[]; message: string }): ConfigIssue {
+interface ZodIssueLike {
+  readonly code?: string
+  readonly path: PropertyKey[]
+  readonly message: string
+  /** Set on `invalid_key`: why the key itself was rejected. */
+  readonly issues?: readonly { readonly message: string }[]
+}
+
+function toConfigIssue(zodIssue: ZodIssueLike): ConfigIssue {
   const path = zodIssue.path.map((key) => (typeof key === 'number' ? key : String(key)))
-  return issue(path, zodIssue.message)
+  const reason = zodIssue.code === 'invalid_key' ? zodIssue.issues?.[0]?.message : undefined
+  return issue(path, reason === undefined ? zodIssue.message : `invalid key: ${reason}`)
 }
 
 function checkRules(cfg: MachineConfigInput, add: Add): void {
@@ -119,13 +128,15 @@ function checkMoney(cfg: MachineConfigInput, add: Add): void {
     if (!Object.hasOwn(cfg.catalog, typeId) && !Object.hasOwn(cfg.sideBets, typeId)) {
       add(at, `"${typeId}" is not a bet type or side bet in this config`)
     }
-    // Report at the field this type sets; a default it inherits cannot be edited here.
+    // Only what this type sets is checked here, and reported at the field it sets; the
+    // config-wide limits were checked above.
     const min = own.min ?? limits.min
-    const minField = own.min === undefined ? 'increment' : 'min'
-    if (min > (own.max ?? limits.max)) {
+    if ((own.min !== undefined || own.max !== undefined) && min > (own.max ?? limits.max)) {
       add([...at, own.min === undefined ? 'max' : 'min'], 'the minimum is above the maximum')
     }
-    multiple([...at, minField], min, own.increment ?? step)
+    if (own.min !== undefined || own.increment !== undefined) {
+      multiple([...at, own.min === undefined ? 'increment' : 'min'], min, own.increment ?? step)
+    }
   }
   cfg.chips.forEach((chip, index) => {
     multiple(['chips', index], chip, step)
@@ -153,7 +164,7 @@ function checkCatalog(cfg: MachineConfigInput, add: Add): void {
         break
       case 'hardway':
         checkNumbers(type.numbers, [4, 6, 8, 10], 'hardway', [...at, 'numbers'], add)
-        checkPays(type.numbers, type.pays, `${type.label}`, [...at, 'pays'], add)
+        checkPays(type.numbers, type.pays, type.label, [...at, 'pays'], add)
         break
       case 'oneRoll':
         checkOneRoll(type, at, add)
@@ -300,8 +311,11 @@ function checkNumbers(
   add: Add,
 ): void {
   numbers.forEach((n, index) => {
-    if (!allowed.includes(n)) add([...at, index], `${n} is not a ${what}`)
-    else if (numbers.indexOf(n) !== index) add([...at, index], `${n} is listed twice`)
+    if (!allowed.includes(n)) {
+      add([...at, index], `${n} is not a ${what}`)
+    } else if (numbers.indexOf(n) !== index) {
+      add([...at, index], `${n} is listed twice`)
+    }
   })
 }
 
@@ -339,10 +353,11 @@ function checkComposites(cfg: MachineConfigInput, add: Add): void {
     composite.parts.forEach(({ typeId }, index) => {
       const at = ['composites', id, 'parts', index, 'typeId']
       const part = Object.hasOwn(cfg.catalog, typeId) ? cfg.catalog[typeId] : undefined
-      if (part === undefined) add(at, `"${typeId}" is not a bet type in the catalog`)
-      else if (part.family !== 'oneRoll')
+      if (part === undefined) {
+        add(at, `"${typeId}" is not a bet type in the catalog`)
+      } else if (part.family !== 'oneRoll') {
         add(at, `a composite combines one-roll bets; ${typeId} is not one`)
-      else if (composite.parts.findIndex((p) => p.typeId === typeId) !== index) {
+      } else if (composite.parts.findIndex((p) => p.typeId === typeId) !== index) {
         add(at, `${typeId} is already a part; raise its units instead`)
       }
     })
@@ -357,9 +372,9 @@ function checkSideBets(cfg: MachineConfigInput, add: Add): void {
     switch (bet.family) {
       case 'collectSet':
         bet.targets.forEach((total, index) => {
-          if (total === 7)
+          if (total === 7) {
             add([...at, 'targets', index], '7 ends the bet, so it cannot be a target')
-          else if (bet.targets.indexOf(total) !== index) {
+          } else if (bet.targets.indexOf(total) !== index) {
             add([...at, 'targets', index], `${total} is listed twice`)
           }
         })
@@ -427,8 +442,11 @@ function checkCountTable(
 ): void {
   if (Object.keys(table).length === 0) add(at, 'the pay table is empty')
   for (const key of Object.keys(table)) {
-    if (!/^[1-9]\d*$/.test(key)) add([...at, key], `must be a whole number of ${what}`)
-    else if (Number(key) > most) add([...at, key], `${key} ${what} cannot happen; at most ${most}`)
+    if (!/^[1-9]\d*$/.test(key)) {
+      add([...at, key], `must be a whole number of ${what}`)
+    } else if (Number(key) > most) {
+      add([...at, key], `${key} ${what} cannot happen; at most ${most}`)
+    }
   }
 }
 

@@ -18,10 +18,10 @@ import type { Quat } from './quat.ts'
 import { contactByte, TOUCH_DIE, TOUCH_DOME, TOUCH_FLOOR } from './recording.ts'
 import type { DicePoses, Pose } from './restPose.ts'
 
-/** A rotation as its world-frame body axes, the columns of its matrix: [a0x, a0y, a0z, a1x, ...]. */
+/** A rotation as its world-frame body axes, its matrix's columns: [a0x, a0y, a0z, a1x, ...]. */
 type Axes = readonly number[]
 
-/** The axes of a body with orientation `q`; q need not be exactly unit, as stored frames are not. */
+/** The axes of a body turned by `q`, which need not be exactly unit, as stored frames are not. */
 function axesOf(q: Quat): Axes {
   const [x, y, z, w] = q
   const s = 2 / (x * x + y * y + z * z + w * w)

@@ -13,7 +13,7 @@ export type InvalidReason =
   | 'nonfinite'
   /** A die centre left the dome or went below the floor at some frame. */
   | 'escaped'
-  /** A die sank deeper than `maxOverlap` into the floor, the dome or the other die at some frame. */
+  /** A die sank more than `maxOverlap` into the floor, the dome or the other die at some frame. */
   | 'overlap'
   /** The dice did not come to rest by `maxSettleTime`. */
   | 'unsettled'

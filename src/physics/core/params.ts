@@ -2,7 +2,7 @@
  * Every physics tunable, in one place. Units: 1 u = one die edge (19 mm), seconds, radians.
  * Starting values come from implementation-plan §7. Tune with `node scripts/physics-stats.ts`.
  * Changing any value changes recordings, so the golden hash in simulate.test.ts must be re-pinned.
- * Recordings carry `paramsFingerprint(params)`, so a plan never pairs a recording with other params.
+ * Recordings carry `paramsFingerprint(params)`, so no plan pairs a recording with other params.
  */
 import { createHasher } from './hash.ts'
 
@@ -112,7 +112,10 @@ export interface RestParams {
 }
 
 export interface SnapParams {
-  /** Clearance from the floor, dome and other die for a frame to count as airborne, u. */
+  /**
+   * Clearance from the floor, dome and other die for a frame to count as airborne, u; the die
+   * must also have touched nothing at any step since the previous frame.
+   */
   readonly airborneClearance: number
   /** Slowest turn, rad/s over a frame, that hides a change of drawn face. */
   readonly minTurnRate: number
@@ -143,7 +146,7 @@ export interface PhysicsParams {
   readonly gravity: number
   /** Physics step, s. */
   readonly timestep: number
-  /** Rapier's solver iterations per step; each is a substep of its soft-constraint solver. */
+  /** Rapier's constraint-solver iterations per step (World.numSolverIterations). */
   readonly solverIterations: number
   readonly contact: ContactParams
   /** Physics steps per recorded frame: 480 Hz stepping recorded at 60 Hz. */
@@ -245,7 +248,8 @@ function canonicalJson(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`
   if (typeof value === 'object' && value !== null) {
     const entries = Object.entries(value).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
-    return `{${entries.map(([key, item]) => `${JSON.stringify(key)}:${canonicalJson(item)}`).join(',')}}`
+    const fields = entries.map(([key, item]) => `${JSON.stringify(key)}:${canonicalJson(item)}`)
+    return `{${fields.join(',')}}`
   }
   return JSON.stringify(value)
 }

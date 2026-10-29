@@ -448,12 +448,17 @@ const FLOAT_METHODS: ReadonlySet<string> = new Set(['toFixed', 'toPrecision', 't
 const ROUNDING_LAYERS: readonly Layer[] = ['engine/core', 'engine', 'exact', 'coach']
 const ROUNDING_HOMES = new Set(['src/engine/core/money.ts', 'src/engine/core/rational.ts'])
 
-/** What an oracle module must not import: shared rule code cannot catch its own bugs. */
+/**
+ * What an oracle module must not import: shared rule code cannot catch its own bugs. The reducer
+ * (`table`) and the session layer that drives it run that rule code too.
+ */
 const ORACLE_FORBIDDEN_DIRS = [
   'src/exact',
   'src/engine/bets',
   'src/engine/round',
   'src/engine/settle',
+  'src/engine/table',
+  'src/engine/session',
 ]
 /** The engine barrel re-exports the rules, and the rulesets hold the engine's own rule constants. */
 const ORACLE_FORBIDDEN_FILES = [
@@ -516,6 +521,7 @@ function packageName(specifier: string): string {
  * Checks one file. `file` is repo-relative with forward slashes, e.g. `src/engine/core/dice.ts`.
  * Core tests (`*.test.ts`) run under Node: they keep the import rules and the Math.random ban
  * (randomized tests use pinned seeds), but may use Node APIs, time themselves and round freely.
+ * Everything under `tests/` keeps the Math.random ban as well.
  */
 export function checkSource(file: string, source: string): Violation[] {
   const tokens = lex(source)
@@ -586,24 +592,26 @@ export function checkSource(file: string, source: string): Violation[] {
     }
   }
 
-  if (file.startsWith('tests/oracle/')) {
-    // Oracle tests compare an oracle with the engine, so only the oracle modules are restricted.
-    if (!isTest) {
-      const chain = file === DISPATCH_CHAIN
-      for (const { specifier, line } of imports) {
-        const target = resolveSpecifier(file, specifier)
-        if (target === undefined) continue
-        if (chain && within(target, DISPATCH_CHAIN_FORBIDDEN_DIRS)) {
-          const message = `the dispatch chain must not import the solver it checks: ${target}`
-          report(line, 'oracle-independence', message)
-        } else if (
-          !chain &&
-          (ORACLE_FORBIDDEN_FILES.includes(target) || within(target, ORACLE_FORBIDDEN_DIRS))
-        ) {
-          report(line, 'oracle-independence', `oracles must not import shared rule code: ${target}`)
-        }
+  // Oracle tests compare an oracle with the engine, so only the oracle modules are restricted.
+  if (file.startsWith('tests/oracle/') && !isTest) {
+    const chain = file === DISPATCH_CHAIN
+    for (const { specifier, line } of imports) {
+      const target = resolveSpecifier(file, specifier)
+      if (target === undefined) continue
+      if (chain && within(target, DISPATCH_CHAIN_FORBIDDEN_DIRS)) {
+        const message = `the dispatch chain must not import the solver it checks: ${target}`
+        report(line, 'oracle-independence', message)
+      } else if (
+        !chain &&
+        (ORACLE_FORBIDDEN_FILES.includes(target) || within(target, ORACLE_FORBIDDEN_DIRS))
+      ) {
+        report(line, 'oracle-independence', `oracles must not import shared rule code: ${target}`)
       }
     }
+  }
+  // Randomized tests use pinned seeds, so every failure reproduces: the oracles, scenarios,
+  // properties, golden values and the slow suite alike.
+  if (file.startsWith('tests/')) {
     for (const { line } of findUsages(tokens, NO_GLOBALS, new Set([RANDOM]))) {
       report(line, 'seeded-random', 'Math.random: draw from a seeded RNG so failures reproduce')
     }

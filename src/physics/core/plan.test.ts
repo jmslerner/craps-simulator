@@ -176,7 +176,8 @@ describe('1000 random (seed, d1, d2) plans', () => {
       .sort((a, b) => a - b)
     const quantile = (q: number) => rates[Math.ceil(q * rates.length) - 1] ?? Number.NaN
     expect(rates.length).toBeGreaterThan(1000)
-    // Measured on these seeds: min 6.4, p5 19.9, p50 31.4 rad/s.
+    // Measured on these seeds: 1477 of 1478 switches hidden; min 7.0, p1 13.0, p5 18.7 and
+    // p50 32.3 rad/s.
     expect(quantile(0.01)).toBeGreaterThanOrEqual(params.snap.minTurnRate)
     expect(quantile(0.05)).toBeGreaterThan(12)
     expect(quantile(0.5)).toBeGreaterThan(24)
@@ -364,15 +365,15 @@ describe('clearance, for hand-placed poses', () => {
 })
 
 describe('snapFrame', () => {
-  /** Die 0 high in the air, turning about y by `turn(frame)` radians per frame, then landed. */
+  /** Die 0 at `height`, turning about y by `turn(frame)` radians per frame, then landed flat. */
   function spinning(turn: (frame: number) => number, height = 3): Recording {
     let q: Quat = IDENTITY
     const frames: DicePoses[] = []
     for (let frame = 0; frame < 40; frame++) {
-      q = normalize(multiply(fromAxisAngle([0, 1, 0], turn(frame)), q))
+      if (frame < 30) q = normalize(multiply(fromAxisAngle([0, 1, 0], turn(frame)), q))
       const y = frame < 30 ? height : 0.5
       frames.push([
-        { p: [0, y, 0], q: frame < 30 ? q : IDENTITY },
+        { p: [0, y, 0], q },
         { p: [3, 0.5, 3], q: IDENTITY },
       ])
     }
@@ -388,15 +389,14 @@ describe('snapFrame', () => {
     expect(snap).toEqual({ frame: 12, turnRate: expect.closeTo(30, 4), hidden: true })
   })
 
-  it('says a slow airborne turn cannot hide the switch, and takes the fastest frame instead', () => {
-    // 3 rad/s in the air, and the only fast turn is the landing.
+  it('says a slow airborne turn cannot hide the switch, and takes the fastest frame', () => {
+    // At most 0.08 rad a frame, 4.8 rad/s: under the 6 rad/s floor.
     const snap = snapFrame(
-      spinning(() => 0.05),
+      spinning((frame) => (frame === 20 ? 0.08 : 0.05)),
       0,
       params,
     )
-    expect(snap.hidden).toBe(false)
-    expect(snap.frame).toBe(30)
+    expect(snap).toEqual({ frame: 20, turnRate: expect.closeTo(4.8, 4), hidden: false })
   })
 
   it('does not count a fast turn while touching the floor as hidden', () => {

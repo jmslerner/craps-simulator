@@ -43,7 +43,8 @@ export default mergeConfig(
       ],
       coverage: {
         provider: 'v8',
-        include: ['src/**'],
+        // Code only: `src/**` also matched snapshot files, which counted as uncovered engine lines.
+        include: ['src/**/*.{ts,tsx}'],
         // Reported for all code, gated only on the engine (§9).
         thresholds: { 'src/engine/**': { lines: 90, branches: 85 } },
       },

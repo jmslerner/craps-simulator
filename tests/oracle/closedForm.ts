@@ -2,8 +2,10 @@
  * Closed-form craps math, used as an oracle for the engine and the exact solver.
  *
  * It is written from the rules spec with its own rule constants, and imports only primitives
- * (Fraction, dice counts) from `src/engine/core`. It must never import `src/engine/bets`,
- * `round` or `settle`: shared rule code cannot catch its own bugs.
+ * (Fraction, dice counts) from `src/engine/core`. Like every oracle module, it must never import
+ * the engine's rule code (`src/engine/{bets,round,settle,table,session}`, the engine barrel or
+ * `src/engine/config/rulesets.ts`) or the solver in `src/exact`: shared rule code cannot catch its
+ * own bugs. tests/architecture.test.ts enforces this.
  */
 import { probabilityOf, waysToRoll, type Total } from '../../src/engine/core/dice.ts'
 import { Fraction } from '../../src/engine/core/rational.ts'

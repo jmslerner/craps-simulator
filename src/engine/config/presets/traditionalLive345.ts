@@ -462,7 +462,11 @@ export const traditionalLive345: MachineConfigInput = deepFreeze({
       note: '$10 line minimum and $5,000 maximum; odds may exceed the table maximum (3-4-5x of $5,000; lays up to 6x). Props from $1.',
     },
     '/chips': { status: 'assumed', note: 'Standard $1, $5, $25, $100 and $500 chips.' },
-    '/catalog/pass': { status: 'verified', source: 'WOO-B; MD-C' },
+    '/catalog/pass': {
+      status: 'verified',
+      source: 'WOO-B; MD-C',
+      note: 'A contract bet once the point is set: never reduced or removed.',
+    },
     '/catalog/pass/afterWin': DEALER_KEEPS_IT_UP,
     '/catalog/dontPass': {
       status: 'verified',
@@ -470,7 +474,11 @@ export const traditionalLive345: MachineConfigInput = deepFreeze({
       note: 'May be reduced or removed after the point, never replaced or increased (rules spec §0.2 #5).',
     },
     '/catalog/dontPass/afterWin': DEALER_KEEPS_IT_UP,
-    '/catalog/come': { status: 'verified', source: 'WOO-B; MD-C' },
+    '/catalog/come': {
+      status: 'verified',
+      source: 'WOO-B; MD-C',
+      note: 'Placed in the point phase; a contract bet once it travels.',
+    },
     '/catalog/come/afterWin': {
       status: 'assumed',
       note: 'A winning come bet is paid and returned with its odds.',
@@ -578,9 +586,15 @@ export const traditionalLive345: MachineConfigInput = deepFreeze({
     '/catalog/boxcars': PROPS,
     '/catalog/boxcars/afterWin': ONE_ROLL_RETURNED,
     ...hopProvenance(ALL_HOPS, {
-      status: 'verified',
-      source: 'MD-CL; WOO-HE',
-      note: 'Easy hops 15 to 1 and hard hops 30 to 1. Offering all 21 and returning winners is assumed.',
+      type: {
+        status: 'assumed',
+        note: 'A live table books all 21 hops; a winning hop is paid and returned.',
+      },
+      pays: {
+        status: 'verified',
+        source: 'MD-CL; WOO-HE',
+        note: '15 to 1 on an easy hop and 30 to 1 on a hard hop.',
+      },
     }),
     '/composites': {
       status: 'verified',

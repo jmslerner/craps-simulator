@@ -7,7 +7,7 @@ import { traditionalLive345 } from './traditionalLive345.ts'
 export { craplessBubble, strictBubble, traditionalBubble, traditionalLive345 }
 
 /**
- * The built-in machines (rules spec §7.2), each frozen and tagged with provenance. Crapless is the
+ * The built-in machines (rules spec §5.2), each frozen and tagged with provenance. Crapless is the
  * default: it models the Interblock heads-up crapless machines the trainer is built for.
  */
 export const PRESETS = Object.freeze({

@@ -217,6 +217,7 @@ export function pruneProvenance(input: MachineConfigInput): MachineConfigInput['
 /** Provenance keys that point at nothing in the config, or into the provenance itself. */
 export function provenanceIssues(input: MachineConfigInput): ConfigIssue[] {
   return Object.keys(input.provenance).flatMap((pointer) => {
+    if (!isJsonPointer(pointer)) return [] // the schema reports the key itself
     if (pointer === '/provenance' || pointer.startsWith('/provenance/')) {
       return [issue(['provenance', pointer], 'provenance cannot describe itself')]
     }
