@@ -1,0 +1,9 @@
+node_modules
+dist
+coverage
+*.local
+.DS_Store
+*.tsbuildinfo
+dist-e2e
+test-results
+playwright-report

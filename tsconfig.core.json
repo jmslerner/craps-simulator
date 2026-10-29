@@ -1,0 +1,12 @@
+{
+  // Pure core: no DOM and no Node types, so touching window, timers, crypto or process is a
+  // compile error. Tests are type-checked by tsconfig.test.json, because they run under Node.
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.core.tsbuildinfo",
+    "lib": ["ES2023"],
+    "types": []
+  },
+  "include": ["src/engine", "src/exact", "src/coach", "src/sim"],
+  "exclude": ["src/**/*.test.ts"]
+}

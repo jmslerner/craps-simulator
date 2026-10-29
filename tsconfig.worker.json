@@ -1,0 +1,11 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.worker.tsbuildinfo",
+    "lib": ["ES2023", "WebWorker"],
+    "types": []
+  },
+  // "files": [] stops tsc -b failing with TS18003 (no inputs) until src/workers exists.
+  "files": [],
+  "include": ["src/workers"]
+}

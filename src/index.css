@@ -1,0 +1,25 @@
+:root {
+  color-scheme: dark;
+  --felt: #0b3d2e;
+  --felt-dark: #072a20;
+  --ink: #f4f1e8;
+  --muted: #b9c4bd;
+  --accent: #f2c14e;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  color: var(--ink);
+  background: var(--felt-dark);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100dvh;
+  background: radial-gradient(circle at 50% 0%, var(--felt), var(--felt-dark));
+}
+
+.app {
+  padding: 16px;
+}

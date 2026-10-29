@@ -1,0 +1,18 @@
+{
+  // Test code runs under Vitest in Node. It also covers the unit tests that sit next to core
+  // and physics modules, so the pure projects contain only shipped code.
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.test.tsbuildinfo",
+    "lib": ["ES2023"],
+    "types": ["node"]
+  },
+  "include": [
+    "tests",
+    "src/engine/**/*.test.ts",
+    "src/exact/**/*.test.ts",
+    "src/coach/**/*.test.ts",
+    "src/sim/**/*.test.ts",
+    "src/physics/**/*.test.ts"
+  ]
+}

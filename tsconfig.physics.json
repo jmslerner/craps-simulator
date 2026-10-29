@@ -1,0 +1,15 @@
+{
+  // Rapier 0.19.3's public typings compile under the pure ES2023 lib (its DOM and WebAssembly
+  // types sit in rapier_wasm3d.d.ts, which the entry point never reaches), so physics stays as
+  // strict as core. Purity of physics/core is also enforced by tests/architecture.test.ts.
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.physics.tsbuildinfo",
+    "lib": ["ES2023"],
+    "types": []
+  },
+  // "files": [] stops tsc -b failing with TS18003 (no inputs) until P1 adds src/physics.
+  "files": [],
+  "include": ["src/physics"],
+  "exclude": ["src/**/*.test.ts"]
+}

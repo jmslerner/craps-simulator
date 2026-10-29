@@ -1,0 +1,648 @@
+[
+ {
+  "key": "core",
+  "confidence": "high",
+  "verified": true,
+  "issues": [
+   {
+    "claim": "\u00a710 table, row '$1 lay 4 (commission on win) | net 0.475 | Floor to cent: 0.48 \u2192 1.333% | Half-up: 0.47 \u2192 2.000%'",
+    "problem": "The labels are swapped relative to the stated rounding target (payouts, via `centRounding`). Flooring the net payout of 0.475 gives 0.47 (HE 1/50 = 2.000%), and rounding it half-up gives 0.48 (1.333%). The doc's values only hold if the COMMISSION is rounded (0.025 \u2192 0.02 under floor, 0.03 under half-up), and flooring a commission favors the player. An engine built from this table would contradict itself.",
+    "correction": "Specify the rounding target separately: payRounding on gross wins and commissionRounding on commissions. $1 lay 4: floor the net \u2192 0.47 (2.000%); floor the commission \u2192 0.48 (1.333%); half-up the net \u2192 0.48; half-up the commission \u2192 0.47. Also filled the empty half-up cell for $1 lay odds on 6/8 (0.83 \u2192 1/550 = 0.182%), and listed which whole-dollar bets can produce sub-cent amounts.",
+    "severity": "major"
+   },
+   {
+    "claim": "\u00a75.1: Shoot to Win 'All Off / Off buttons can turn off any odds, Big 6/8, Place, Buy, place-to-lose, Lay and Hardways. OFF chips do not use credit [STW-R][STW-O]'",
+    "problem": "STW-O limits All Off / Off to 'PLACE, BUY, PLACE TO LOSE, LAY, and HARDWAYS'. Odds and Big 6/8 are not in that list; they are only turned off automatically at the come-out (STW-R \u00a74). STW-R has no Off-button text at all. The source wording is 'Chips that are turned OFF become inactive and are not bet', which says nothing about credit.",
+    "correction": "Off-button scope = Place, Buy, place-to-lose, Lay, Hardways [STW-O]. OFF chips 'become inactive and are not bet' [STW-O]. Come odds, Place, Buy, Hardways and Big 6/8 are auto-OFF at the come-out [STW-R \u00a74]. Added an 'Off-button scope' row to \u00a711.",
+    "severity": "major"
+   },
+   {
+    "claim": "\u00a74: '4/10 needs \u22656\u00d7 odds to beat a buy with commission up front, and \u226519\u00d7 to beat a buy with commission on win' (presented as matching WoO)",
+    "problem": "Exact values: put 4/10 HE = (1/3)/(1+m). At 6\u00d7 it is 1/21 = 4.762%, equal to an up-front buy per (bet + commission). At 19\u00d7 it is 1/60 = 1.667%, equal to an on-win buy. WoO's wording is 'have the same' / 'match', not 'beat'.",
+    "correction": "6\u00d7 matches the up-front buy and 7\u00d7 or more beats it. 19\u00d7 matches the on-win buy and 20\u00d7 or more beats it. Also stated: 6/8 equals place at 5\u00d7 and beats it from 6\u00d7; 5/9 equals place at 4\u00d7 and beats it from 5\u00d7. Added 6\u00d7 and 19\u00d7 columns to the put table, and quoted WoO's 'no reason to make a put bet' at 3-4-5\u00d7 or worse.",
+    "severity": "minor"
+   },
+   {
+    "claim": "Definition: 'HE_roll = HE_res \u00d7 P(the bet is decided on a given roll)'",
+    "problem": "For line bets the chance of a decision on a given roll is not constant (12/36 on the come-out, then it depends on the point). The listed values 7/1671, 9/2228 and 373/28839 are really expected loss per decision \u00f7 expected rolls per decision. The values are correct, but the stated definition only works for number bets.",
+    "correction": "HE_roll = expected loss per decision \u00f7 E[rolls per decision]. This equals HE_res \u00d7 (w+6)/36 only for bets on a number.",
+    "severity": "minor"
+   },
+   {
+    "claim": "\u00a75.1 Big 6/8 come-out default 'Undocumented; secondary sources say always working (unverified)'; \u00a711 'Big 6/8 on come-out: Undocumented'",
+    "problem": "Wikipedia states 'Big 6 and 8 bets always work', in contrast to place bets, which are off on the come-out. WoO's basics page does not address it.",
+    "correction": "Live default is ON [WIKI]. Shoot to Win turns them OFF automatically at the come-out [STW-R \u00a74].",
+    "severity": "minor"
+   },
+   {
+    "claim": "\u00a711, Buy commission under 'Live Las Vegas (typical)': 'Up front, rounded down, $20 minimum; or on win'",
+    "problem": "The rounded-down, $20-minimum rule comes from Harrah's Philadelphia (a Pennsylvania rack card from 2013), not Las Vegas. No Las Vegas source was given.",
+    "correction": "Relabeled the column 'Live (typical; source)' and attributed the rule to Harrah's Philadelphia. Added WoO: commission is usually paid at placement, and some casinos charge on the win only, especially on 4/10.",
+    "severity": "minor"
+   },
+   {
+    "claim": "\u00a77 ANY_CRAPS aliases 'C, three-way area'",
+    "problem": "'Three-way craps' is a different wager: 1 unit each on 2, 3 and 12 at 30:1 / 15:1 / 30:1 (HE 7/54 = 12.963%), already listed as CRAPS_3WAY. Treating it as an alias of Any Craps (7:1 on the whole bet, 11.11%) would pay it wrongly.",
+    "correction": "Any Craps aliases are now 'Any Craps, C, Craps'. CRAPS_3WAY is kept separate and marked as not an alias.",
+    "severity": "minor"
+   },
+   {
+    "claim": "\u00a77 HI_LO (math only): '2 or 12, split; 15:1 on whole; 1/9 = 11.1111%'",
+    "problem": "This is ambiguous. A true split (half on 2 at 30:1, half on 12 at 30:1) nets 14.5:1 on the whole bet, which is HE 5/36 = 13.889%. The 11.11% figure applies only to a single wager paying 15:1 on the whole.",
+    "correction": "Both variants are now listed: a single wager at 15:1 \u2192 1/9 = 11.111%; split halves at 30:1 \u2192 29:2 \u2192 5/36 = 13.889%.",
+    "severity": "minor"
+   },
+   {
+    "claim": "\u00a75.6 GGB row: '$2 taken on a $20 buy of the 4, i.e. 5% of the $40 win, instead of $1'",
+    "problem": "The article does not name the 4. It describes a $20 bet paying 2:1 ($60 total) that returned $58, with $2 deducted instead of $1. Missing details: Isle Casino Pompano Beach, FL; article dated Feb 5, 2017; the suit also cites 7.5% commissions.",
+    "correction": "Reworded with these specifics. Also added the HE if a 5%-of-win buy commission were charged up front: 10% / 7.5% / 6% per bet, or 9.091% / 6.977% / 5.660% per total.",
+    "severity": "minor"
+   },
+   {
+    "claim": "\u00a73.3 and \u00a78: 'Crapless tables: most versions allow only 2X [LVA-CL]'",
+    "problem": "This rests on one weak sentence, which confuses odds with place-bet edges ('2X odds, except on the 2 and 12 (6-to-1 at 7.14%)'). Primary rule sheets differ: Crown Perth crapless caps odds at the Pass Line bet (1\u00d7) unless a higher amount is posted, and Maryland allows up to 100\u00d7.",
+    "correction": "Tagged [UNVERIFIED] as low confidence. Added Crown's 1\u00d7 default and Maryland's 100\u00d7 cap, and made the odds limit a per-table parameter.",
+    "severity": "minor"
+   },
+   {
+    "claim": "\u00a73.3 Las Vegas bubble-machine odds reports (4\u00d7 Downtown Grand; 5\u00d7 NYNY and El Cortez; 10\u00d7 Binion's; 2\u00d7 4 Queens and Eastside Cannery)",
+    "problem": "The reports are undated forum posts and comments from 2015\u20132018 and may be stale. The El Cortez 5\u00d7 report comes from a 2018 Vital Vegas comment, not Wizard of Vegas. Reports of 2\u00d7 at Linq, Excalibur and Aria, 3\u00d7 at Luxor and 5\u00d7 at Palms were left out.",
+    "correction": "Added dates and a source for each claim, and tagged the list [UNVERIFIED] as current.",
+    "severity": "minor"
+   },
+   {
+    "claim": "\u00a75.2 row 'Any of these OFF: no action / no action / no action (bet stays)'",
+    "problem": "This misses an exception: OFF odds on a Come bet that is decided (a come-out 7, or a come-out roll of the come point) are returned to the player, not left on the table [WIKI].",
+    "correction": "Added the exception note below the table.",
+    "severity": "minor"
+   },
+   {
+    "claim": "\u00a75.6: 'Maryland allows up front (\"up to 5%\") or win-only [MD-C][MD-CL]'",
+    "problem": "Incomplete. MD-C's up-front cap is 'of up to 5 percent ... of the amount wagered on the Buy or Lay Bet', so for lays the cap's base is the amount wagered, not the win. The operator's rules submission chooses between up-front and win-only.",
+    "correction": "Quoted the exact wording. The engine should support a commission base of either the bet or the win.",
+    "severity": "minor"
+   },
+   {
+    "claim": "\u00a75.4 and \u00a75.5 'HE_roll, up front' columns",
+    "problem": "The basis is not labeled. The values are per (stake + commission), which matches WoO's per-roll figures (1.19% for buy 4/10, 0.61% for lay 4/10).",
+    "correction": "Labeled the basis and added per-stake HE_roll. Buy: 1.250 / 1.389 / 1.528 / 0.972 / 1.111%. Lay: 0.625 / 0.926 / 1.273 / 0.162 / 0.370%.",
+    "severity": "minor"
+   },
+   {
+    "claim": "\u00a73.4, 'DP + lay, rule B' column, 3-4-5\u00d7 row shown as '\u2014'",
+    "problem": "This value can be computed: with the lay amount capped at 3/4/5\u00d7 flat, E[lay] = 25/9, giving HE 27/7480 = 0.3610%.",
+    "correction": "Filled in the cell. Also added Pass + 4\u00d7 = 7/1815 = 0.3857% for the Downtown Grand report.",
+    "severity": "minor"
+   },
+   {
+    "claim": "\u00a79 verdict: 'TRUE for 4/10 and 6/8 under both commission methods'",
+    "problem": "This holds at an exact 5% commission. Live flat-dollar commissions reverse it at small stakes: with a $1 commission, a 4/10 buy beats the place bet only if the buy is over $15 (up front) or over $5 (on win). Example: a $10 buy with $1 up front costs 10% vs 6.667% for placing.",
+    "correction": "Qualified the verdict, added the thresholds, and added machine notes: Interblock charges up front; Shoot to Win has no crapless variant.",
+    "severity": "minor"
+   },
+   {
+    "claim": "\u00a71 pace metrics 'E[rolls per shooter]', etc.",
+    "problem": "The values are correct, but 'shooter' is undefined. On Shoot to Win the shooter button rotates on a 7-out or when a point is established (STW-R \u00a735g). The metric therefore has to mean one hand (7-out to 7-out), which is what STW's Hot Shooter ROLL COUNT measures.",
+    "correction": "Added the definition and the test identities: E[rolls/shooter] = E[decisions/shooter] + 6 (Wald), and decisions = naturals + craps + points made + 1.",
+    "severity": "minor"
+   },
+   {
+    "claim": "\u00a77 ANY_7 pays 4:1 [STW-R][MD-C]",
+    "problem": "MD-C \u00a75.A(23) also lists Any Seven at '26 to 5' as option (b). As written, that gives the player a +1/30 = +3.33% edge. It is likely a drafting artifact, and the doc did not mention it.",
+    "correction": "Added a note telling the engine not to implement 26:5 without confirmation [UNVERIFIED].",
+    "severity": "minor"
+   },
+   {
+    "claim": "\u00a78: 'A patented \"No-Crap Craps\" variant with a don't side exists' [PAT]",
+    "problem": "This is under-specified. US 7,134,660 (Ethier, granted 2006, lapsed 2010) groups 2-or-3 and 11-or-12 as points, and its DP pays 1:2 after point 11-or-12. It is a different game from crapless.",
+    "correction": "Added these details.",
+    "severity": "minor"
+   },
+   {
+    "claim": "\u00a75.6 and \u00a711: Shoot to Win buy/lay commission 'deducted from the win'",
+    "problem": "This is accurate for the Washington rule sheet. However, commission (along with odds and don't areas) is an operator-configurable setting on Shoot to Win [INTG], so it cannot be assumed for every installation.",
+    "correction": "Labeled it as the Washington-sheet setting and added a configurability row.",
+    "severity": "minor"
+   },
+   {
+    "claim": "\u00a75.3 and \u00a78 crapless place 2/12 '11:2 or 5:1' and 3/11 '11:4 or 13:5' [MD-CL][CROWN-CL][WOO-CL]",
+    "problem": "The attribution blends sources. Crown Perth offers only the worse schedule (25 to 5 and 13 to 5). Maryland permits either schedule. WoO lists only 11:2 and 11:4.",
+    "correction": "Attributed each payout to its own source.",
+    "severity": "minor"
+   }
+  ]
+ },
+ {
+  "key": "machines",
+  "confidence": "medium",
+  "verified": true,
+  "issues": [
+   {
+    "claim": "Come-out ON/OFF: 'Off on come-out' is the most common behavior on bubble machines; Interblock only auto-OFFs bets placed after a 7-out",
+    "problem": "Both Interblock manuals say place/buy bets placed on the come-out ARE resolved when their number rolls. IB-C221: 'will, after the Point has been established, resolve the Buy or Place bet of that Point'. IB-CCE: '...that bet wins', followed by a move-bet pop-up. No auto-OFF is documented for bets carried through the come-out after a point is made. The STW card only auto-OFFs chips 'remaining from the previous series'.",
+    "correction": "Make come-out working status per product. STW: carried COME ODDS/PLACE/BUY/HARDWAYS/BIG6/BIG8 go OFF. Interblock: place/buy work on the come-out unless set OFF or placed after a 7-out. Newly placed STW chips and STW lay/place-to-lose are UNVERIFIED.",
+    "severity": "major"
+   },
+   {
+    "claim": "Interblock setting 'Exc Lay/Buy' blocks Lay, and Buy on the point, while a Pass bet is up",
+    "problem": "IB-C221 says a Pass bet blocks Lay on the established point, and a Don't Pass bet blocks Buy on the established point.",
+    "correction": "Pass up: Lay on the point is blocked. DP up: Buy on the point is blocked. Other wagers follow standard rules.",
+    "severity": "major"
+   },
+   {
+    "claim": "Odds cap: the don't side is capped by win amount (and the DP + lay-odds edge table assumes a win cap)",
+    "problem": "Clearwater card: DP odds 'maximum bet amount is 2 times the bet on the DON'T PASS LINE', which caps the bet. DC odds are '2 times ... divided by the corresponding DON'T COME ODDS', which caps the win. A 2012 forum post says don't odds allow a 2X bet like the pass side. Century 2021: DP 3x vs Pass 2x. The STW overview only says 'multiple of the base wager'.",
+    "correction": "Make the cap mode (bet-capped vs win-capped) configurable per bet type. Added bet-capped DP edges: 1x 0.818%, 2x 0.584%, 3x 0.455%, 5x 0.315%, 6x 0.273%, 10x 0.178%.",
+    "severity": "major"
+   },
+   {
+    "claim": "Coaching point: under upfront commission (4.76%) or 5%-of-win (3.33%), the advantage of buying over placing mostly disappears",
+    "problem": "Wrong for 4/10. Buying still beats placing (6.667%) under every commission model. For 5/9, buying beats placing (4.00%) under on-win-of-bet (2.00%) and 5%-of-win (3.00%).",
+    "correction": "4/10: always buy. 5/9: buy unless commission is upfront. 6/8: always place (1.515%).",
+    "severity": "major"
+   },
+   {
+    "claim": "Taking bets down: Don't Pass is locked after the point on STW",
+    "problem": "That comes from the Clearwater card only. The STW and RTW overviews say all wagers may be withdrawn before they resolve except Pass/Come after a point. A 2023 forum post reports a machine that locks Pass/Come but not DP/DC.",
+    "correction": "Configurable dpLockedAfterPoint (Clearwater = true). Interblock: DP can be reduced or removed but not re-placed until the next cycle.",
+    "severity": "major"
+   },
+   {
+    "claim": "Missing: Interblock single-player puck reset",
+    "problem": "The 'Puck can be reset' setting (0/1/2) lets the puck return to OFF 15 s after a cash-out. Setting 2 also lets the player manually reset to a come-out state when no puck-related bets are up. Single-play only. This changes the game state machine.",
+    "correction": "Add a single-player 'reset to come-out' action gated by that config; qualifying bets also go OFF.",
+    "severity": "major"
+   },
+   {
+    "claim": "Hot Shooter edge 9.074% presented as the main figure",
+    "problem": "Pennsylvania's wording ('throws the dice 7 times or less before the next 7 out') leans toward not counting the 7-out roll, which gives 21.56%. STW's 'upon the 8th roll' supports counting it. Clearwater says 'OVER 50 ROLLS' while the overview says '100 times bet upon the 50th roll'.",
+    "correction": "STW profile: count the 7-out, top tier at 50+ (9.074%). PA profile: flag as ambiguous (9.07% vs 21.56%).",
+    "severity": "minor"
+   },
+   {
+    "claim": "Toggling ON/OFF on STW/RTW covers Place, Buy, place-to-lose, Lay, Hardways",
+    "problem": "Incomplete. WSGC-STW and IB-RTW also list ODDS, DON'T ODDS, COME ODDS, DON'T COME ODDS and BIG 6/8.",
+    "correction": "Use the full list; effective from the upcoming roll.",
+    "severity": "minor"
+   },
+   {
+    "claim": "STW come-out auto-OFF covers 'Odds' and 'Lay and place-to-lose keep working'",
+    "problem": "The card says COME ODDS and applies only to chips remaining from the previous series. The lay/place-to-lose claim is an inference from the card's silence.",
+    "correction": "Say Come odds; tag lay/place-to-lose and newly placed chips UNVERIFIED.",
+    "severity": "minor"
+   },
+   {
+    "claim": "Maximums (forum): place $400; hardways $115; hops $70/$35",
+    "problem": "These figures are not in WoV-38668, 32511 or 35576. Only the $195 line max with 2x odds (2023) is there.",
+    "correction": "Removed. Added place/lay capped at $25 (2015 forum) and limits $1\u2013$1,000 (2021 forum).",
+    "severity": "minor"
+   },
+   {
+    "claim": "Lucky Roller is Interblock-only, placed after any 7 or at cycle start",
+    "problem": "STW Lucky Roll and RTW also offer Lucky Roller (Low Rolls/High Rolls/Roll 'Em All), and it 'may be placed prior to any roll when there are no active wagers of the same type'.",
+    "correction": "Two products with different placement rules; both added.",
+    "severity": "minor"
+   },
+   {
+    "claim": "Lucky Shooter edges A 13.19%, B 12.53%, C 8.19%, D 8.43%",
+    "problem": "The math is correct, but only under a per-trial convention that counts come-out 7/11 pushes as 0. Per resolved bet the edges are higher. The IB-LS text also contradicts itself on 7/11.",
+    "correction": "Added per-resolved edges: A 16.96%, B 16.11%, C 10.53%, D 10.84%.",
+    "severity": "minor"
+   },
+   {
+    "claim": "Payout rounding: one direct report of round-up",
+    "problem": "There are two forum reports: 7craps in 2012 ('rounds Place 6/8 payouts up') and the 2018 Aruze STW $2 to $2.34. $1.17 on $1 is reported twice (2012, 2019). None report rounding down.",
+    "correction": "Right-way default is round-up (the only reported direction); still configurable.",
+    "severity": "minor"
+   },
+   {
+    "claim": "Interblock bought Aruze ETG assets 'since July 2023' (Shoot to Win, Roll to Win, Lucky Roulette)",
+    "problem": "July 2023 was the announcement (Jul 20\u201321); no closing date was found. 'Lucky Roulette' does not appear in any coverage. Chapter 11 was filed Feb 1, 2023.",
+    "correction": "Deal announced Jul 2023; closing UNVERIFIED; Lucky Roulette UNVERIFIED. Interblock owned the STW docs by Sep 2024.",
+    "severity": "minor"
+   },
+   {
+    "claim": "STW is 'the original bubble craps'",
+    "problem": "Interblock Organic Dice craps (RFID dice, vibrating table) was also announced in 2010, and STW launched around 2010 in Macau.",
+    "correction": "Call STW the product most associated with the name; who was first is unproven.",
+    "severity": "minor"
+   },
+   {
+    "claim": "Roll to Win at Circus Circus and Fremont",
+    "problem": "No source names either property. VV-DTG and LVTN support Harrah's, Paris, Linq and Palace Station.",
+    "correction": "Tagged UNVERIFIED; added Cosmopolitan (cheating case).",
+    "severity": "minor"
+   },
+   {
+    "claim": "Isle Pompano Organic Dice shut down 2017 [C TCA]",
+    "problem": "TCA gives only the class period (Jul 8, 2015 to Jan 22, 2017). No source says the machines were removed.",
+    "correction": "Rephrased; removal UNVERIFIED.",
+    "severity": "minor"
+   },
+   {
+    "claim": "Mohegan Sun location ambiguous (Pennsylvania chamber repost)",
+    "problem": "The articles place the game in Casino of the Sky past Johnny Rockets, and Johnny Rockets' location page is at 1 Mohegan Sun Blvd, Montville CT.",
+    "correction": "Most likely Mohegan Sun, Uncasville CT [P].",
+    "severity": "minor"
+   },
+   {
+    "claim": "Plaza bubble: crapless = Yes; Plaza row dated 2026",
+    "problem": "LVD is undated and lists crapless as a property game type, not as a rule of the $1 STW kiosks.",
+    "correction": "Crapless applies to the property's Interblock games; the LVD page is undated.",
+    "severity": "minor"
+   },
+   {
+    "claim": "Unnamed local casino (2025) machine is STW",
+    "problem": "The forum post does not name the machine.",
+    "correction": "Make not stated.",
+    "severity": "minor"
+   },
+   {
+    "claim": "Timer about 20 s (2012 and 2025); Roll to Win 15\u201320 s",
+    "problem": "The 2025 '20 seconds to roll the dice' is the shooter's window, not necessarily the bet timer. A 2023 post reports a 15-second countdown. No source was found for Roll to Win 15\u201320 s.",
+    "correction": "Listed each observation separately; Roll to Win tagged UNVERIFIED.",
+    "severity": "minor"
+   },
+   {
+    "claim": "Novo Unity II games list (roulette, baccarat, blackjack, sic bo, poker)",
+    "problem": "The cited article lists no games except 'Lucky Lady's Roulette'.",
+    "correction": "Kept 'no craps title found'; the list is UNVERIFIED.",
+    "severity": "minor"
+   },
+   {
+    "claim": "Alfastreet Dice Tumbler: physical tumbler, US status unknown",
+    "problem": "The source calls it a craps product ('fresh twist to the classic game of Craps') and says nothing about it being physical.",
+    "correction": "Craps product [P]; physical UNVERIFIED.",
+    "severity": "minor"
+   },
+   {
+    "claim": "Organic Dice row tagged [S] single source",
+    "problem": "Two sources agree: the CEM 2010 article and Interblock's G2E 2010 announcement (plus ASGAM 2012 on G4).",
+    "correction": "Upgraded to [C].",
+    "severity": "minor"
+   },
+   {
+    "claim": "Westgate: very low minimum (current)",
+    "problem": "The TripAdvisor poster uses the past tense ('had'), as for Resorts World.",
+    "correction": "Marked as past.",
+    "severity": "minor"
+   },
+   {
+    "claim": "Some Oklahoma machines disallow free play",
+    "problem": "The LVA-PTS comment says the machines carry a 'no points will be awarded' sticker; it says nothing about free play.",
+    "correction": "Free play claim UNVERIFIED; no-points claim kept.",
+    "severity": "minor"
+   },
+   {
+    "claim": "Forum: re-roll or attendant key on cocked dice [F WoV-tag]",
+    "problem": "'WoV-tag' is not a real source, and the thread mentions dice leaning on the dome but not a key.",
+    "correction": "Source retired; claim UNVERIFIED (it is consistent with the official 'pause for attendant' option).",
+    "severity": "minor"
+   },
+   {
+    "claim": "Missing: Interblock hop layout",
+    "problem": "Hopping hard ways cover only 2-2 to 5-5, and the 13 easy hops exclude 1-2 and 5-6 (those are on the horn). This changes which bets the engine offers.",
+    "correction": "Added to section 3.",
+    "severity": "minor"
+   },
+   {
+    "claim": "Missing: Interblock single-seat craps may use an RNG",
+    "problem": "IB-C221 says single play includes Play Stations where the game is 'generated internally (InternalRNG)'.",
+    "correction": "Added: not all Interblock single-seat craps uses physical dice.",
+    "severity": "minor"
+   },
+   {
+    "claim": "Hourly loss table for place and hardways",
+    "problem": "It assumes the bets are always working. STW's default turns carried place and hardway chips OFF on the come-out, and only 70.4% of rolls are point rolls.",
+    "correction": "Added come-out-OFF losses: place $3.91/$5.63/$7.82/$9.74; hardways $7.82/$11.26/$15.64/$19.47.",
+    "severity": "minor"
+   },
+   {
+    "claim": "Massachusetts rules as a bubble-craps regulation",
+    "problem": "They govern a dealer-run automated-shaker table, and the shooter gives up the shaker after ANY 7, not only a seven-out.",
+    "correction": "Scope clarified.",
+    "severity": "minor"
+   },
+   {
+    "claim": "Various unsourced claims: Station Casinos removed all STW (2020); Palace Biloxi; Reno; 5,155 logged rolls; slot clubs 0.1% of coin-in; vouchers above about $3,000; two seats on one card; STW close to 100 rolls/h; 'offers dropping' (travelzork)",
+    "problem": "Not found in the cited sources, or resting on a rejected source.",
+    "correction": "Tagged UNVERIFIED.",
+    "severity": "minor"
+   },
+   {
+    "claim": "Upfront commission (Interblock GV6.5+) applies to Buy/Lay at 5%",
+    "problem": "IB-CCE applies it only to 'specified' Buy/Lay bets per the par sheet and does not state the rate. Whether it is re-charged when a winning buy rides is unknown.",
+    "correction": "Noted; rate and re-charge are configurable and UNVERIFIED.",
+    "severity": "minor"
+   }
+  ]
+ },
+ {
+  "key": "sidebets",
+  "confidence": "high",
+  "verified": true,
+  "issues": [
+   {
+    "claim": "Interblock Lucky Roller: 30 / 155 / 30 to 1 (shown on screen as 31 / 156 / 31 for 1), in a table headed Small / Tall / All",
+    "problem": "The values are in screen order (Low Rolls | Roll 'Em All | High Rolls), not in the header's order. Read literally, the engine would pay Tall at 155 to 1 (player +311%) and All at 30 to 1 (house +83.7%). Interblock's game description shows LOW ROLLS 30 TO 1, ROLL'EM ALL 155 TO 1, HIGH ROLLS 30 TO 1.",
+    "correction": "Small 30 / Tall 30 / All 155 to 1 (screen: 31 / 31 / 156 for 1). Edges: 18.3029% for Small/Tall, 17.9798% for All.",
+    "severity": "critical"
+   },
+   {
+    "claim": "Section 8 presents a 'Low-Investment Hunting' pattern (a small Lucky Shooter plus a lay to meet the minimum) as the player technique being asked about",
+    "problem": "The phrase gets zero web-search hits and appears in no manufacturer, regulator, casino, Wizard or vegasadvantage source; the researcher reconstructed it. Two of its premises are unverified: whether special bets count toward the minimum total bet, and whether the minimum is re-checked every roll. If special bets count, no filler is needed at all.",
+    "correction": "Labeled the identification UNSUPPORTED and the pattern a hypothetical what-if for the strategy lab. Kept only the sourced mechanics (minimum-bet validation, OFF-bet handling, commission modes) as engine requirements. Stated explicitly that the pattern cannot change EV.",
+    "severity": "major"
+   },
+   {
+    "claim": "Lay is the only option because Place, Buy, Odds and Hardways switch OFF at the come-out on these machines (Interblock, Clearwater, Rivers, MD)",
+    "problem": "Overgeneralized. Interblock switches OFF only Place/Buy wagered after a 7-out, and the player can tap Set Bets On; its doc describes a pop-up when a come-out Place bet wins. Shoot To Win switches OFF only carried-over chips, and not Lay or Place-to-Lose. MD is a live-table rulebook, not a machine. Place 6/8 switched ON costs 0.463% per roll, close to a Lay with commission on win (0.417%) and about 4.5x cheaper than a Lay with upfront non-refundable commission.",
+    "correction": "Rewrote the premise check per source and added Place 6/8 ON ($0.0238 per Lucky Shooter wager for L=$4) and Buy 4/10 ($0.0429) to the filler table.",
+    "severity": "major"
+   },
+   {
+    "claim": "Galaxy PT-01 (most common): 34 / 34 / 175 to 1",
+    "problem": "Nothing supports 'most common'. Wizard of Odds says Small/Tall 'usually pay 30 to 1' and All usually pays 150 to 1, with 34 to 1 'known' at some tables. Galaxy's paytable numbering says nothing about prevalence.",
+    "correction": "Removed 'most common', added Wizard's statement, and default live paytables to 30/30/150, configurable.",
+    "severity": "major"
+   },
+   {
+    "claim": "vegasadvantage: Lucky Shooter 'is still on most stadium games'",
+    "problem": "Misquote. The source says 'The Lucky Shooter or Lucky Roller side bet is available on most stadium craps games.'",
+    "correction": "Quoted it exactly and added: 'Lucky Roller is the same side bet found on many heads-up craps and crapless installations, as well as some hybrid tables.'",
+    "severity": "minor"
+   },
+   {
+    "claim": "Hot Shooter Jackpot appears only on multiplayer machines",
+    "problem": "No source says 'only'. vegasadvantage says the newest Shoot To Win versions 'normally offer Lucky Roller and Hot Shooter Jackpot side bets'.",
+    "correction": "Restated as: documented only in Shoot To Win / Roll To Win (multiplayer) materials.",
+    "severity": "minor"
+   },
+   {
+    "claim": "PA's worked example (point 6, then 9, then 6) supports the rule that a repeated number ends the Lucky Shooter",
+    "problem": "That example (iii) shows a point re-roll before 2 hits, not a repeat. Interblock's own documents never mention repeats.",
+    "correction": "Cited PA \u00a7623c.2(d)(3) ('If any number other than one of the remaining, not already rolled numbers is rolled ... settled'), PA example (i) (9; 10, 4, 6, 10 pays for 3) and MD A(45). Flagged Interblock's repeat handling as UNVERIFIED and added the setting luckyShooter.repeatEndsBet, default true.",
+    "severity": "minor"
+   },
+   {
+    "claim": "bubble-craps.com shows '1 hit = 1 for 1', giving the player +43.9%; its stated 12.53% edge is unreliable",
+    "problem": "The +43.9% comes from its whole example table (1000/150/20/5/2/1 for 1), not from the 1-hit line alone; that line alone added to paytable D gives +15.75%. Its 12.53% is exactly paytable B's per-come-out-roll edge (12.526%): a real figure attached to the wrong table.",
+    "correction": "Rewritten with exact values: +43.92% per resolved wager, +34.16% per come-out roll. Added a coaching note that reading Interblock's 'for 1' as 'to 1' makes paytable D look like a +9.79% player bet.",
+    "severity": "minor"
+   },
+   {
+    "claim": "Lay 4/10 with upfront non-refundable commission: 2.5% of L x 17/14 placements = $0.1214; example total $0.230; the lay adds about 3% of L",
+    "problem": "Inconsistent with the section's own sequence, in which the lay stays up after a 2/3/12. The start-of-wager placement is needed only 6/7 of the time, so expected charges are 6/7 + 3/14 = 15/14.",
+    "correction": "$0.1071 per Lucky Shooter wager; example total $0.216; about 2.7% of L. Refund/recharge behavior on GV6.5 machines tagged UNVERIFIED.",
+    "severity": "minor"
+   },
+   {
+    "claim": "Hot Shooter: Grand at 51+ is a co-equal variant; placement only after a 7-out",
+    "problem": "Interblock says '100 times bet upon the 50th roll' and its screen says '50 ROLLS OR MORE', so Clearwater's 'OVER 50' is a wording quirk. PA \u00a7623c.4(c) allows placement before any come-out roll, though that doesn't change the edge.",
+    "correction": "Default Grand at 50, with 51 as an edge-case toggle. Added the PA placement variant and setting. Added the HE per non-push decision under definition A: 12.915%.",
+    "severity": "minor"
+   },
+   {
+    "claim": "Bets switched OFF don't count toward the minimum but still tie up credit (stated generally); Shoot To Win: all bets can be withdrawn 'excluding special games'",
+    "problem": "Only Interblock heads-up OFF bets reduce Playable credit; on Shoot To Win / Roll To Win, OFF chips 'do not consume a player's credit'. Pass/Come also cannot be withdrawn after a point.",
+    "correction": "Split the behavior per machine (setting offBets.consumeCredit) and added the Pass/Come exception.",
+    "severity": "minor"
+   },
+   {
+    "claim": "Fire Bet is paid at the 7-out 'or immediately once all six are made'",
+    "problem": "No source supports the immediate payout; MD says it is collected or paid upon a loser 7.",
+    "correction": "Tagged UNVERIFIED (it doesn't change the edge) and added the setting fireBet.payOnSixImmediately, default false.",
+    "severity": "minor"
+   },
+   {
+    "claim": "Bonus Craps timing: 'NJ / MD: Before a new shooter's come-out'; Interblock Lucky Roller: after a 7 or at cycle start",
+    "problem": "MD Dice-Ology states no timing restriction (only MD Bonus Craps does). Interblock's Lucky Roller cannot be placed again after a win until a 7 rolls. NJ and MD call the All bet 'All or Nothing at All'.",
+    "correction": "Expanded the timing and name tables accordingly.",
+    "severity": "minor"
+   },
+   {
+    "claim": "Galaxy progressives listed as MEA-01, MEA-05/06, FUP-01, FUP-03, FUP-05",
+    "problem": "Incomplete. MEA-02 to -04 share MEA-01's fixed pays, FUP-02 equals FUP-01, FUP-04 equals FUP-03, and FUP-06 was missing.",
+    "correction": "Added FUP-06: jackpot 1 in 503,885, fixed awards return $0.5177, break-even jackpot $243,013. Noted the paytables that share pays.",
+    "severity": "minor"
+   },
+   {
+    "claim": "Interblock horn payout: win = (bet/4) x payout - 3 x bet/4",
+    "problem": "Ambiguous: Interblock's screen shows 'for 1' pays, but the formula needs the to-1 figure (Interblock's example: $100 horn, 6-6 at 30 to 1 wins $675). The 4-way horn edge was also missing.",
+    "correction": "Specified to-1 payout in the formula and added the 4-way horn HE of 12.50%.",
+    "severity": "minor"
+   },
+   {
+    "claim": "Lay isn't available on Interblock's crapless or Easy Craps, so the trick is impossible there",
+    "problem": "Overstated. Crapless has Place and Buy, and Easy Craps has Place, which could serve as filler. Lucky Shooter rules are undefined on those variants anyway.",
+    "correction": "Reworded: the lay version is impossible there, a Place-ON version may not be, and Lucky Shooter is undefined on those variants.",
+    "severity": "minor"
+   },
+   {
+    "claim": "Roll To Win described only as an LED table, fully automated or dealer-assisted",
+    "problem": "In ETG mode its results 'are determined by Software RNG' with virtual dice, so it is not a bubble. Interblock Starbar/Bartop configurations can also run on an internal RNG.",
+    "correction": "Added both notes to the machine table.",
+    "severity": "minor"
+   },
+   {
+    "claim": "Interblock doesn't allow Lay on the same number as a Place or Buy bet",
+    "problem": "Interblock only says Buy/Place are 'excluding bets' with Lay, without stating the scope. Clearwater says the combinations 'cannot be placed for the same roll'.",
+    "correction": "Tagged the same-number scope UNVERIFIED.",
+    "severity": "minor"
+   },
+   {
+    "claim": "Regulator summary implies Lucky Shooter is an electronic-only bet",
+    "problem": "Only PA limits it to fully automated electronic tables. MD lists it among wagers authorized in craps and mini-craps (live).",
+    "correction": "Added the MD note.",
+    "severity": "minor"
+   },
+   {
+    "claim": "The side-bet picture for Vegas bubble machines centers on Lucky Shooter",
+    "problem": "vegasadvantage says Lucky Shooter has been mostly replaced by Lucky Roller. It also lists a 'Super Any Craps' side bet on VIP Casino Wizard (video) machines, which the section omitted.",
+    "correction": "Added a coaching note on what Vegas players will most likely meet (Lucky Roller; HSJ, Lucky Roller and Power Odds on Shoot To Win). Added Super Any Craps with rules tagged UNVERIFIED.",
+    "severity": "minor"
+   },
+   {
+    "claim": "Power Odds model: effective HE = base HE - sum of P(boost) x p_win x (boosted payout - base payout)",
+    "problem": "Valid per roll for one-roll bets only. Hardway boosts apply 'for that roll only' on a multi-roll bet.",
+    "correction": "Specified per-roll application for hardways, added boosted-roll edges for Any Craps, Any 7, E and C&E, and added the 60-to-1 hard-hop break-even of 1 roll in 6.",
+    "severity": "minor"
+   },
+   {
+    "claim": "Lucky Shooter: minimum 1, maximum 100; paytable on machines",
+    "problem": "The limits are in credits, not dollars. The Rivers (PA) screenshot appears to show paytable A in to-1 form but is illegible. Las Vegas paytables are unknown.",
+    "correction": "Specified credits; tagged the Rivers paytable and Vegas paytables UNVERIFIED; default D, configurable.",
+    "severity": "minor"
+   }
+  ]
+ },
+ {
+  "key": "strategies",
+  "confidence": "high",
+  "verified": true,
+  "issues": [
+   {
+    "claim": "\u00a72 reconcile/session gate: WIND_DOWN = remove every removable bet and let contract bets resolve; if the base layout cannot be funded, STOP. Only rule 1 (no Pass/Come reduction) covers contract bets.",
+    "problem": "Don't Pass and Don't Come flats are removable on live tables but removing them forfeits 1/3, 1/5 or 1/11 of the flat, and STW forbids cancelling the Don't Pass after the point. The spec was also missing other machine rules: no new or increased Don't Pass after the point (STW 11d); Come and Don't Come only after the point (STW 9b, 14b); odds only behind an established point; machine auto re-bets (STW 29\u201332) must be diffed and cancelled; STOP must not abandon live contract bets.",
+    "correction": "Rewrote the reconcile rules (contract, timing, come-out status, odds caps, exclusivity, auto-actions) and redefined WIND_DOWN: take down place/buy/lay/props/field (and odds if removable); leave all line and come flats, including Don't flats, to resolve; cancel the auto-re-bet Pass on the next come-out; STOP only after no contract bet remains.",
+    "severity": "critical"
+   },
+   {
+    "claim": "\u00a72.1/\u00a73.2: Come odds, place, buy, hardways and Big 6/8 are auto-OFF on STW, and Don't Come odds look working on the come-out because they are not in the auto-OFF list.",
+    "problem": "The STW rule card (section 4) actually says 'ODDS/OLACE[sic]/BUY/HARDWAYS/BIG6/BIG8 are automatically turned OFF'. It names generic ODDS, not 'come odds', so nothing supports Don't Come odds working on the come-out; a literal reading turns all odds OFF. Live tables keep Don't Come odds ON (WoO-basics).",
+    "correction": "Quote the rule card verbatim and add the parameter dcOddsOnCO: live tables ON, STW profile OFF [UNVERIFIED]. Come odds are OFF in both.",
+    "severity": "major"
+   },
+   {
+    "claim": "\u00a71.4: Lay odds are exact only in multiples of $6 (on 6/8), $3 (on 5/9) and $2 (on 4/10). \u00a73.2 grid: $2 / $3 / $6.",
+    "problem": "Lay ODDS carry no commission. Exact computation shows they are cent-exact for any $1 on 4/10 and for multiples of $3 on 5/9 and 6/8 (e.g., $3 on 6 pays $2.50). The $2/$3/$6 multiples apply to lay BETS with 5% of the win deducted, and to whole-dollar live payouts.",
+    "correction": "Split the rule: lay-odds penny grid $1/$3/$3; lay-bet (with vig) grid $2/$3/$6; live lay-odds grid $2/$3/$6. Added the player-positive HALF_UP cases ($1 on 5/9 +0.200%, $4 on 5/9 +0.050%, $2 on 6/8 +0.091%, $5 on 6/8 +0.036%) and the FLOOR cases.",
+    "severity": "major"
+   },
+   {
+    "claim": "\u00a73.2 DOLLY3: add Don't Come bets until 2 Don't Come points are working; the Wizard's 3-Point Dolly is cited only for existence.",
+    "problem": "The Wizard's own definition (WoV-Dolly) differs: a Don't Pass or Don't Come bet on every roll unless already on three numbers (Don't Pass and Don't Come counted together), maximum lay odds (3-4-5x, i.e., lay 6x flat), quit on the seven-out. He also published statistics: 30.313926 units bet, 0.08315 units lost, 67.98% session win.",
+    "correction": "Rewrote DOLLY3 with a full state table per the Wizard. Exact chain results: flats per hand 77671/12740 (the same as the 3PM); EV \u221221183/254800 u = \u22120.083136u; 30.314 units resolved; 0.2743% per $ resolved. These match the Wizard's simulation. Added the MC Dark Dolly as a variant.",
+    "severity": "major"
+   },
+   {
+    "claim": "\u00a73.4 V5: Wizard 'classic' (take the other down on the 1st hit), EV \u22121/8, P = 5/8, +7/\u221212; source text calls it 'Classic regression'.",
+    "problem": "WoO-sys says 'taking the other down if one wins', but its stated outcomes (+7 units at 62.5%, \u221212 units at 37.5%) only hold if both bets come down after the first hit. If the winner stays up, the outcome is not fixed at +7. It is a 1-hit hit-and-run, not a regression, and the Wizard does not call it 'classic regression'.",
+    "correction": "Renamed V5 to '1-hit hit-and-run (Wizard example)', defined it as taking both bets down after the first hit (D = 1), and kept EV \u22121/8 and P = 5/8.",
+    "severity": "major"
+   },
+   {
+    "claim": "\u00a73.15: Filler, check = PLACEMENT: remove the filler in the next window (cost $0); fallback filler = minimum Pass.",
+    "problem": "The filler must be on the layout when bet time ends, so it rides at least one roll. The cost is amount x 1/240 per roll for a 4/10 lay ($0.0125 for $3), not $0. A Pass filler is a contract bet: once a point is set it cannot be removed (STW 5e), so it cannot serve as a removable filler.",
+    "correction": "Cost set to one roll of exposure. The Pass fallback is restricted to come-out windows and accounted at 7/495 x flat per placement, with a note that it cannot be removed.",
+    "severity": "major"
+   },
+   {
+    "claim": "\u00a73.12: $1-grid Power Press EV \u22121.550 / \u22122.096 / \u22122.624.",
+    "problem": "These figures assume exact fractional payouts on 6/8 bets that are not multiples of $3 (e.g., $13 on 6). That contradicts \u00a71.4's penny grid, and real machines must round. With floor-to-cent the values are \u22121.555 / \u22122.100 / \u22122.627.",
+    "correction": "Added the \u00a71.4-consistent penny grid (5/9 $1, 6/8 $3), which is rounding-free: \u22121.601 / \u22122.170 / \u22122.723, with P(hand > 0) 25.8% / 20.5% / 9.8%. The $1-grid row is kept and labelled off-grid, with both rounding modes.",
+    "severity": "major"
+   },
+   {
+    "claim": "Completeness: the decision tables cover every reachable state.",
+    "problem": "There was no Inside/Across decision table at all. Most tables lacked rows for: come-out windows when the machine auto-continues field or props (STW 32), the point being made, bankroll below the target, odds/table caps, machine rejection, and Don't Pass come-out outcomes (2/3 win, 7/11 lose, 12 push). Bankroll Builder lacked the rule for re-placing or excluding a number when the point changes. Five-Count did not say how a line-bet inner strategy starts mid-hand.",
+    "correction": "Added a universal state table in \u00a72 that applies to every strategy, plus per-strategy rows for every state. New [DEFAULT]s: fund in priority order; partial odds; FULL-then-SAME when a press drop is unfundable; inner strategy starts at the next legal window; reEnter = NEXT_POINT semantics.",
+    "severity": "major"
+   },
+   {
+    "claim": "\u00a73.6/\u00a73.14/\u00a74: comparison rows use a field paying 3:1 on 12.",
+    "problem": "The STW rule card (the bubble reference machine) pays 2:1 on both 2 and 12. Iron Cross and Cover hedge results on the target machine are materially worse.",
+    "correction": "Added STW-field rows. Iron Cross: \u22127/3 per hand, 3.867%, $7/18 per point-phase roll, SD 22.09, P(hand > 0) 32.04%. Cover hedge: \u22122.505 (3.184%). The 2:1 field is marked as the bubble default.",
+    "severity": "major"
+   },
+   {
+    "claim": "\u00a73.6/\u00a73.14: no field on the come-out; field re-bet after it loses.",
+    "problem": "On STW a winning field rides automatically (STW 32). A point made on 4, 9 or 10 is a field win, so the field rides into the come-out unless the bot cancels it.",
+    "correction": "Added an explicit come-out rule to cancel any auto-continued field or prop that is off schedule.",
+    "severity": "major"
+   },
+   {
+    "claim": "\u00a73.7: Any-7 hedge examples ('The One + 7', 'The Oreo') [MC].",
+    "problem": "MC's Oreo has no Any 7 bet: it is Don't Pass + lay odds + place 6/8 at $12 + $10 Come bets. The One + 7 also takes down a travelled Don't Come, which forfeits equity and may be impossible on machines.",
+    "correction": "The One + 7 is kept as the Any-7 example, with a note that the bot never removes a travelled Don't Come. The Oreo is reclassified as a light/dark mix.",
+    "severity": "minor"
+   },
+   {
+    "claim": "\u00a72 session gate ratchet: guarantee = max(guarantee, lockFrac x sessionPL) with lockFrac = 0.5 [AoC].",
+    "problem": "This does not reproduce AoC's worked example: buy-in $400; at a $650 stack the guarantee is $500; at $800 '$75 of that new $150 gain' moves in, giving $575. The formula would give a $600 stack-equivalent. AoC also uses the win goal both as 'stop playing' and as 'start locking'.",
+    "correction": "Incremental rule: on first reaching the goal, guarantee = 0.4 x sessionPL [DEFAULT, fitted to the example]; on each new high, guarantee += 0.5 x the gain since the last high. Added winGoalAction in {STOP, LOCK} and HR's 1\u20132% bet-sizing alternative.",
+    "severity": "minor"
+   },
+   {
+    "claim": "\u00a72.1 odds cap: 2x \u2026 'most are 2x' 2018 \u2026; don't side: one machine 'doesn't let you bet what would pay out to 2x' [WoV-9005].",
+    "problem": "Neither quote appears in the cited threads. WoV-36634 has 'only allows me to bet 2X Odds' (2021). WoV-9005 has 'you can only bet 2x on either pass or don't pass' and a $500 lay maximum ('NO Laying the 4 for $1,000'). MGM 3x, Hooters/Slotsafun 5x and Aqueduct 3-4-5x were missing.",
+    "correction": "Replaced with the verified quotes and the full list by casino and year. Default remains 2x (STW rule card).",
+    "severity": "minor"
+   },
+   {
+    "claim": "\u00a72.1 payout precision: 'down to the penny\u2026 don't need multiples of $6'; $1 increments [VV-STW].",
+    "problem": "These come from reader comments, not from the Vital Vegas article (dated 2013-10-08). The article itself says bets can be cancelled at any time except the Pass Line and similar bets.",
+    "correction": "Attributed them to reader comments. Added the article's cancel statement, the CO-bubble place-bet de-activation note and the ChumpChange '116.67%' payout.",
+    "severity": "minor"
+   },
+   {
+    "claim": "\u00a72.1 auto re-bet: winning Pass re-placed; place/buy/field/lay/props continue; a Come bet that wins on 11 continues.",
+    "problem": "The list omitted STW 30: a Don't Pass or Don't Come that wins on its first roll continues 'until a loss or a point is established'. It also did not flag the field/prop ride into the come-out.",
+    "correction": "Added both, plus the Aqueduct machine that banks a winning Come bet.",
+    "severity": "minor"
+   },
+   {
+    "claim": "\u00a72.1: Crapless has no Don't Pass [STW].",
+    "problem": "The STW rule card does not mention crapless.",
+    "correction": "Re-cited to WoO-crapless ('There is no don't pass bet in this game') and added crapless odds of 6:1 on 2/12 and 3:1 on 3/11.",
+    "severity": "minor"
+   },
+   {
+    "claim": "\u00a73.13 Basic Hedge: 'On a $5\u201310 table, If the point hits before the third hit, that subtracts from your count' [MC].",
+    "problem": "'$5\u201310 table' is not in MC's text, and the rule needs an explicit interpretation for a bot.",
+    "correction": "Dropped the table qualifier. Added the parameter pointMadeEffect in {MINUS_ONE (default), NO_EFFECT} [UNVERIFIED], the exact $56 split ($10 on 5/9, $18 on 6/8) and a never-remove-the-Don't-Pass rule.",
+    "severity": "minor"
+   },
+   {
+    "claim": "\u00a73.3 MOLLY: Come odds(n) = k x u; 'Come box, next roll 7 or 11 \u2192 box wins'.",
+    "problem": "The come odds were not capped by maxOdds(n), as STW 10d\u2013f require. A 7 in the point phase is the seven-out and conflicts with the SEVEN_OUT row. The STW auto-ride on 11 was not modelled.",
+    "correction": "Odds = min(k, maxOdds(n)) x u. The 11 and 7 rows are separated, and the auto-ride/bank behaviour is noted. Also noted that K counts distinct numbers, because the Pass point is never in C during a point phase.",
+    "severity": "minor"
+   },
+   {
+    "claim": "\u00a73.8 FIVE_COUNT: bubble-craps.com simplified version cited without numbers; Wizard's alternative not given.",
+    "problem": "The lab needs comparable volume figures for each variant.",
+    "correction": "Computed BC simplified \u22480.4285 qualify / \u22480.3636 of rolls bet, and the Wizard's start-after-first-made-point alternative = 67/165 = 40.606% (matches the Wizard's 40.6%). Scoblete 0.513627 / 0.434930 and RESET7 0.488995 / 0.414962 re-verified.",
+    "severity": "minor"
+   },
+   {
+    "claim": "\u00a76 item 11: Scoblete's '57%' does not match the exact 48.6%.",
+    "problem": "57% matches the share of rolls skipped (1 \u2212 0.4349 = 56.5%), not the share of shooters.",
+    "correction": "Restated the item.",
+    "severity": "minor"
+   },
+   {
+    "claim": "\u00a76 item 10: '6-for-5 would be about 0% edge'.",
+    "problem": "That is the '6 to 5' reading. Read literally, '6 for 5' is 1:5, a 45.45% edge. crapsee's own text uses $1 profit on $5.",
+    "correction": "Stated both readings; neither matches crapsee's 2.78%. Hard 6/8 at 8:1 = 18.18%.",
+    "severity": "minor"
+   },
+   {
+    "claim": "\u00a73.15 Hot Shooter EV \u22129.07% (paytable as 'for 1', count including the 7-out).",
+    "problem": "The STW paytable has a gap: GRAND is 'OVER 50 ROLLS' and MAJOR is '45 TO 49'. Read literally (GRAND \u2265 51, exactly 50 unpaid), EV is \u221210.26%; \u221222.58% if the count excludes the 7-out.",
+    "correction": "Added a full readings table and the survival vector P(L \u2265 8 \u2026 51). Default remains \u22129.07% [UNVERIFIED].",
+    "severity": "minor"
+   },
+   {
+    "claim": "\u00a73.9 progressions: D'Alembert and Fibonacci rules abbreviated; Martingale bust handling generic.",
+    "problem": "The Wizard's simulations that produce 90.34% and 91.14% rely on details the spec omitted: unit = goal; ties repeat; the bet is cut to land exactly on the goal; the bet is capped at the money left; Fibonacci starts on the second '1'; Martingale 'walk away broke' when unable to double.",
+    "correction": "Added these details, the Don't Pass-carrier Martingale numbers (3.350%, 0.861%, 0.112%), and the Fibonacci EV per session of \u22120.062661 at 11 units.",
+    "severity": "minor"
+   },
+   {
+    "claim": "\u00a73.12 Double-Tap (P = 2) / Triple Lux (P = 3) then SAME.",
+    "problem": "CC-press defines Double-Tap as 'Press a number twice, then collect the third hit. Reset and repeat', which includes a reset to base. The spec only computed the no-reset version.",
+    "correction": "Added resetAfterCollect with EVs: live P = 2 \u22122.252, P = 3 \u22122.963; penny \u22121.891 / \u22122.389. Added the sourced MC 'Power Press and Pull' (EV \u22123962/3025, P(hand > 0) \u2248 40.2%) and the MC 'Power Press' variant.",
+    "severity": "minor"
+   },
+   {
+    "claim": "\u00a71.3 note: Wizard lists Don't Pass per bet resolved 0.701% / 0.468% 'because it normalizes differently'.",
+    "problem": "The note was correct but unexplained, so implementers cannot reproduce either column.",
+    "correction": "Explained that the Wizard's value equals the per-made figure x 36/35 (it removes the push from the odds handle too), and added the 3x and 5x per-resolved values (0.3433%, 0.2283%) and the Don't Pass 3-4-5x SD (4.913).",
+    "severity": "minor"
+   },
+   {
+    "claim": "\u00a73.5 preset table had '\u2014' in several SD and P cells; Across P(hand > 0) given as \u22480.3318.",
+    "problem": "These values are computable.",
+    "correction": "Filled them in: Across $32 P = 1037/3125 exactly; Across $44 literal SD 47.00, P \u2248 33.78%; Inside $32 literal SD 35.54, P \u2248 35.29%; Inside $44 \u2192 $22 SD 32.41; Across $32 with buy outside SD 34.83, P \u2248 34.91%. Three-Hit 6&8 EV \u2212129/512 was also added.",
+    "severity": "minor"
+   },
+   {
+    "claim": "\u00a70: Power Press and Three-Hit listed as having no source (YouTube only).",
+    "problem": "MC has named step lists for power pressing ('Power Press and Pull', 'Press Press Regress', 'Power Press') and for 3-hit play ('Basic Hedge', 'Pass Over', 'Windstar Walk'). CC-press and PNat define the press types.",
+    "correction": "Reclassified Power Press as partly sourced and Three-Hit as a codified name with sourced patterns. All other figures in the original section (\u00a71.1\u20131.3 edges and SDs, Molly flats and edges, Bankroll Builder, Fibonacci Press, Cover hedge, Iron Cross, hedge examples, progressions) were recomputed and confirmed exact.",
+    "severity": "minor"
+   }
+  ]
+ }
+]
