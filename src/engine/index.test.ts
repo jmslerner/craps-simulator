@@ -3,7 +3,7 @@ import * as engine from './index.ts'
 
 describe('the engine barrel', () => {
   it('exports the version and the table API', () => {
-    expect(engine.ENGINE_VERSION).toBe(1)
+    expect(engine.ENGINE_VERSION).toBe(2)
     for (const name of [
       'compileConfig',
       'newTable',

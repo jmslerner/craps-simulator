@@ -175,9 +175,16 @@ describe('adjudicated mismatches (M4d)', () => {
     ])
   })
 
-  it('when credit cannot pay a re-collection the bet comes down instead (§4.5, IB §3.3) — the oracle does not model this', () => {
-    // The reference table lets the bankroll go below 0 here (M4b noted it). The engine follows
+  it('when credit cannot pay a re-collection the bet comes down instead (§4.5, IB §3.3) — both models agree since the oracle gained the decline', () => {
     // §4.5: declining the vig removes the bet; its stake comes back and nothing is re-collected.
+    // M4d's reference table let the bankroll go below 0 here; it now declines too (`vigDeclined`).
+    const { engine } = sideBySide('traditionalLive345', [
+      place('lay', 100, 4),
+      place('place', 49_800, 6),
+      roll(3, 4),
+    ])
+    expect(engine).toMatchObject({ bankroll: 100, houseNet: 100, vigPaid: 100 })
+    expect(engine.bets).toMatchObject([{ typeId: 'place', number: 6, amount: 49_800 }])
     scenario('traditionalLive345')
       .place('lay', 100, { number: 4 })
       .place('place', 49_800, { number: 6 })
@@ -203,6 +210,7 @@ describe('adjudicated mismatches (M4d)', () => {
 
     it('the win pays what it can and credit the rest', () => {
       // A $5 buy on 4 pays $50 up front, wins $10 on the 4 and stays: $10 from the win, $40 more.
+      sideBySide(bigMinimum(10_000), [place('buy', 500, 4), roll(2, 2)])
       scenario(bigMinimum(10_000))
         .place('buy', 500, { number: 4 })
         .roll(2, 2)
@@ -216,6 +224,7 @@ describe('adjudicated mismatches (M4d)', () => {
     })
 
     it('when credit cannot pay the rest, what the win paid is refunded and the bet comes down', () => {
+      sideBySide(bigMinimum(5_500), [place('buy', 500, 4), roll(2, 2)])
       scenario(bigMinimum(5_500))
         .place('buy', 500, { number: 4 })
         .expectBankroll(0)

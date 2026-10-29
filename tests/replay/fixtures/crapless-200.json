@@ -2,7 +2,7 @@
   "format": "bubble-craps-session",
   "version": 1,
   "header": {
-    "engineVersion": 1,
+    "engineVersion": 2,
     "configHash": "4537b96ffb0ea61c",
     "seed": "crapless-200",
     "config": {
