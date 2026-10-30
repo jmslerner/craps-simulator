@@ -122,6 +122,27 @@ export interface SnapParams {
   readonly minTurnRate: number
 }
 
+/**
+ * The handoff (§7 Face remap, M10b): the drawn cube rotation blends from the start offset to the
+ * end offset over a window of frames in which the die is airborne, clear of everything by more
+ * than its circumradius and turning fast, so the blend is lost in the tumble and the drawn die,
+ * whatever it shows, never meets the floor, the dome or the other die (handoff.ts).
+ */
+export interface HandoffParams {
+  /** The window's length, s: no shorter than `minDuration`, clipped to `maxDuration`. */
+  readonly minDuration: number
+  readonly maxDuration: number
+  /**
+   * Spare room the die's bounding ball keeps throughout the window, u: its centre at least the
+   * circumradius plus this above the floor and inside the dome's inscribed sphere, and twice the
+   * circumradius plus this from the other die's centre. §10's centre-based thresholds (√3/2 +
+   * 0.05 and √3 for a unit cube), restated over the die's own circumradius (P1b).
+   */
+  readonly margin: number
+  /** Slowest turn, rad/s over a frame, at any frame of the window. */
+  readonly minTurnRate: number
+}
+
 /** How Rapier resolves contacts, and when a recording flags one. */
 export interface ContactParams {
   /**
@@ -163,6 +184,7 @@ export interface PhysicsParams {
   readonly hop: HopParams
   readonly rest: RestParams
   readonly snap: SnapParams
+  readonly handoff: HandoffParams
 }
 
 export const DEFAULT_PARAMS: PhysicsParams = {
@@ -227,6 +249,7 @@ export const DEFAULT_PARAMS: PhysicsParams = {
   hop: { airTime: 0.5, apex: 2.5, turns: 2, landing: 1, margin: 0.05 },
   rest: { spread: 2.5, minSeparation: 1.6 },
   snap: { airborneClearance: 0.05, minTurnRate: 6 },
+  handoff: { minDuration: 0.1, maxDuration: 0.25, margin: 0.05, minTurnRate: 12 },
 }
 
 const fingerprints = new WeakMap<PhysicsParams, string>()

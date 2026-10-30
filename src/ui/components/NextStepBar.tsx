@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { GUIDE_CYCLE } from '../state/nextStep.ts'
+import { GUIDE_CYCLE, useCoachMemory } from '../state/nextStep.ts'
 import type { GuideStep } from '../state/nextStep.ts'
 import { cachedNextStep } from './nextStepCache.ts'
 import { useGameState, useSettingsState, useStores, useUi } from './context.tsx'
@@ -22,7 +22,11 @@ export function NextStepBar() {
   const guideEnabled = useSettingsState((state) => state.guideEnabled)
   const selectedChip = useSettingsState((state) => state.selectedChip)
   const chips = useSettingsState((state) => state.chips)
-  const step = useGameState((state) => cachedNextStep(state, { selectedChip, chips }))
+  const dismissedIdeas = useCoachMemory((state) => state.dismissedIdeas)
+  const dismissIdea = useCoachMemory((state) => state.dismissIdea)
+  const step = useGameState((state) =>
+    cachedNextStep(state, { selectedChip, chips, dismissedIdeas }),
+  )
 
   // A Go within the guard of a step change (or of the previous Go) is ignored: the step under the
   // player's finger may have just changed (plan §0 #18 lessons).
@@ -54,8 +58,17 @@ export function NextStepBar() {
     }
     const result = game.getState().dispatch(guide.action, guide.target)
     if (!result.ok) return // The reason strip and the zone shake answer.
-    const next = cachedNextStep(game.getState(), { selectedChip, chips })
+    const next = cachedNextStep(game.getState(), { selectedChip, chips, dismissedIdeas })
     ui.announce(`${guide.title}: done.${next === null ? '' : ` Next: ${next.title}.`}`)
+  }
+
+  // Per-idea dismissal (plan §0 #18): "No thanks" remembers the idea's id, so that idea never
+  // comes back; the button stays mounted so Go/Alt/Hide keep their places and focus survives.
+  const idea = step?.alt?.ideaId
+  const dismiss = (): void => {
+    if (idea === undefined || step?.alt === undefined) return
+    dismissIdea(idea)
+    ui.announce(`Dismissed: ${step.alt.title}.`)
   }
 
   const hide = (): void => {
@@ -65,17 +78,22 @@ export function NextStepBar() {
 
   return (
     <section className="next-step" aria-label="Next step guide" data-testid="next-step">
-      <ol className="guide-stepper">
-        {GUIDE_CYCLE.map((cycle, index) => (
-          <li
-            key={cycle.id}
-            aria-current={step !== null && index === step.activeStep ? 'step' : undefined}
-            className={step !== null && index === step.activeStep ? 'step-active' : undefined}
-          >
-            {cycle.title}
-          </li>
-        ))}
-      </ol>
+      <div className="ns-top">
+        <span className="ns-badge" aria-hidden="true">
+          Next step
+        </span>
+        <ol className="guide-stepper">
+          {GUIDE_CYCLE.map((cycle, index) => (
+            <li
+              key={cycle.id}
+              aria-current={step !== null && index === step.activeStep ? 'step' : undefined}
+              className={step !== null && index === step.activeStep ? 'step-active' : undefined}
+            >
+              <span className="lbl">{cycle.title}</span>
+            </li>
+          ))}
+        </ol>
+      </div>
       <div className="guide-body">
         <h3 className="guide-title">{step?.title ?? 'Rolling…'}</h3>
         <p className="guide-text">{step?.body ?? 'The dice are in the air.'}</p>
@@ -101,6 +119,16 @@ export function NextStepBar() {
         </button>
         <button type="button" className="guide-hide" onClick={hide}>
           Hide
+        </button>
+        <button
+          type="button"
+          className="guide-dismiss"
+          data-testid="guide-dismiss"
+          aria-label="No thanks: dismiss this idea"
+          disabled={idea === undefined}
+          onClick={dismiss}
+        >
+          No thanks
         </button>
       </div>
     </section>

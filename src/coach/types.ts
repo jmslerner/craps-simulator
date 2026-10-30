@@ -31,10 +31,11 @@ export interface CoachNumber {
 
 /**
  * One piece of coach copy: literal words, a number, or a number with a named display style
- * (`exact` shows money unrounded, "$5.833…"). Templates return these; the UI only formats.
+ * (`exact` shows money unrounded, "$5.833…"; `compact` trims whole dollars, "$5"). Templates
+ * return these; the UI only formats.
  */
 export type TemplatePart =
-  string | CoachNumber | { readonly n: CoachNumber; readonly style: 'exact' }
+  string | CoachNumber | { readonly n: CoachNumber; readonly style: 'exact' | 'compact' }
 
 export type TemplateParts = readonly TemplatePart[]
 

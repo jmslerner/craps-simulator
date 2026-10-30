@@ -18,8 +18,9 @@ export function rejectionText(
   const label = labelOf(cfg, text(details, 'typeId'))
   switch (rejection.code) {
     case 'NOT_OFFERED': {
-      // The machine can list a bet the trainer does not model yet (the side bets until M11):
-      // the engine refuses it as NOT_OFFERED, but "not available on this machine" would be wrong.
+      // The machine can list a bet type the trainer has no family for (none since M11 brought the
+      // side bets in, kept for machine values the trainer may list but not model): the engine
+      // refuses it as NOT_OFFERED, but "not available on this machine" would be wrong.
       const typeId = text(details, 'typeId')
       const listed =
         typeId !== null &&
@@ -37,8 +38,28 @@ export function rejectionText(
       return `${label ?? 'That bet'} is not open in this part of the round.`
     }
     case 'WINDOW_CLOSED': {
-      if (text(details, 'reason') === 'rebetAfterRemove') {
-        return `${label ?? 'That bet'} cannot go back up until the next come-out.`
+      const reason = text(details, 'reason')
+      const name = label ?? 'That bet'
+      if (reason === 'rebetAfterRemove') return `${name} cannot go back up until the next come-out.`
+      // A side bet's placement window (M11; rules spec §2.6): `reason` names the window the
+      // machine takes it in, `until` when it opens again.
+      const window =
+        reason === 'afterSevenOrStart'
+          ? 'right after a 7 or before the first roll'
+          : reason === 'newHand' || reason === 'comeOutAfterSevenOut'
+            ? "before a new hand's first roll"
+            : null
+      const until = text(details, 'until')
+      const reopens =
+        until === 'nextSeven'
+          ? 'after the next 7'
+          : until === 'nextHand'
+            ? 'after the next seven-out'
+            : null
+      if (window !== null || reopens !== null) {
+        const opens =
+          window === null ? `${name} is not open now` : `${name} can only be bet ${window}`
+        return reopens === null ? `${opens}.` : `${opens} — it opens again ${reopens}.`
       }
       return 'The dice are rolling — betting reopens after the roll.'
     }
@@ -76,6 +97,13 @@ export function rejectionText(
     case 'CONTRACT_BET': {
       const change = text(details, 'change')
       const name = label ?? 'That bet'
+      const typeId = text(details, 'typeId')
+      if (typeId !== null && cfg.sideBets.has(typeId)) {
+        // A side bet is set before the dice roll and locked once they have (rules spec §2.6).
+        return change === 'increase'
+          ? `${name} cannot be added to now — a side bet is set before the dice roll.`
+          : `${name} is locked once the dice roll — it stays up until it wins or loses.`
+      }
       if (change === 'increase') return `${name} is locked in: it cannot be added to now.`
       if (change === 'decrease') return `${name} is a contract bet: it cannot be reduced now.`
       return `${name} is a contract bet: it stays up until it wins or loses.`
@@ -106,6 +134,16 @@ export function rejectionText(
     }
     case 'BELOW_MIN_TOTAL': {
       const short = money(details, 'short')
+      if (text(details, 'scope') === 'qualifyingBet') {
+        // A side bet's qualifier (M11; the Hot Shooter's `/sideBets/<t>/qualifyingBet`): the main
+        // game must carry `min` first; `short` is what the table lacks.
+        const min = money(details, 'min')
+        const name = label ?? 'That side bet'
+        const needs = min === null ? 'a qualifying bet' : `${formatCents(min)}`
+        return short === null
+          ? `${name} needs ${needs} on the main game first.`
+          : `${name} needs ${needs} on the main game first — the table is ${formatCents(short)} short.`
+      }
       if (short === null) return 'BETS ARE NOT VALID YET! The table is under the machine minimum.'
       if (text(details, 'scope') === 'perBet') {
         const min = money(details, 'min')

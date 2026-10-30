@@ -27,14 +27,19 @@ function fingerprint(row: CatalogRow): string {
 }
 
 describe('catalogTable', () => {
-  it('has one row per offered non-side bet and number, in config order', () => {
+  it('has one row per offered bet and number, in config order, the side bets last (M11)', () => {
     const cfg = compileConfig(PRESETS.craplessBubble)
     const specs = catalogSpecs(cfg)
-    expect(specs).toHaveLength(74)
+    expect(specs).toHaveLength(77)
     expect(specs.slice(0, 3)).toEqual([
       { typeId: 'pass', number: null },
       { typeId: 'come', number: null },
       { typeId: 'passOdds', number: 2 },
+    ])
+    expect(specs.slice(-3)).toEqual([
+      { typeId: 'luckyRollerLow', number: null },
+      { typeId: 'luckyRollerHigh', number: null },
+      { typeId: 'luckyRollerAll', number: null },
     ])
     expect(catalogTable(cfg).map((row) => row.spec)).toEqual(specs)
   })

@@ -5,7 +5,7 @@ import { validateAction } from '../../src/engine/table/reducer.ts'
 import { headerConfig, replayHistory } from '../../src/engine/session/replay.ts'
 import { parseSessionLog } from '../../src/engine/session/serialize.ts'
 import type { TableState } from '../../src/engine/table/state.ts'
-import { nextStep, type NextStepSettings } from '../../src/ui/state/nextStep.ts'
+import { nextStep, type NextStepSettings } from '../../src/coach/nextStep.ts'
 
 /**
  * The next-step guide over the fixture (plan §0 #18): on every reachable betting state of the
@@ -21,6 +21,7 @@ const SETTINGS: readonly NextStepSettings[] = [
   { selectedChip: null, chips: null },
   { selectedChip: 10_000, chips: null },
   { selectedChip: 100, chips: [100, 500] },
+  { selectedChip: null, chips: null, dismissedIdeas: ['skip-odds', 'come-out-working'] },
 ]
 
 describe('nextStep on every betting state of the crapless-200 fixture', () => {

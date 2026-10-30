@@ -64,6 +64,22 @@ export interface RollRun {
 
 export const REVEAL_HOLD_MS = 600
 
+/**
+ * The physics seed of roll `rollIndex` (the pre-roll `round.rollIndex`, which `diceRolled`
+ * carries): animation only, never outcomes (plan §7). The dome prefetches the next roll's throw
+ * with the same function, so the prefetched seed and the played seed always agree.
+ */
+export function physicsSeedFor(sessionSeed: string, rollIndex: number): number {
+  return deriveSeed32(sessionSeed, 'physics', rollIndex, 0)
+}
+
+/** The next roll's physics seed while betting is open (for the dome's prefetch), else null. */
+export function selectNextPhysicsSeed(state: GameState): number | null {
+  const { session, view } = state
+  if (session === null || view === null || view.phase !== 'betting') return null
+  return physicsSeedFor(session.header.seed, session.state.round.rollIndex)
+}
+
 const realDelay = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms))
 
 /**
@@ -91,7 +107,7 @@ export function runRoll(deps: RollFlowDeps, dice?: Dice): RollRun {
     const animated =
       deps.reducedMotion !== true && diceView.mode !== 'instant' && !controller.signal.aborted
     if (animated) {
-      const physicsSeed = deriveSeed32(outcome.session.header.seed, 'physics', outcome.rollIndex, 0)
+      const physicsSeed = physicsSeedFor(outcome.session.header.seed, outcome.rollIndex)
       try {
         await diceView.play(
           { dice: outcome.dice, rollIndex: outcome.rollIndex, physicsSeed },

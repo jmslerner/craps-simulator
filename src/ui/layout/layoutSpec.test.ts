@@ -93,9 +93,48 @@ describe('layoutSpec on the crapless machine', () => {
     expect(crapless.hardways.find((zone) => zone.number === 10)?.payLabel).toBe('7:1')
   })
 
-  it('marks side bets as not modelled yet', () => {
-    expect(crapless.sideBets.length).toBeGreaterThan(0)
-    for (const zone of crapless.sideBets) expect(zone.modelled).toBe(false)
+  it('offers the side bets as live zones with their track and the machine pays (M11)', () => {
+    expect(crapless.sideBets.map((zone) => zone.typeId)).toStrictEqual([
+      'luckyRollerLow',
+      'luckyRollerHigh',
+      'luckyRollerAll',
+    ])
+    for (const zone of crapless.sideBets) {
+      expect(zone.modelled).toBe(true)
+      expect(zone.kind).toBe('sideBet')
+      expect(zone.detail).toBe('any 7 loses')
+    }
+    // The machine's pays as written (IB screen: 30/30/155 to 1, shown "for 1").
+    expect(crapless.sideBets.map((zone) => zone.payLabel)).toStrictEqual([
+      '31 for 1',
+      '31 for 1',
+      '156 for 1',
+    ])
+    expect(crapless.sideBets[0]?.label).toBe('Low Rolls')
+    expect(crapless.sideBets[0]?.track).toStrictEqual([2, 3, 4, 5, 6])
+    expect(crapless.sideBets[1]?.track).toStrictEqual([8, 9, 10, 11, 12])
+    expect(crapless.sideBets[2]?.track).toStrictEqual([2, 3, 4, 5, 6, 8, 9, 10, 11, 12])
+  })
+
+  it('words the other families from their configs: qualifier badge, top pay, track', () => {
+    const hot = traditional.sideBets.find((zone) => zone.typeId === 'hotShooter')
+    expect(hot?.track).toBeNull()
+    expect(hot?.payLabel).toBeNull()
+    expect(hot?.badge).toBe('needs $3 in play')
+    expect(hot?.detail).toBe('up to 100 for 1')
+    const fire = layoutSpec(COMPILED_PRESETS.traditionalLive345).sideBets[0]
+    expect(fire?.label).toBe('Fire Bet')
+    expect(fire?.track).toStrictEqual([4, 5, 6, 8, 9, 10])
+    expect(fire?.detail).toBe('up to 999 to 1')
+    const shooter = layoutSpec(COMPILED_PRESETS.strictBubble).sideBets.find(
+      (zone) => zone.typeId === 'luckyShooter',
+    )
+    expect(shooter?.track).toStrictEqual([4, 5, 6, 8, 9, 10])
+    expect(shooter?.detail).toBe('up to 500 for 1')
+    // Every zone that is not a side bet has no track.
+    for (const zone of [...crapless.lines, ...crapless.center, ...crapless.props]) {
+      expect(zone.track).toBeNull()
+    }
   })
 
   it('covers every catalog type with a zone', () => {

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { betId, cents, formatCents, workingStatus } from '../../engine/index.ts'
 import type {
   Action,
@@ -9,7 +9,9 @@ import type {
   TableState,
 } from '../../engine/index.ts'
 import { layoutSpec, type NumberColumn, type ZoneSpec } from '../layout/layoutSpec.ts'
+import { progressOf, type SideBetProgress } from '../layout/sideBetProgress.ts'
 import { selectLegalBets, selectShown } from '../state/gameStore.ts'
+import { selectSideBetSpots } from '../state/sideBetSpots.ts'
 import { spokenRatio } from './copy.ts'
 import { useGameState, useSettingsState, useStores, useUi, type SpotRef } from './context.tsx'
 import { ZoneButton, type ZoneView } from './ZoneButton.tsx'
@@ -24,6 +26,11 @@ import { ZoneButton, type ZoneView } from './ZoneButton.tsx'
  * the store's rejection, which shakes the zone and feeds the reason strip. A zone that cannot take
  * the tap is `aria-disabled`, never `disabled`: the tap still asks, so the machine's own refusal
  * is shown.
+ *
+ * **Side bets (plan §10 M11):** the side-bet panel's zones join the side-bet spots
+ * (`selectSideBetSpots`, `legalBets` with `{ sideBets: true }`), so they carry the machine's real
+ * limits and refusals — the placement window, the lock after the first roll — and light the
+ * numbers the bet has collected from the engine's `BetInstance.progress` (`progressOf`).
  */
 
 export function TableGrid() {
@@ -31,10 +38,17 @@ export function TableGrid() {
   const ui = useUi()
   const cfg = useGameState((state) => state.cfg)
   const shown = useGameState(selectShown)
-  const legal = useGameState(selectLegalBets)
+  const mainLegal = useGameState(selectLegalBets)
+  const sideLegal = useGameState(selectSideBetSpots)
   const selectedChip = useSettingsState((state) => state.selectedChip)
   const rack = useSettingsState((state) => state.chips)
   const [sheet, setSheet] = useState<'props' | 'hardways' | 'side' | null>(null)
+  // Every spot the layout can show: the main game's, then the side bets' (M11).
+  const legal = useMemo(
+    () =>
+      mainLegal === null ? null : sideLegal === null ? mainLegal : [...mainLegal, ...sideLegal],
+    [mainLegal, sideLegal],
+  )
 
   if (cfg === null || shown === null || legal === null) return null
   const spec = layoutSpec(cfg)
@@ -97,9 +111,12 @@ export function TableGrid() {
 
   return (
     <section className="table" aria-label="Betting layout">
-      <p className="round-chip" data-testid="round-chip">
-        {point === null ? 'Come-out roll' : `Point is ${point}`}
-      </p>
+      <div className="felt-head">
+        <p className="section-label">Place · Buy · Come numbers</p>
+        <p className="round-chip" data-testid="round-chip">
+          {point === null ? 'Come-out roll' : `Point is ${point}`}
+        </p>
+      </div>
       <div className="table-numbers" data-testid="table-numbers">
         {spec.numbers.map((column) => (
           <NumberColumnView
@@ -172,10 +189,12 @@ function NumberColumnView({
   render(zone: ZoneSpec): React.ReactNode
 }) {
   const on = point === column.number
+  // SIX and NINE are words on the felt, set a size smaller than the numerals.
+  const word = !/^\d+$/.test(column.name)
   return (
-    <div className="number-column" data-number={column.number}>
+    <div className={on ? 'number-column is-point' : 'number-column'} data-number={column.number}>
       <div className="number-head">
-        <span className="number-name">{column.name}</span>
+        <span className={word ? 'num-label word' : 'num-label'}>{column.name}</span>
         {on && (
           <>
             <span className="puck puck-on" aria-hidden="true">
@@ -293,6 +312,9 @@ function viewOf(
       : zone.kind === 'comeBox' && point === null
         ? ('off' as const)
         : null
+  // A side bet's progress comes straight off the bet (M11); an empty spot shows its track unlit.
+  const side = zone.kind === 'sideBet' ? (cfg.sideBets.get(zone.typeId) ?? null) : null
+  const progress = side === null || join.bet === null ? null : progressOf(side, join.bet.progress)
   return {
     zone,
     amount: join.amount,
@@ -300,12 +322,21 @@ function viewOf(
     off,
     blocked,
     puck,
-    ariaLabel: zoneAria(zone, join, off),
+    progress,
+    ariaLabel: zoneAria(zone, join, off, progress),
   }
 }
 
-/** "Place 6, $12.00, pays 7 to 6" — never a house-edge claim before M9 (plan §6). */
-function zoneAria(zone: ZoneSpec, join: ZoneJoin, off: boolean): string {
+/**
+ * "Place 6, $12.00, pays 7 to 6" — never a house-edge claim before M9 (plan §6). A side bet adds
+ * its progress in words: "Low Rolls, $1.00, pays 31 for 1, 2 and 4 rolled, needs 3, 5 and 6".
+ */
+function zoneAria(
+  zone: ZoneSpec,
+  join: ZoneJoin,
+  off: boolean,
+  progress: SideBetProgress | null,
+): string {
   // A label that already names its number (Hard 8) is not doubled.
   const name =
     zone.number === null || zone.label.includes(String(zone.number))
@@ -319,6 +350,7 @@ function zoneAria(zone: ZoneSpec, join: ZoneJoin, off: boolean): string {
   }
   if (zone.payLabel !== null) parts.push(`pays ${spokenRatio(zone.payLabel)}`)
   if (zone.badge !== null) parts.push(zone.badge)
+  if (progress !== null) parts.push(progress.words)
   if (off) parts.push('off for this roll')
   return parts.join(', ')
 }

@@ -28,9 +28,9 @@ import { FIXTURE_ROLLS, FIXTURE_SEED } from './recorder.ts'
 
 const FIXTURE = new URL('./fixtures/crapless-200.json', import.meta.url)
 const RECORDED = {
-  engineVersion: 2,
-  finalStateHash: '28d4440b6145393f',
-  ledger: { bankroll: 44_321, deposits: 220_000, houseNet: 172_679 },
+  engineVersion: 3,
+  finalStateHash: 'ce8fb0bdae681f77',
+  ledger: { bankroll: 16_270, deposits: 210_000, houseNet: 190_230 },
 }
 
 function fixture() {

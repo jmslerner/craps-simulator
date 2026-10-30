@@ -9,11 +9,13 @@ import {
   heldOffOf,
   isDoubles,
   isSettled,
-  resolveType,
+  resolveBet,
   settle,
+  totalBit,
   totalOf,
   type BetId,
   type BetInstance,
+  type BetType,
   type Cents,
   type Decision,
   type DiceClass,
@@ -22,7 +24,7 @@ import {
   type MachineConfig,
   type Phase,
   type PointNumber,
-  type ResolvedType,
+  type ResolvedBet,
   type RngState,
   type RollContext,
   type RoundState,
@@ -61,6 +63,15 @@ import { at, solveChain, type ChainSolution } from './solve.ts'
  *   (`TableState.heldOff`: Interblock's post-seven-out OFF), the global button and whether it was
  *   carried from an earlier betting window (Shoot To Win's carried chips), so a state records all
  *   five. After any roll every bet is carried.
+ * - **Side bets (M11).** A side bet's state is its own `progress` (the family's encoding: Lucky
+ *   Roller's mask of targets rolled, the Fire Bet's mask of points made, the Hot Shooter's roll
+ *   count, the Lucky Shooter's point and hits) beside the round's phase, so the chain's states go
+ *   beyond (phase, point) exactly as far as the bet does. A bet already on the table starts from
+ *   its progress (`StartContext.progress`). The projected round (`roundFor`) is kept consistent
+ *   with those counts, and the one count that is unbounded — the Hot Shooter's rolls — is lumped
+ *   at its top tier (`canonicalProgress`), where every further roll settles alike, so the chain is
+ *   finite; the Monte Carlo sampler (src/sim) walks the same bets without lumping and is the
+ *   cross-check.
  */
 
 /** A bet to analyse: a type the machine offers and the number it is on. */
@@ -98,6 +109,12 @@ export interface StartContext {
    * placed right after a seven-out, until Set bets On). Absent means no hold.
    */
   readonly held?: boolean
+  /**
+   * A side bet's progress so far (`BetInstance.progress`, in its family's encoding), for a bet
+   * already on the table; absent or 0 for a new bet. A bet with progress has rolled, so it must be
+   * `carried`.
+   */
+  readonly progress?: number
 }
 
 /** Why an analysis cannot be made. */
@@ -117,15 +134,20 @@ export class ExactError extends Error {
 /** The come-out: the phase of a chain that does not follow the round. */
 export const COME_OUT: Phase = Object.freeze({ kind: 'comeOut' })
 
-/** The default guard on the number of states a chain may reach (plan §5.2). */
-export const DEFAULT_MAX_STATES = 5_000
+/**
+ * The default guard on the number of states a chain may reach (plan §5.2): a safety net against a
+ * runaway chain, not a budget. The largest chain a preset or a researched variant needs is a Fire
+ * Bet counting all ten crapless points — 1,024 masks of points made in each of 11 phases, 11,264
+ * states, built in well under a second (M11) — so the guard sits above that.
+ */
+export const DEFAULT_MAX_STATES = 16_384
 
 /**
  * The bets a chain follows, in settlement order: odds after their parent. Fixed for the whole
  * chain; a slot whose bet has come down holds null.
  */
 export interface Group {
-  readonly slots: readonly ResolvedType[]
+  readonly slots: readonly ResolvedBet[]
   /** The slot of the bet being analysed. */
   readonly subject: number
   /** Whether any slot's family needs the round's phase and point (`projection: 'round'`). */
@@ -222,10 +244,11 @@ const LEDGER: Ledger = {
 
 /**
  * The slots for `spec`: the bet alone, or odds behind their parent line bet. Throws `ExactError`
- * for a type the machine does not offer or a number the bet cannot be on.
+ * for a type the machine does not offer or a number the bet cannot be on. Side bets (M11) resolve
+ * like any other bet the table can hold (`resolveBet`); they take no number.
  */
 export function groupFor(spec: BetSpec, cfg: MachineConfig): Group {
-  const resolved = resolveType(cfg, spec.typeId)
+  const resolved = resolveBet(cfg, spec.typeId)
   if (resolved === null) {
     throw new ExactError('NOT_OFFERED', `${cfg.id} does not offer "${spec.typeId}"`)
   }
@@ -240,7 +263,7 @@ export function groupFor(spec: BetSpec, cfg: MachineConfig): Group {
       break
     case 'odds': {
       if (number === null || !type.pays.has(number)) throw bad()
-      const parent = resolveType(cfg, type.parent)
+      const parent = resolveBet(cfg, type.parent)
       if (parent === null)
         throw new ExactError('NOT_OFFERED', `No ${type.parent} for ${spec.typeId}`)
       return makeGroup([parent, resolved], 1)
@@ -250,6 +273,10 @@ export function groupFor(spec: BetSpec, cfg: MachineConfig): Group {
       break
     case 'oneRoll':
     case 'composite':
+    case 'collectSet':
+    case 'uniquePointsMade':
+    case 'handLength':
+    case 'pointRun':
       if (number !== null) throw bad()
       break
   }
@@ -259,7 +286,7 @@ export function groupFor(spec: BetSpec, cfg: MachineConfig): Group {
 /** A group of bets placed side by side, none behind another (the product chain of `events.ts`). */
 export function groupOf(typeIds: readonly string[], cfg: MachineConfig): Group {
   const slots = typeIds.map((typeId) => {
-    const resolved = resolveType(cfg, typeId)
+    const resolved = resolveBet(cfg, typeId)
     if (resolved === null)
       throw new ExactError('NOT_OFFERED', `${cfg.id} does not offer "${typeId}"`)
     return resolved
@@ -275,27 +302,49 @@ export function groupOf(typeIds: readonly string[], cfg: MachineConfig): Group {
 const NOMINAL_SUBJECT = cents(100)
 const NOMINAL_OTHER = cents(1_000_000_000)
 
-function makeGroup(slots: readonly ResolvedType[], subject: number): Group {
+function makeGroup(slots: readonly ResolvedBet[], subject: number): Group {
   return {
     slots,
     subject,
-    tracksRound: slots.some(({ family }) => family.projection === 'round'),
+    tracksRound: slots.some((slot) => followsRound(slot)),
     nominal: slots.map((_, index) => (index === subject ? NOMINAL_SUBJECT : NOMINAL_OTHER)),
   }
 }
 
 /**
+ * Whether a slot's decisions can read the round's phase and point: its family's `projection`,
+ * except that a Lucky Roller that ends on any 7 (`/sideBets/<t>/endsOn: anySeven`, every machine
+ * researched) reads nothing of the round — a 7 loses it whatever the phase and every other total
+ * is matched against its own mask — so its chain need not multiply its masks by the phases (Roll
+ * 'Em All's 1,024 masks would otherwise meet crapless's 11 phases). The family declares `round`
+ * because its `sevenOut` variant does read the transition. `chain.test.ts` proves the reading:
+ * such a bet decides identically in every phase for every progress and dice class.
+ */
+export function followsRound({ family, type }: ResolvedBet): boolean {
+  if (family.projection !== 'round') return false
+  return !(type.family === 'collectSet' && type.endsOn === 'anySeven')
+}
+
+/**
  * The table a group starts on for `spec` at `phase`: the subject (and, for odds, its parent on the
- * same number), with the start's working inputs. Throws `BAD_START` when the families' own
- * invariants reject the table (a pass bet off its point, say).
+ * same number), with the start's working inputs and, for a side bet already on the table, its
+ * progress. Throws `BAD_START` when the families' own invariants reject the table (a pass bet off
+ * its point, say), or when a bet with progress is said to be new.
  */
 export function startTable(
   group: Group,
   spec: BetSpec,
   phase: Phase,
-  start: Pick<StartContext, 'carried' | 'working' | 'globalOff' | 'held'>,
+  start: Pick<StartContext, 'carried' | 'working' | 'globalOff' | 'held' | 'progress'>,
   cfg: MachineConfig,
 ): TableNode {
+  const progress = start.progress ?? 0
+  if (progress !== 0 && !start.carried) {
+    throw new ExactError(
+      'BAD_START',
+      `${spec.typeId} has progress, so it has rolled: it is carried`,
+    )
+  }
   const placedAtRoll = start.carried ? 0 : 1
   const bets = group.slots.map((slot, index): BetInstance => {
     const isSubject = index === group.subject
@@ -307,7 +356,7 @@ export function startTable(
       amount: at(group.nominal, index),
       vigHeld: cents(0),
       working: isSubject ? start.working : null,
-      progress: 0,
+      progress: isSubject ? progress : 0,
       // A parent is on its number already, so it was placed in an earlier window.
       placedAtRoll: isSubject ? placedAtRoll : 0,
     }
@@ -412,7 +461,9 @@ export function rollOutcomes(
       }
       const decision = decideBet(bet, ctx, resolved)
       decisions.push(decision)
-      after.push(resolved.family.apply(bet, decision, ctx, resolved.type))
+      after.push(
+        canonicalProgress(resolved, resolved.family.apply(bet, decision, ctx, resolved.type)),
+      )
     }
     const phase = group.tracksRound ? step.next.phase : COME_OUT
     let bets = after.map((bet) =>
@@ -449,6 +500,24 @@ export function rollOutcomes(
       next: { phase, bets, globalOff, heldOff },
     }
   })
+}
+
+/**
+ * The canonical state of a bet after a roll. Only the Hot Shooter Jackpot's progress is unbounded:
+ * it counts every roll of the hand, while its pay is fixed by the highest tier reached
+ * (`/sideBets/<t>/tiers`), so every count from the top tier's `minRolls` on settles alike, under
+ * every count definition (A adds the seven-out to the count before reading the tier, so a count at
+ * the top tier is already there; B and C read the count as it is). Such a count is lumped at that
+ * tier, which makes the chain finite (plan §11: a specialized projection, cross-checked by the
+ * Monte Carlo sampler, which never lumps). Every other family's progress is a bounded mask.
+ */
+export function canonicalProgress(
+  { type }: ResolvedBet,
+  bet: BetInstance | null,
+): BetInstance | null {
+  if (bet === null || type.family !== 'handLength') return bet
+  const top = type.tiers.reduce((most, tier) => Math.max(most, tier.minRolls), 0)
+  return bet.progress > top ? { ...bet, progress: top } : bet
 }
 
 /** The decision of the bet `bet` backs, on this roll; `none` if it is not on the table. */
@@ -563,7 +632,7 @@ export function chainFrom(
  * `rearm` other than `none`. With enough credit (plan §0 #24) it is the full up-front vig, from
  * the win and from credit.
  */
-export function rearmDue(type: ResolvedType['type'], number: PointNumber | null): boolean {
+export function rearmDue(type: BetType, number: PointNumber | null): boolean {
   if (type.family !== 'numberVsSeven') return false
   const rule = commissionRule(type, number)
   return rule !== null && rule.timing === 'upfront' && rule.rearm !== 'none'
@@ -597,7 +666,7 @@ export function tableState(cfg: MachineConfig, table: TableNode): TableState {
     v: 1,
     configHash: cfg.configHash,
     rng: RNG,
-    round: roundAt(table.phase),
+    round: roundFor(table.phase, bets, cfg),
     bets,
     nextBetSeq: bets.length + 1,
     ledger: LEDGER,
@@ -620,6 +689,33 @@ export function roundAt(phase: Phase): RoundState {
     rollIndex: 1,
     hand: { index: 0, rolls: 1, pointsMadeMask: 0 },
     sinceSeven: { rolls: 1, totalsMask: 0 },
+  }
+}
+
+/**
+ * The projected round of a table holding `bets` (M11): `roundAt(phase)` when none of them has
+ * progress, else a hand under way long enough for the counts on the bets — roll 1 + the largest
+ * progress, so a Hot Shooter's rolls fit in the hand and in the rolls since its placement — in
+ * which every point has been made, so a Fire Bet's points made are among the hand's. Decisions
+ * read none of these counters (only the phase, the transition and the bet's own progress), so the
+ * state key need not carry them; the families' invariants do read them, and must find them
+ * consistent. New bets are placed at roll 1, which stays the first roll (a bet with progress has
+ * rolled, so it is carried: `startTable`).
+ */
+export function roundFor(
+  phase: Phase,
+  bets: readonly BetInstance[],
+  cfg: MachineConfig,
+): RoundState {
+  const most = bets.reduce((top, bet) => Math.max(top, bet.progress), 0)
+  if (most === 0) return roundAt(phase)
+  const rolls = 1 + most
+  const pointsMadeMask = cfg.ruleset.points.reduce((mask, point) => mask | totalBit(point), 0)
+  return {
+    phase,
+    rollIndex: rolls,
+    hand: { index: 0, rolls, pointsMadeMask },
+    sinceSeven: { rolls, totalsMask: 0 },
   }
 }
 

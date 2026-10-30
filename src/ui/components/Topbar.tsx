@@ -2,23 +2,22 @@ import { cents, formatCents } from '../../engine/index.ts'
 import type { Cents } from '../../engine/index.ts'
 import { selectShown } from '../state/gameStore.ts'
 import type { RollEntry } from '../state/rollHistory.ts'
-import { useGameState, useSettingsState, useStores, useUi } from './context.tsx'
+import { useGameState, useUi } from './context.tsx'
 
 /**
- * The machine's top bar (plan §6): CREDIT, BET and WIN meters, all through `formatCents` and all
- * from the engine — credit is the shown ledger's bankroll, BET the stakes on the table, WIN the
- * winnings the last roll paid (each resolved bet's `winPaid` net of commission, from its
- * `SettlementTrace`). Beside them: Add credit (plan §0 #19), New game, and the guide toggle the
- * Hide control focuses (plan §0 #18).
+ * The machine's top bar (plan §6; the demo's header): the brand lockup with the machine's name,
+ * then the CREDIT, BET and WIN meters, all through `formatCents` and all from the engine — credit
+ * is the shown ledger's bankroll, BET the stakes on the table, WIN the winnings the last roll paid
+ * (each resolved bet's `winPaid` net of commission, from its `SettlementTrace`) — and the bank
+ * pills: Add credit (plan §0 #19) and New game. The guide toggle and the coach-mode control live
+ * in the coach panel (`CoachPanel`).
  */
 
 export function Topbar() {
-  const { settings } = useStores()
   const ui = useUi()
   const shown = useGameState(selectShown)
   const machineName = useGameState((state) => state.cfg?.name ?? null)
   const newest = useGameState((state) => state.history.rolls[0] ?? null)
-  const guideEnabled = useSettingsState((state) => state.guideEnabled)
 
   const credit = shown?.ledger.bankroll ?? cents(0)
   const onTable = cents(shown?.bets.reduce((sum, bet) => sum + bet.amount, 0) ?? 0)
@@ -26,42 +25,44 @@ export function Topbar() {
 
   return (
     <header className="topbar">
-      <div className="meters">
-        <Meter name="Credit" amount={credit} />
-        <Meter name="Bet" amount={onTable} />
-        <Meter name="Win" amount={win} />
+      <div className="brand">
+        <h1 className="brand-name">
+          Bubble Craps <span className="brand-tag">Trainer</span>
+        </h1>
+        {machineName !== null && <p className="brand-tag machine-name">{machineName}</p>}
       </div>
-      <div className="topbar-actions">
-        <button
-          type="button"
-          className={ui.highlight === 'control:add-credit' ? 'guide-target' : undefined}
-          data-target="control:add-credit"
-          onClick={() => ui.openDialog('addCredit')}
-        >
-          + Add credit
-        </button>
-        <button type="button" onClick={() => ui.openDialog('newGame')}>
-          New game
-        </button>
-        <button
-          type="button"
-          id="guide-toggle"
-          aria-pressed={guideEnabled}
-          onClick={() => settings.getState().update({ guideEnabled: !guideEnabled })}
-        >
-          Guide
-        </button>
+      <div className="topbar-right">
+        <div className="meters">
+          <Meter name="Credit" amount={credit} />
+          <Meter name="Bet" amount={onTable} />
+          <Meter name="Win" amount={win} up={win > 0} />
+        </div>
+        <div className="bank">
+          <button
+            type="button"
+            className={`add-credit${ui.highlight === 'control:add-credit' ? ' guide-target' : ''}`}
+            data-target="control:add-credit"
+            onClick={() => ui.openDialog('addCredit')}
+          >
+            + Add credit
+          </button>
+          <button type="button" onClick={() => ui.openDialog('newGame')}>
+            New game
+          </button>
+        </div>
       </div>
-      {machineName !== null && <p className="machine-name">{machineName}</p>}
     </header>
   )
 }
 
-function Meter({ name, amount }: { name: string; amount: Cents }) {
+function Meter({ name, amount, up = false }: { name: string; amount: Cents; up?: boolean }) {
   return (
     <p className="meter">
       <span className="meter-name">{name}</span>
-      <span className="meter-amount" data-testid={`meter-${name.toLowerCase()}`}>
+      <span
+        className={up ? 'meter-amount amount-up' : 'meter-amount'}
+        data-testid={`meter-${name.toLowerCase()}`}
+      >
         {formatCents(amount)}
       </span>
     </p>

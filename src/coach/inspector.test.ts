@@ -42,6 +42,30 @@ describe('inspectorMath', () => {
     expect(math.existing).toBeNull()
   })
 
+  it('come odds win "of decisions" conditioned on being played: 14.3% on the 2, as pass odds (spec §0.1 [M])', () => {
+    const come = inspectorMath({ typeId: 'comeOdds', number: 2 }, cents(500), crapless)
+    const pass = inspectorMath({ typeId: 'passOdds', number: 2 }, cents(500), crapless)
+    expect(text(come, 'chance')).toBe('Wins 14.3% of decisions')
+    expect(text(come, 'chance')).toBe(text(pass, 'chance'))
+    const chance = come.lines
+      .find((l) => l.id === 'chance')
+      ?.parts.find((part) => typeof part !== 'string' && !('style' in part))
+    if (chance === undefined || typeof chance === 'string' || 'style' in chance) {
+      throw new Error('no chance number')
+    }
+    expect((chance.exact as Fraction).equals(Fraction.of(1, 7))).toBe(true)
+    expect(chance.source).toEqual({
+      fn: 'analyzeBet',
+      args: {
+        spec: { typeId: 'comeOdds', number: 2 },
+        amount: 500,
+        start: 'typical',
+        field: 'pWinDecided',
+      },
+      configHash: crapless.configHash,
+    })
+  })
+
   it('derives the math as steps: ways, chances, each payout, expected loss, edge', () => {
     const math = inspectorMath({ typeId: 'place', number: 6 }, cents(500), crapless)
     const kinds = math.steps.map((step) => step.id.split(':')[1])
@@ -96,6 +120,55 @@ describe('inspectorMath', () => {
     expect(math.existing?.canTakeDown).toBe(true)
     expect(text(math, 'take-down')).toBe('Taking it down returns $6.00')
     expect(text(math, 'never-resolves')).toBeNull()
+  })
+
+  it('adds the side-bet progress block and lines for a Lucky Roller on the table (M11)', () => {
+    const state = play(crapless, [
+      { type: 'place', typeId: 'pass', amount: cents(500) },
+      { type: 'place', typeId: 'luckyRollerLow', amount: cents(100) },
+      { type: 'roll', dice: makeRoll(1, 1) },
+      { type: 'roll', dice: makeRoll(1, 2) },
+    ])
+    const low = state.bets.find((bet) => bet.typeId === 'luckyRollerLow')
+    if (low === undefined) throw new Error('no Lucky Roller')
+    const math = inspectorMath(
+      { typeId: 'luckyRollerLow', number: null },
+      cents(100),
+      crapless,
+      state,
+      low.id,
+    )
+    // The spot prices like any other bet: pays, edge, chance and the derivation.
+    expect(text(math, 'pays')).toBe('$1.00 × 31 for 1 = $30.00')
+    expect(text(math, 'edge')).toBe('House edge 18.30%')
+    expect(math.steps.length).toBeGreaterThan(3)
+    // The bet on the table: equity from its progress, and the progress block.
+    expect(math.existing?.resolves).toBe(true)
+    expect(math.existing?.canTakeDown).toBe(false)
+    expect(math.sideBet?.stage).toEqual({
+      kind: 'collectSet',
+      rolled: [2, 3],
+      remaining: [4, 5, 6],
+    })
+    expect(text(math, 'side-stage')).toBe(
+      'Rolled so far: 2, 3. Still needs 4, 5, 6 (3 more) before any seven.',
+    )
+    expect(text(math, 'side-next')).toMatch(
+      /^Next step: 31 for 1 \(\$31\.00 back\) — .*% chance of reaching it from here\.$/,
+    )
+    expect(
+      math.sideBet !== null &&
+        math.sideBet !== undefined &&
+        (math.sideBet.equity.exact as Fraction).equals(math.existing!.equity.exact as Fraction),
+    ).toBe(true)
+    // No side-bet block for a main-game bet, nor for an empty spot.
+    expect(
+      inspectorMath({ typeId: 'pass', number: null }, cents(500), crapless, state, betId(1))
+        .sideBet,
+    ).toBeNull()
+    expect(
+      inspectorMath({ typeId: 'luckyRollerLow', number: null }, cents(100), crapless).sideBet,
+    ).toBeNull()
   })
 
   it('says when a bet may never be decided (held OFF after a seven-out)', () => {

@@ -246,6 +246,13 @@ In an RNG engine, invalid rolls are animation only and never change the outcome.
 
 STW's shooter button rotates at a seven-out "or when a point is established" (CW §35g). This is cosmetic: side bets use the hand, not the button-holder.
 
+Readings the engine and the independent side-bet oracle share (M11) [A]:
+- **Lock:** every side bet may be pressed, reduced or taken down until its first roll and is locked from then on. The Lucky Shooter may also be taken down before its point when `removableBeforePoint` is set, a come-out 7/11 push included.
+- **Hot Shooter count:** `hand.rolls` counts from the hand's first roll, so under `placement: anyComeOut` (PA) a bet placed on a later come-out carries the hand's earlier rolls. §6.2's edges assume `hand.rolls == 0` at placement (`comeOutAfterSevenOut`, every preset); research's "the edge is identical either way" holds only for a count that starts at placement.
+- **Hot Shooter qualifier** (`qualifyingBet`): checked when the bet is placed or pressed, against every main-game stake on the table, ON or OFF.
+- **Lucky Shooter windows:** `beforePoint` and `comeOut` behave alike: open on the main game's come-out, closed while a point is on.
+- **Lucky Roller `endsOn: sevenOut`** (a schema option no preset uses): only a seven-out loses; a come-out 7 changes nothing.
+
 ---
 
 ## 3. Bet catalog: per-bet tables
@@ -551,7 +558,7 @@ Column names below are the preset ids `traditionalBubble`, `craplessBubble`, `st
 | DP after point / DC after travel | locked [V CW §11e] / removable [A] | n/a | reduce/remove, no re-bet until next cycle [V IB §2.3] / same [A] | reduce/remove, no re-add or increase [V MD-C] / same [V] |
 | Exclusive | Pass×DP, Come×DC (global); Place×{PTL, Lay}, Buy×{Lay, PTL} on the same number [V CW §21; same-number scope A]. Place + Buy on one number allowed [A] | Place + Buy on one number if the paytable allows [V IB] | Pass×DP, Come×DC; Place×Lay, Buy×Lay; `excludeLineVsLayBuy` ON [setting V IB221; ON A] | none (Doey-Don't allowed) [A] |
 | afterWin | Pass stay; DP/DC `stayIfFirstRoll`; Come `stayIf11`; place, buy, hard, field, lay, PTL, props, hops, big stay [V CW §29–32] | Pass stay (chips "pushed to the next round") [V IB §2]; place/buy/hard stay [A]; one-roll return, with Keep Bets On/Repeat as UI [A] | same as crapless | Pass stay; Come return; number bets stay; one-roll return [A] |
-| Side bets | HSJ: tiers 1/3/5/7/12/30/100× "for 1" at 8/16/24/32/40/45/50+ rolls; definition A; window = come-out after a 7-out; qualifier 3 credits; $1–$1,000 [V CW; definition A]. Lucky Roller 30/30/155 [A]. Power Odds off [A] | **Lucky Roller 30/30/155 to 1** [R]; window after a 7 or at cycle start, no re-bet after a win until a 7 [V IB]. Lucky Shooter off [V] | Lucky Roller 30/30/150 [A]; Lucky Shooter table A [A] | Fire Bet 24/249/999 to 1, optional [R WOO-FIRE] |
+| Side bets | HSJ: tiers 1/3/5/7/12/30/100× "for 1" at 8/16/24/32/40/45/50+ rolls; definition A; window = come-out after a 7-out; qualifier 3 credits; $1–$1,000 [V CW; definition A]. Lucky Roller 30/30/155 [A]. Power Odds off [A] | **Lucky Roller 30/30/155 to 1** [R]; window after a 7 or at cycle start, no re-bet after a win until a 7 [V IB]. Lucky Shooter off [V] | Lucky Roller 30/30/150 [A]; Lucky Shooter table D (§6.3: 500 / 100 / 10 / 5 / 2 for 1) [R IBLS, PA623c; Las Vegas machine tables unverified] | Fire Bet 24/249/999 to 1, optional [R WOO-FIRE] |
 | Pace | 100 rolls/hr [A]; bet window 20 s [R]; shooter window 20 s [R] | 120 rolls/hr [A]; no timer, self-paced [V/R] | 120 [A]; no timer | 144 [R WOO-K, 5 players] |
 | Shooter / invalid roll / puck | community; rotate per CW §35g (cosmetic) / reshoot [A] / — | single (player) [V] / re-vibrate [R] / `puckReset` 0 [V options] | single / same / 0 | rotate at 7-out / no roll |
 | Group buttons / history | Across: after the come-out, only with Pass, DP, Field or a one-roll bet up [V STWO] / 27 rolls [V] | Press, Across (same conditions) [V IB] / configurable | Press, Across, Inside, Outside [V IB] | — |
@@ -633,7 +640,7 @@ The player-advantage check (any edge below 0 is an error, above 40% a warning; �
 | A, literal "OVER 50" (50 pays nothing) | 10.2581% |
 | B: 7-out not counted | 21.5608% |
 | C: neither the first come-out nor the 7-out counted | 32.3353% |
-| "to 1" reading | player +14–34%: impossible, reject |
+| "to 1" reading | player +34% (A), +15% (B): impossible, reject. Under C the misreading still leaves the house 0.40%, so the A and B figures are what prove it wrong [M] |
 
 Not defined for crapless.
 
@@ -712,7 +719,7 @@ Paytables in use:
 
 | Bet | Rule summary | HE [M] |
 |---|---|---|
-| Fire Bet | Unique points made by the shooter. Paytable A 24/249/999 to 1 at 4/5/6 | 20.7628% (T). Crapless, all 10 points count: **13.4152%**; only 4–10 count: **70.4488%**. MD Pay Table B (39/199/499): 23.8869% |
+| Fire Bet | Unique points made by the shooter. Paytable A 24/249/999 to 1 at 4/5/6 | 20.7628% (T). Crapless, all 10 points count: **13.4152%** when six *or more* points pay the 6-point award (paytable rows 7–10 at 999, or paid at once on the sixth point); table A as written, nothing above six, is 17.1059%; only 4–10 count: **70.4488%**. MD Pay Table B (39/199/499): 23.8869% |
 | Hot Roller | Every combination of a number completed before any 7 | 7.5003% (PA-A), 3.3782% (PA-B), 13.1290% (NJ-A) |
 | Repeater | n repeats of a number before a 7 | 18.08–21.88% |
 | Ride the Line | Pass-line wins until the 7-out | 8.52–10.60% |
@@ -910,6 +917,9 @@ Rows marked "vig upfront" quote HE per (stake + vig), §0.1's upfront-vig conven
 | WIKI | https://en.wikipedia.org/wiki/Craps |
 | LVA-CL / RENO / RND / PTS | https://www.lasvegasadvisor.com/question/crapless-craps/ ; https://www.lasvegasadvisor.com/question/reno-dont-bets/ ; https://www.lasvegasadvisor.com/question/rounding-down-6-5-blackjack/ ; https://www.lasvegasadvisor.com/question/etgs-player-points/ |
 | VA | https://vegasadvantage.com/electronic-table-games/ |
+| VA-VEN | https://vegasadvantage.com/casino-hotel/strip/venetian/ (the Venetian's live-table odds, minimums and crapless offer; `research/high-limit-machines.md` §1) |
+| CH-VEGAS / OTS-CRAPS | https://crapshero.com/craps/vegas/ ; https://onthestrip.com/casinos/craps-on-the-las-vegas-strip/ (two reports of the Venetian's $5,000 live craps maximum; high-limit research §1) |
+| YT-DICEY | https://www.youtube.com/watch?v=kiRO21x8WyU (the $20,000 high-limit crapless bubble craps video WOV-35576 retells; high-limit research §2) |
 | VV-STW / VV-DTG | https://www.casino.org/vitalvegas/the-casino-game-were-loving-right-now-shoot-to-win-craps/ ; https://www.casino.org/vitalvegas/hybrid-stadium-craps-rolls-into-downtown-grand/ |
 | WOV-n | https://wizardofvegas.com/forum/gambling/craps/<n>-thread/ (n = 9005, 11344, 24510, 28274, 30281, 32511, 36080, 36634, 37778, 35576, 38668, 37046 [3PM], 37179 [Dolly]). The forum finds a thread by the number before its title slug, so any slug works; the bare `<n>/` opens a list of threads instead |
 | SHRT | https://blog.seminolehardrocktampa.com/?p=755 |
@@ -932,5 +942,6 @@ Rows marked "vig upfront" quote HE per (stake + vig), §0.1's upfront-vig conven
 - `src/engine/config/provenance.ts`: source keys, JSON pointers and `listAssumptions` (§5.4).
 - `src/engine/config/presets/`: the four presets (§5.2) and their fingerprints.
 - `src/engine/round/round.ts`: `advanceRound`, the round transitions and the hand and since-seven counters (§2.1).
+- `src/engine/bets/families/{collectSet,uniquePointsMade,handLength,pointRun}.ts` and `sideBet.ts`: the side bets (§2.6, §6), each keeping its progress in `BetInstance.progress` in an encoding the engine barrel exports (`collectSetRolled`, `uniquePointsMade`, `handLengthTier`, `pointRunState`, …); `tests/oracle/sideBets.ts` and `sideBetEdges.ts` are the independent reference.
 - `tests/scenarios/dsl.ts`: the scenario DSL that turns each researched machine fact into a test.
 - `docs/rules/glossary.md`: the coach's metric definitions.

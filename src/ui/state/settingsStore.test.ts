@@ -30,6 +30,17 @@ describe('settings store', () => {
     expect(loadSettings(storage).selectedChip).toBe(500)
   })
 
+  it('remembers the coach mode across boots (plan §5.6; the mode control writes it)', () => {
+    const storage = memoryStorage()
+    const store = createSettingsStore({ storage })
+    expect(store.getState().coachMode).toBe('full')
+    store.getState().update({ coachMode: 'off' })
+    expect(loadSettings(storage).coachMode).toBe('off')
+    expect(createSettingsStore({ storage }).getState().coachMode).toBe('off')
+    store.getState().update({ coachMode: 'hints' })
+    expect(createSettingsStore({ storage }).getState().coachMode).toBe('hints')
+  })
+
   it('keeps playing when storage writes fail', () => {
     const broken = {
       getItem: () => null,

@@ -93,7 +93,10 @@ export type BetRef = BetId | { readonly typeId: string; readonly number?: PointN
 /** Some of `T`'s fields, with amounts of money written as plain numbers of cents. */
 export type Expected<T> = { readonly [K in keyof T]?: T[K] extends Cents ? number : T[K] }
 
-/** The facts `expectBet` can check. `working` is whether the bet works on the next roll. */
+/**
+ * The facts `expectBet` can check. `working` is whether the bet works on the next roll;
+ * `progress` is a side bet's mask or count (M11), 0 for every other bet.
+ */
 export interface BetFacts {
   readonly id: BetId
   readonly typeId: string
@@ -102,6 +105,7 @@ export interface BetFacts {
   readonly parentId: BetId | null
   readonly working: boolean
   readonly placedAtRoll: number
+  readonly progress: number
 }
 
 /** Where a `place` goes: a number (place bets), or the parent of an odds bet. */
@@ -280,6 +284,7 @@ export class Scenario {
       parentId: bet.parentId,
       working: effectiveWorking(bet, this.current, this.cfg),
       placedAtRoll: bet.placedAtRoll,
+      progress: bet.progress,
     }
     const keys = Object.keys(expected) as (keyof BetFacts)[]
     const actual = Object.fromEntries(keys.map((key) => [key, facts[key]]))

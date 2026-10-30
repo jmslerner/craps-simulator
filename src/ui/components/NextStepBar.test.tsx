@@ -1,6 +1,7 @@
 import { act, fireEvent, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cents } from '../../engine/index.ts'
+import { coachMemoryStore } from '../state/nextStep.ts'
 import { renderApp } from '../test/renderApp.tsx'
 import { GO_GUARD_MS } from './NextStepBar.tsx'
 
@@ -95,5 +96,42 @@ describe('the next-step bar (plan §0 #18, M8 scope)', () => {
     expect(document.activeElement).toBe(document.getElementById('guide-toggle'))
     // No zone is highlighted while the guide is hidden.
     expect(document.querySelector('.guide-target')).toBeNull()
+  })
+})
+
+describe('per-idea dismissal (plan §0 #18, M9c)', () => {
+  beforeEach(() => {
+    coachMemoryStore.getState().reset()
+  })
+  afterEach(() => {
+    coachMemoryStore.getState().reset()
+  })
+
+  it('"No thanks" dismisses the skip-odds idea by id; the idea never comes back', () => {
+    const { run, roll } = renderApp()
+    run((state) => {
+      state.dispatch({ type: 'place', typeId: 'pass', amount: cents(500) })
+    })
+    roll({ d1: 1, d2: 1 }) // point 2: the odds step offers "Or just roll"
+    const alt = screen.getByTestId('guide-alt')
+    expect(alt).toBeEnabled()
+    const dismiss = screen.getByTestId('guide-dismiss')
+    expect(dismiss).toBeEnabled()
+    fireEvent.click(dismiss)
+    expect(coachMemoryStore.getState().dismissedIdeas).toStrictEqual(['skip-odds'])
+    expect(screen.getByTestId('guide-alt')).toBeDisabled() // the idea is gone, the slot stays put
+    expect(screen.getByTestId('guide-dismiss')).toBeDisabled()
+    // The main step is unchanged: dismissing an idea never blocks the round.
+    expect(screen.getByTestId('next-step')).toHaveTextContent('Add odds behind your Pass Line')
+  })
+
+  it('the roll steps state what a 7 would do to every bet on the table (§0 #18)', () => {
+    const { run } = renderApp()
+    run((state) => {
+      state.dispatch({ type: 'place', typeId: 'pass', amount: cents(500) })
+      state.dispatch({ type: 'place', typeId: 'place', number: 6, amount: cents(600) })
+    })
+    const bar = screen.getByTestId('next-step')
+    expect(bar).toHaveTextContent('A seven now: wins you $5.00, takes $6.00 — net -$1.00.')
   })
 })

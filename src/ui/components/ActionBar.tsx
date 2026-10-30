@@ -33,56 +33,58 @@ export function ActionBar() {
 
   return (
     <div className="action-bar" role="toolbar" aria-label="Table actions">
-      <button
-        type="button"
-        disabled={!canUndo}
-        onClick={() => game.getState().undoLast()}
-        title="Take back the last action (U)"
-      >
-        Undo
-      </button>
-      <button
-        type="button"
-        disabled={!canUndo}
-        onClick={() => game.getState().clearBets()}
-        title="Take back this window's actions (C)"
-      >
-        Clear
-      </button>
-      <button
-        type="button"
-        disabled={repeat === undefined || !betting}
-        title={blockedWhy ?? 'Repeat the last window’s bets (Shift+R)'}
-        onClick={() =>
-          repeat === undefined ? undefined : game.getState().dispatch(repeat, 'control:repeat')
-        }
-      >
-        Repeat
-      </button>
-      <button
-        type="button"
-        disabled={double === undefined || !betting}
-        title="Double every bet that can double"
-        onClick={() =>
-          double === undefined ? undefined : game.getState().dispatch(double, 'control:double')
-        }
-      >
-        Double
-      </button>
-      <button
-        type="button"
-        disabled={workingToggle === null || !betting || !hasBets}
-        title="Interblock mapping, assumed: On returns bets to the machine defaults (O)"
-        onClick={() => {
-          if (workingToggle === null) return
-          const result = game.getState().dispatch(workingToggle.action, 'control:working')
-          if (result.ok) {
-            ui.announce(workingToggle.showSetOn ? 'Bets set on.' : 'Bets set off.')
+      <div className="action-macros">
+        <button
+          type="button"
+          disabled={!canUndo}
+          onClick={() => game.getState().undoLast()}
+          title="Take back the last action (U)"
+        >
+          Undo
+        </button>
+        <button
+          type="button"
+          disabled={!canUndo}
+          onClick={() => game.getState().clearBets()}
+          title="Take back this window's actions (C)"
+        >
+          Clear
+        </button>
+        <button
+          type="button"
+          disabled={repeat === undefined || !betting}
+          title={blockedWhy ?? 'Repeat the last window’s bets (Shift+R)'}
+          onClick={() =>
+            repeat === undefined ? undefined : game.getState().dispatch(repeat, 'control:repeat')
           }
-        }}
-      >
-        {workingToggle?.showSetOn === true ? 'Set bets On' : 'Set bets Off'}
-      </button>
+        >
+          Repeat
+        </button>
+        <button
+          type="button"
+          disabled={double === undefined || !betting}
+          title="Double every bet that can double"
+          onClick={() =>
+            double === undefined ? undefined : game.getState().dispatch(double, 'control:double')
+          }
+        >
+          Double
+        </button>
+        <button
+          type="button"
+          disabled={workingToggle === null || !betting || !hasBets}
+          title="Interblock mapping, assumed: On returns bets to the machine defaults (O)"
+          onClick={() => {
+            if (workingToggle === null) return
+            const result = game.getState().dispatch(workingToggle.action, 'control:working')
+            if (result.ok) {
+              ui.announce(workingToggle.showSetOn ? 'Bets set on.' : 'Bets set off.')
+            }
+          }}
+        >
+          {workingToggle?.showSetOn === true ? 'Set bets On' : 'Set bets Off'}
+        </button>
+      </div>
       <button
         type="button"
         className={`roll-button${ui.highlight === 'control:roll' ? ' guide-target' : ''}`}

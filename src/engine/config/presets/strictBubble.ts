@@ -69,9 +69,9 @@ const LUCKY_ROLLER_PAYS = {
 } as const
 
 const LUCKY_SHOOTER_TABLE = {
-  status: 'assumed',
-  source: 'PA623c',
-  note: "Pay table A: 5 hits then the point 1000, 5 hits 150, 4 hits 15, 3 hits 5 for 1; fewer hits lose. The strict machine assumes A; Interblock's screen shows D (rules spec §6.3).",
+  status: 'reported',
+  source: 'IBLS; PA623c',
+  note: "Pay table D, the one Interblock's own screenshots show (research sidebets.md §2) and one of PA §623c.2(e)'s four regulated tables: 5 hits then the point 500, 5 hits 100, 4 hits 10, 3 hits 5, 2 hits 2 for 1; fewer hits lose (rules spec §6.3; plan §0 #11). Las Vegas machine tables are unverified.",
 } as const
 
 /**
@@ -334,8 +334,8 @@ export const strictBubble: MachineConfigInput = deepFreeze({
       family: 'pointRun',
       label: 'Lucky Shooter',
       points: [...BOX_NUMBERS],
-      payTable: { '3': '5 for 1', '4': '15 for 1', '5': '150 for 1' },
-      topAward: '1000 for 1',
+      payTable: { '2': '2 for 1', '3': '5 for 1', '4': '10 for 1', '5': '100 for 1' },
+      topAward: '500 for 1',
       repeatEndsBet: true,
       placement: 'beforePoint',
       removableBeforePoint: true,

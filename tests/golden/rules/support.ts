@@ -5,7 +5,7 @@ import type { MachineConfigInput } from '../../../src/engine/config/schema.ts'
 import type { Dice, DieFace, Total } from '../../../src/engine/core/dice.ts'
 import { cents } from '../../../src/engine/core/money.ts'
 import { advanceRound, initialRound, type RoundState } from '../../../src/engine/round/round.ts'
-import { decideBet, requireType } from '../../../src/engine/bets/registry.ts'
+import { decideBet, requireBet } from '../../../src/engine/bets/registry.ts'
 import {
   betId,
   type BetInstance,
@@ -47,11 +47,18 @@ export function roundAt(point: PointNumber | null): RoundState {
   return point === null ? start : { ...start, phase: { kind: 'point', point } }
 }
 
-/** A bet as a table would hold it. */
+/** A bet as a table would hold it. `progress` is a side bet's mask or count (M11). */
 export function bet(
   typeId: string,
   number: PointNumber | null,
-  options: { seq?: number; parent?: BetInstance; amount?: number; working?: boolean | null } = {},
+  options: {
+    seq?: number
+    parent?: BetInstance
+    amount?: number
+    working?: boolean | null
+    progress?: number
+    placedAtRoll?: number
+  } = {},
 ): BetInstance {
   return {
     id: betId(options.seq ?? (options.parent === undefined ? 1 : 2)),
@@ -61,8 +68,8 @@ export function bet(
     amount: cents(options.amount ?? 1_000),
     vigHeld: cents(0),
     working: options.working ?? null,
-    progress: 0,
-    placedAtRoll: 0,
+    progress: options.progress ?? 0,
+    placedAtRoll: options.placedAtRoll ?? 0,
   }
 }
 
@@ -88,7 +95,7 @@ export function rollContext(
 
 /** Decides `subject` on a roll through the registry, as the roll pipeline does. */
 export function decide(cfg: MachineConfig, subject: BetInstance, ctx: RollContext): Decision {
-  return decideBet(subject, ctx, requireType(cfg, subject.typeId))
+  return decideBet(subject, ctx, requireBet(cfg, subject.typeId))
 }
 
 /**
@@ -123,5 +130,13 @@ export function mismatches(
     const want = expected[sumOf(dice)]
     const got = actual(dice)
     return got === want ? [] : [`${dice.d1}-${dice.d2}: expected ${want}, got ${got}`]
+  })
+}
+
+/** Every one of the 36 rolls on which `actual` departs from `want`, as readable lines. */
+export function departures(want: (dice: Dice) => string, actual: (dice: Dice) => string): string[] {
+  return ALL_DICE.flatMap((dice) => {
+    const [w, a] = [want(dice), actual(dice)]
+    return w === a ? [] : [`${dice.d1}-${dice.d2}: expected ${w}, got ${a}`]
   })
 }

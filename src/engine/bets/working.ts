@@ -1,7 +1,7 @@
 import type { MachineConfig } from '../config/compile.ts'
 import { heldOffOf, type TableState } from '../table/state.ts'
 import { DEFAULT_WORKING, FORCED_WORKING, type WorkingInput } from './policies.ts'
-import { requireType } from './registry.ts'
+import { requireBet } from './registry.ts'
 import type { BetInstance } from './types.ts'
 
 /**
@@ -45,7 +45,7 @@ export function workingStatus(
   state: TableState,
   cfg: MachineConfig,
 ): WorkingStatus {
-  const { family, type } = requireType(cfg, bet.typeId)
+  const { family, type } = requireBet(cfg, bet.typeId)
   if (!family.toggleable) return { working: true, source: 'always' }
   const input: WorkingInput = {
     bet,
@@ -77,7 +77,7 @@ export function effectiveWorking(bet: BetInstance, state: TableState, cfg: Machi
  * has per-bet toggles covering its type (`/workingToggle/perBet`, `/workingToggle/types`).
  */
 export function canToggle(bet: BetInstance, state: TableState, cfg: MachineConfig): boolean {
-  const { family, type } = requireType(cfg, bet.typeId)
+  const { family, type } = requireBet(cfg, bet.typeId)
   const { toggle } = cfg.working
   return (
     family.toggleable &&

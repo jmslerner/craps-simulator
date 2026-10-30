@@ -23,6 +23,9 @@ import {
  */
 
 const crapless = compileConfig(PRESETS.craplessBubble)
+// The real handler prices the whole catalog, side bets included, in about 0.8 s on its own and
+// slower under a loaded run: Vitest's 1 s default wait is too tight for it.
+const WORKER_WAIT = { timeout: 4000 }
 
 afterEach(() => {
   setAnalysisTransportForTests(null)
@@ -50,7 +53,7 @@ describe('analysisClient: catalog', () => {
     ensureCatalog(crapless) // the second call is free
     await vi.waitFor(() => {
       expect(badgesFor(crapless.configHash)).not.toBeNull()
-    })
+    }, WORKER_WAIT)
     expect(calls.filter((call) => call.kind === 'catalog')).toHaveLength(1)
     expect(notified).toBeGreaterThan(0)
 
@@ -75,7 +78,7 @@ describe('analysisClient: catalog', () => {
     ensureCatalog(crapless)
     await vi.waitFor(() => {
       expect(calls).toHaveLength(1)
-    })
+    }, WORKER_WAIT)
     ensureCatalog(crapless)
     expect(calls).toHaveLength(1)
     expect(badgesFor(crapless.configHash)).toBeNull()
@@ -90,7 +93,7 @@ describe('analysisClient: inspect', () => {
     expect(requestInspect(crapless, spec, cents(500), null, null)).toBe(key)
     await vi.waitFor(() => {
       expect(inspectFor(key)).not.toBeNull()
-    })
+    }, WORKER_WAIT)
     expect(calls.filter((call) => call.kind === 'inspect')).toHaveLength(1)
     const math = inspectFor(key)
     expect(
@@ -104,7 +107,7 @@ describe('analysisClient: inspect', () => {
     expect(other).not.toBe(key)
     await vi.waitFor(() => {
       expect(inspectFor(other)).not.toBeNull()
-    })
+    }, WORKER_WAIT)
     expect(calls.filter((call) => call.kind === 'inspect')).toHaveLength(2)
   })
 

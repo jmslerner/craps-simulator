@@ -21,8 +21,9 @@ import type { SessionMeta } from './sessionRepo.ts'
 
 /**
  * The synchronous pending mirror (plan §8): written on every betting change, restored at boot only
- * when it cleanly extends the stored head — replayed through the engine and hash-checked — with
- * junk quarantined and never a throw.
+ * when the hash chain validates — a tail that extends the stored head replayed onto it, a shorter
+ * or different window (an undo or clear inside the debounce after a flush, M9 audit) replayed from
+ * the window's start — with junk quarantined and never a throw.
  */
 
 const cfg = compileConfig(PRESETS.craplessBubble)
@@ -99,6 +100,56 @@ describe('restorePendingMirror', () => {
     expect(storage.map.has(PENDING_MIRROR_CORRUPT_KEY)).toBe(false)
   })
 
+  it('restores a SHRUNK window: an undo inside the debounce after a flush replaces the stored tail (M9 audit)', () => {
+    const storage = memoryStorage()
+    const flushed = play(bet(500), bet(600, 'field')) // the stored head, saved before the undo
+    const undone = play(bet(500)) // the live window after Undo, mirrored synchronously
+    writePendingMirror(META, undone, storage)
+
+    const restored = restorePendingMirror(META, flushed, cfg, storage)
+    expect(restored).not.toBeNull()
+    expect(restored?.pending).toHaveLength(1)
+    expect(hashJson(restored!.state)).toBe(hashJson(undone.state))
+    expect(restored!.state.bets.some((b) => b.typeId === 'field')).toBe(false)
+    expect(storage.map.has(PENDING_MIRROR_KEY)).toBe(false)
+  })
+
+  it('restores an EMPTIED window: a clear inside the debounce brings the table back to the window start', () => {
+    const storage = memoryStorage()
+    const flushed = play(bet(500), bet(600, 'field'))
+    const cleared = play()
+    writePendingMirror(META, cleared, storage)
+    const restored = restorePendingMirror(META, flushed, cfg, storage)
+    expect(restored).not.toBeNull()
+    expect(restored?.pending).toEqual([])
+    expect(hashJson(restored!.state)).toBe(hashJson(flushed.windowStart))
+  })
+
+  it('restores a REPLACED window: cleared and re-bet inside the debounce, neither a prefix of the other', () => {
+    const storage = memoryStorage()
+    const flushed = play(bet(500), bet(600, 'field'))
+    const rebet = play(bet(700, 'field'), bet(500))
+    writePendingMirror(META, rebet, storage)
+    const restored = restorePendingMirror(META, flushed, cfg, storage)
+    expect(restored).not.toBeNull()
+    expect(hashJson(restored!.state)).toBe(hashJson(rebet.state))
+    expect(restored!.pending).toEqual(rebet.pending)
+  })
+
+  it('drops a shrunk or replaced mirror whose recorded hash the replay does not reach', () => {
+    const storage = memoryStorage()
+    const flushed = play(bet(500), bet(600, 'field'))
+    const undone = play(bet(500))
+    writePendingMirror(META, undone, storage)
+    const text = storage.map.get(PENDING_MIRROR_KEY)!
+    storage.setItem(
+      PENDING_MIRROR_KEY,
+      JSON.stringify({ ...(JSON.parse(text) as object), stateHash: '0123456789abcdef' }),
+    )
+    expect(restorePendingMirror(META, flushed, cfg, storage)).toBeNull()
+    expect(storage.map.has(PENDING_MIRROR_KEY)).toBe(false)
+  })
+
   it('returns null when the mirror only equals the head (nothing to extend)', () => {
     const storage = memoryStorage()
     const head = play(bet(500))
@@ -150,10 +201,27 @@ describe('restorePendingMirror', () => {
     expect(restorePendingMirror(META, play(bet(500)), cfg, storage)).toBeNull()
   })
 
-  it('drops a mirror whose window does not extend the stored pending', () => {
+  it('a differing window is rebuilt from the window start — and dropped when the engine refuses it', () => {
     const storage = memoryStorage()
-    writePendingMirror(META, play(bet(500), bet(600, 'field')), storage)
-    // The head holds a different first action, so the mirror is no prefix extension.
+    const mirrored = play(bet(500), bet(600, 'field'))
+    writePendingMirror(META, mirrored, storage)
+    // The head holds a different first action: the mirror is no prefix extension, so the whole
+    // mirrored window is replayed from the start and restored on its hash.
+    const restored = restorePendingMirror(META, play(bet(700)), cfg, storage)
+    expect(restored).not.toBeNull()
+    expect(hashJson(restored!.state)).toBe(hashJson(mirrored.state))
+
+    // The same shape with an action the table refuses restores nothing.
+    const refused = {
+      v: 1,
+      id: META.id,
+      engineVersion: ENGINE_VERSION,
+      configHash: mirrored.header.configHash,
+      windowCount: 0,
+      pending: [bet(99_999_900)], // far over the $500 per-bet maximum
+      stateHash: hashJson(mirrored.state),
+    }
+    storage.setItem(PENDING_MIRROR_KEY, JSON.stringify(refused))
     expect(restorePendingMirror(META, play(bet(700)), cfg, storage)).toBeNull()
   })
 

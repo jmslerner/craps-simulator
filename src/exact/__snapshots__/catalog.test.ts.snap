@@ -76,6 +76,9 @@ exports[`catalogTable > fingerprints craplessBubble (plan §9 item 11) 1`] = `
   "Hop 5-5 | $1 | 31 for 1 | edge 5/36 | nominal 5/36 | roll 5/36 | win 1/36 | push 0 | rolls 1 | standing 125/9 | assumed 2",
   "C & E | $1 | 3:1 | edge 1/9 | nominal 1/9 | roll 1/9 | win 1/6 | push 0 | rolls 1 | standing 100/9 | assumed 3",
   "Horn | $1 | 3:1 | edge 1/8 | nominal 1/8 | roll 1/8 | win 1/6 | push 0 | rolls 1 | standing 25/2 | assumed 5",
+  "Low Rolls | $1 | 31 for 1 | edge 139241/760760 | nominal 139241/760760 | roll 139241/4444266 | win 20049/760760 | push 0 | rolls 2222133/380380 | standing 696205/228228 | assumed 1",
+  "High Rolls | $1 | 31 for 1 | edge 139241/760760 | nominal 139241/760760 | roll 139241/4444266 | win 20049/760760 | push 0 | rolls 2222133/380380 | standing 696205/228228 | assumed 1",
+  "Roll 'Em All | $1 | 156 for 1 | edge 27738774841/154277300100 | nominal 27738774841/154277300100 | roll 721208145866/23940720290341 | win 126538525259/24067258815600 | push 0 | rolls 23940720290341/4011209802600 | standing 27738774841/9256638006 | assumed 1",
 ]
 `;
 
@@ -155,6 +158,9 @@ exports[`catalogTable > fingerprints craplessBubbleHighLimit (plan §9 item 11) 
   "Hop 5-5 | $5 | 31 for 1 | edge 5/36 | nominal 5/36 | roll 5/36 | win 1/36 | push 0 | rolls 1 | standing 625/9 | assumed 2",
   "C & E | $5 | 3:1 | edge 1/9 | nominal 1/9 | roll 1/9 | win 1/6 | push 0 | rolls 1 | standing 500/9 | assumed 3",
   "Horn | $5 | 3:1 | edge 1/8 | nominal 1/8 | roll 1/8 | win 1/6 | push 0 | rolls 1 | standing 125/2 | assumed 5",
+  "Low Rolls | $5 | 31 for 1 | edge 139241/760760 | nominal 139241/760760 | roll 139241/4444266 | win 20049/760760 | push 0 | rolls 2222133/380380 | standing 3481025/228228 | assumed 1",
+  "High Rolls | $5 | 31 for 1 | edge 139241/760760 | nominal 139241/760760 | roll 139241/4444266 | win 20049/760760 | push 0 | rolls 2222133/380380 | standing 3481025/228228 | assumed 1",
+  "Roll 'Em All | $5 | 156 for 1 | edge 27738774841/154277300100 | nominal 27738774841/154277300100 | roll 721208145866/23940720290341 | win 126538525259/24067258815600 | push 0 | rolls 23940720290341/4011209802600 | standing 138693874205/9256638006 | assumed 1",
 ]
 `;
 
@@ -240,6 +246,10 @@ exports[`catalogTable > fingerprints strictBubble (plan §9 item 11) 1`] = `
   "Hop 5-5 | $1 | 31 for 1 | edge 5/36 | nominal 5/36 | roll 5/36 | win 1/36 | push 0 | rolls 1 | standing 125/9 | assumed 2",
   "C & E | $1 | 3:1 | edge 1/9 | nominal 1/9 | roll 1/9 | win 1/6 | push 0 | rolls 1 | standing 100/9 | assumed 3",
   "Horn | $1 | 3:1 | edge 1/8 | nominal 1/8 | roll 1/8 | win 1/6 | push 0 | rolls 1 | standing 25/2 | assumed 5",
+  "Low Rolls | $1 | 31 for 1 | edge 139241/760760 | nominal 139241/760760 | roll 139241/4444266 | win 20049/760760 | push 0 | rolls 2222133/380380 | standing 696205/228228 | assumed 2",
+  "High Rolls | $1 | 31 for 1 | edge 139241/760760 | nominal 139241/760760 | roll 139241/4444266 | win 20049/760760 | push 0 | rolls 2222133/380380 | standing 696205/228228 | assumed 2",
+  "Roll 'Em All | $1 | 151 for 1 | edge 4959941501491/24067258815600 | nominal 4959941501491/24067258815600 | roll 4959941501491/143644321742046 | win 126538525259/24067258815600 | push 0 | rolls 23940720290341/4011209802600 | standing 4959941501491/1444035528936 | assumed 2",
+  "Lucky Shooter | $1 | 2 for 1 | edge 159317/1889568 | nominal 159317/1889568 | roll 159317/4268475 | win 13/81 | push 2/9 | rolls 474275/209952 | standing 219060875/87707448 | assumed 3",
 ]
 `;
 
@@ -335,6 +345,10 @@ exports[`catalogTable > fingerprints traditionalBubble (plan §9 item 11) 1`] = 
   "Hop 6-6 | $1 | 30 to 1 | edge 5/36 | nominal 5/36 | roll 5/36 | win 1/36 | push 0 | rolls 1 | standing 125/9 | assumed 1",
   "C&E | $1 | 3:1 | edge 1/9 | nominal 1/9 | roll 1/9 | win 1/6 | push 0 | rolls 1 | standing 100/9 | assumed 1",
   "Horn | $1 | 3:1 | edge 1/8 | nominal 1/8 | roll 1/8 | win 1/6 | push 0 | rolls 1 | standing 25/2 | assumed 1",
+  "Hot Shooter Jackpot | $1 | 3 for 1 | edge 34306934554516104504176142040364619705412531939261709423743489868709239381/378077907118096589176325386086839016514550758375552587698537017574940475392 | nominal 34306934554516104504176142040364619705412531939261709423743489868709239381/378077907118096589176325386086839016514550758375552587698537017574940475392 | roll 1681039793171289120704630959977866365565214065023823761763431003566752729669/157942045698584850128409930037776999148953579311387093511063839091931383595008 | win 1212402171589745435449/9211413321697223245824 | push 2739700427773435780295/9211413321697223245824 | rolls 1671/196 | standing 42025994829282228017615773999446659139130351625595594044085775089168818241725/39485511424646212532102482509444249787238394827846773377765959772982845898752 | assumed 3",
+  "Low Rolls | $1 | 30:1 | edge 139241/760760 | nominal 139241/760760 | roll 139241/4444266 | win 20049/760760 | push 0 | rolls 2222133/380380 | standing 6962050/2222133 | assumed 2",
+  "High Rolls | $1 | 30:1 | edge 139241/760760 | nominal 139241/760760 | roll 139241/4444266 | win 20049/760760 | push 0 | rolls 2222133/380380 | standing 6962050/2222133 | assumed 2",
+  "Roll 'Em All | $1 | 155:1 | edge 27738774841/154277300100 | nominal 27738774841/154277300100 | roll 721208145866/23940720290341 | win 126538525259/24067258815600 | push 0 | rolls 23940720290341/4011209802600 | standing 72120814586600/23940720290341 | assumed 2",
 ]
 `;
 
@@ -441,5 +455,6 @@ exports[`catalogTable > fingerprints traditionalLive345 (plan §9 item 11) 1`] =
   "Horn High Yo | $5 | 11:5 | edge 11/90 | nominal 11/90 | roll 11/90 | win 1/6 | push 0 | rolls 1 | standing 550/9 | assumed 4",
   "Horn High Boxcars | $5 | 11:5 | edge 23/180 | nominal 23/180 | roll 23/180 | win 1/6 | push 0 | rolls 1 | standing 575/9 | assumed 4",
   "World | $5 | 11:5 | edge 2/15 | nominal 2/15 | roll 2/15 | win 1/6 | push 1/6 | rolls 1 | standing 200/3 | assumed 5",
+  "Fire Bet | $1 | 24 to 1 | edge 3155010189076512755518373649266277142847/15195531003242259962803834074351444164892 | nominal 3155010189076512755518373649266277142847/15195531003242259962803834074351444164892 | roll 154595499264749125020400308814047579999503/6347933076604454099461301684560315799883633 | win 230470444882074000130253/21741374240278642986445695 | push 0 | rolls 1671/196 | standing 15459549926474912502040030881404757999950300/6347933076604454099461301684560315799883633 | assumed 0",
 ]
 `;

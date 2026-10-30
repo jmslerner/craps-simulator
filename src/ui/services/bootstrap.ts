@@ -123,9 +123,10 @@ export async function bootGame(deps: BootDeps = {}): Promise<BootResult> {
   if (loaded.kind === 'active') {
     const { meta, notice, pendingReveal } = loaded
     const cfg = headerMachine(loaded.session)
-    // A betting action inside the autosave debounce survives an instant reload in the synchronous
-    // mirror (plan §8). It is restored only onto a clean resume (this engine, no divergence), and
-    // only when it cleanly extends the stored head; the repo then catches up at once.
+    // A betting change inside the autosave debounce — a bet, an undo or a clear — survives an
+    // instant reload in the synchronous mirror (plan §8). It is restored only onto a clean resume
+    // (this engine, no divergence) and only when its hash chain validates; the repo then saves the
+    // mirrored window over the stored one at once.
     let session = loaded.session
     if (notice === null && !meta.divergent) {
       const extended = restorePendingMirror(meta, session, cfg, deps.mirror)
@@ -141,6 +142,8 @@ export async function bootGame(deps: BootDeps = {}): Promise<BootResult> {
         ? emptyHistory(true)
         : historyFromWindows(
             replayHistory(session.header, session.committed, { anyEngineVersion: true }),
+            undefined,
+            cfg,
           )
     store.getState().restoreGame({ cfg, session, meta, notice, history })
     // The stored state already holds the roll, so showing it IS the instant reveal (plan §8:

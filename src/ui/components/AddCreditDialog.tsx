@@ -118,7 +118,7 @@ export function AddCreditDialog() {
         </p>
       )}
       <div className="dialog-buttons">
-        <button type="button" onClick={add}>
+        <button type="button" className="btn-primary" onClick={add}>
           Add credit
         </button>
         <button type="button" onClick={ui.closeDialog}>

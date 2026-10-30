@@ -3,7 +3,16 @@
  * rules by an exact solver. The coach, the workers and the scripts import from here.
  */
 
-export { COME_OUT, DEFAULT_MAX_STATES, ExactError, buildChain, solveBetChain } from './chain.ts'
+export {
+  COME_OUT,
+  DEFAULT_MAX_STATES,
+  ExactError,
+  buildChain,
+  canonicalProgress,
+  followsRound,
+  roundFor,
+  solveBetChain,
+} from './chain.ts'
 export type {
   BetChain,
   BetSpec,

@@ -9,5 +9,11 @@
  * - 2: the M4 audit fixes and the M6 reconciliation: re-collection judged after the whole roll,
  *   Interblock's post-seven-out hold in `TableState.heldOff`, rolls refused inside batches, ledger
  *   limits, and exclusions that block additions too.
+ * - 3: the side bets (M11): the table accepts Lucky Roller, Fire, Hot Shooter Jackpot and Lucky
+ *   Shooter bets, settles them (`betProgress` events, side-bet `betResolved` traces, a `zeroNet`
+ *   push for the Hot Shooter's 1-for-1 tier and a `bar` push for the Lucky Shooter's come-out 7 or
+ *   11), and refuses them with `WINDOW_CLOSED`, `WRONG_PHASE`, `CONTRACT_BET` and the qualifier's
+ *   `BELOW_MIN_TOTAL` where it did with `NOT_OFFERED` before. `TableState` keeps its shape;
+ *   `BetInstance.progress` is now set for side bets.
  */
-export const ENGINE_VERSION = 2
+export const ENGINE_VERSION = 3

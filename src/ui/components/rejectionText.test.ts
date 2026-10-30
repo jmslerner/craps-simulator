@@ -79,6 +79,82 @@ describe('rejectionText', () => {
     expect(missing).toContain('is not available on this machine')
   })
 
+  it('words a side bet’s placement window from the engine’s reason and until (M11)', () => {
+    const at = (details: Rejection['details']) =>
+      rejectionText({ code: 'WINDOW_CLOSED', details }, cfg)
+    // Interblock's Lucky Roller: right after a 7 or at the start of the cycle (rules spec §2.6).
+    expect(at({ typeId: 'luckyRollerHigh', reason: 'afterSevenOrStart', until: 'nextSeven' })).toBe(
+      'High Rolls can only be bet right after a 7 or before the first roll — it opens again after the next 7.',
+    )
+    // The Fire Bet and Shoot To Win's Hot Shooter: before a new hand's first roll.
+    expect(at({ typeId: 'fire', reason: 'newHand', until: 'nextHand' })).toBe(
+      "That bet can only be bet before a new hand's first roll — it opens again after the next seven-out.",
+    )
+    const hot = rejectionText(
+      {
+        code: 'WINDOW_CLOSED',
+        details: { typeId: 'hotShooter', reason: 'comeOutAfterSevenOut', until: 'nextHand' },
+      },
+      COMPILED_PRESETS.traditionalBubble,
+    )
+    expect(hot).toBe(
+      "Hot Shooter Jackpot can only be bet before a new hand's first roll — it opens again after the next seven-out.",
+    )
+    // An unknown window with a known reopening still says when; no reason keeps the rolling text.
+    expect(at({ typeId: 'luckyRollerLow', reason: 'later', until: 'nextSeven' })).toBe(
+      'Low Rolls is not open now — it opens again after the next 7.',
+    )
+    expect(at({ reason: 'The dice are rolling' })).toBe(
+      'The dice are rolling — betting reopens after the roll.',
+    )
+  })
+
+  it('words the side-bet lock apart from a line bet’s contract (M11)', () => {
+    const at = (change: string) =>
+      rejectionText(
+        { code: 'CONTRACT_BET', details: { typeId: 'luckyRollerLow', betId: 'b2', change } },
+        cfg,
+      )
+    expect(at('increase')).toBe(
+      'Low Rolls cannot be added to now — a side bet is set before the dice roll.',
+    )
+    expect(at('decrease')).toBe(
+      'Low Rolls is locked once the dice roll — it stays up until it wins or loses.',
+    )
+    expect(at('remove')).toBe(
+      'Low Rolls is locked once the dice roll — it stays up until it wins or loses.',
+    )
+    // The line bet keeps its own wording.
+    expect(rejectionText({ code: 'CONTRACT_BET', details: SAMPLES.CONTRACT_BET }, cfg)).toContain(
+      'contract bet',
+    )
+  })
+
+  it('words the Hot Shooter qualifier with the machine’s minimum and the shortfall (M11)', () => {
+    const trad = COMPILED_PRESETS.traditionalBubble
+    expect(
+      rejectionText(
+        {
+          code: 'BELOW_MIN_TOTAL',
+          details: {
+            scope: 'qualifyingBet',
+            typeId: 'hotShooter',
+            min: 300,
+            total: 100,
+            short: 200,
+          },
+        },
+        trad,
+      ),
+    ).toBe('Hot Shooter Jackpot needs $3.00 on the main game first — the table is $2.00 short.')
+    expect(
+      rejectionText(
+        { code: 'BELOW_MIN_TOTAL', details: { scope: 'qualifyingBet', typeId: 'hotShooter' } },
+        trad,
+      ),
+    ).toBe('Hot Shooter Jackpot needs a qualifying bet on the main game first.')
+  })
+
   it('names the bet with the machine label, not the type id', () => {
     const line = rejectionText({ code: 'CONTRACT_BET', details: SAMPLES.CONTRACT_BET }, cfg)
     expect(line).toContain('Pass Line')

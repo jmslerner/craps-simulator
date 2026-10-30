@@ -1,9 +1,11 @@
-import { fireEvent, screen, within } from '@testing-library/react'
+import { act, fireEvent, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { cents } from '../../engine/index.ts'
 import { handleAnalysisRequest } from '../../workers/analysisHandler.ts'
 import { setAnalysisTransportForTests } from '../services/analysisClient.ts'
 import { dice } from '../test/game.ts'
+import { coachMemoryStore } from '../state/nextStep.ts'
+import { COMPILED_PRESETS } from '../state/machineStore.ts'
 import { renderApp } from '../test/renderApp.tsx'
 
 /** Opens the inspector on a zone through INFO mode (the tap paths have their own tests). */
@@ -166,5 +168,130 @@ describe('InspectorExtras (plan §10 M9a: the coach analysis in the inspector)',
     })
     const dialog = openOn(/^Place 6/)
     expect(within(dialog).queryByText(/House edge/)).toBeNull()
+  })
+})
+
+describe('InspectorExtras advice (plan §10 M9c: alternatives with one-tap switch, memory, modes)', () => {
+  beforeEach(() => {
+    setAnalysisTransportForTests((request) => handleAnalysisRequest(request))
+    coachMemoryStore.getState().reset()
+  })
+
+  afterEach(() => {
+    setAnalysisTransportForTests(null)
+    coachMemoryStore.getState().reset()
+  })
+
+  it('Place 4 on an on-win machine offers "Switch to Buy 4"; the tap converts the bet', async () => {
+    const app = renderApp({ cfg: COMPILED_PRESETS.traditionalBubble })
+    app.run((state) => {
+      state.dispatch({ type: 'place', typeId: 'place', number: 4, amount: cents(1_500) })
+    })
+    const dialog = openOn(/^Place 4/)
+    const fix = await within(dialog).findByTestId('advice-fix-same-event')
+    expect(fix).toHaveTextContent('Switch to Buy 4')
+    fireEvent.click(fix)
+    const bets = app.game.getState().view?.shown.bets ?? []
+    expect(
+      bets.some((bet) => bet.typeId === 'buy' && bet.number === 4 && bet.amount === 1_500),
+    ).toBe(true)
+    expect(bets.some((bet) => bet.typeId === 'place')).toBe(false)
+  })
+
+  it("one Don't show retires an advice row for the run; It's for fun silences the whole type", async () => {
+    const app = renderApp({ cfg: COMPILED_PRESETS.traditionalBubble })
+    app.run((state) => {
+      state.dispatch({ type: 'place', typeId: 'place', number: 4, amount: cents(1_500) })
+    })
+    const dialog = openOn(/^Place 4/)
+    await within(dialog).findByTestId('advice-fix-same-event')
+    const row = () => within(dialog).queryByTestId('advice-fix-same-event')
+    const dontShow = within(dialog)
+      .getAllByRole('button', { name: /Don't show this same-event/ })
+      .at(0)
+    // The button says "again", so the first tap is the last time the row shows (M9 audit MINOR-5).
+    fireEvent.click(dontShow as HTMLElement)
+    expect(row()).toBeNull()
+    expect(screen.getByTestId('announcer')).toHaveTextContent(
+      'That advice will not be shown again.',
+    )
+    // Retired means badge-only for the gate too: reopening the inspector keeps it gone.
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Close' }))
+    const again = openOn(/^Place 4/)
+    await within(again).findByText(/House edge/)
+    expect(within(again).queryByTestId('advice-fix-same-event')).toBeNull()
+
+    // "It's for fun" silences every advice about that bet type (table-level rows may stay).
+    act(() => {
+      coachMemoryStore.getState().markForFun('place')
+    })
+    expect(again.querySelector('[data-advice="edge-warning"]')).toBeNull()
+    expect(again.querySelector('[data-advice="same-event"]')).toBeNull()
+  })
+
+  it('coach off hides the whole coach section: no lines, no Show math, no advice (plan §5.6)', async () => {
+    const app = renderApp()
+    act(() => {
+      app.settings.getState().update({ coachMode: 'off' })
+    })
+    app.run((state) => {
+      state.dispatch({ type: 'place', typeId: 'place', number: 6, amount: cents(500) })
+    })
+    const dialog = openOn(/^Place 6/)
+    // The machine's own facts stay; the coach's go.
+    expect(within(dialog).getByText(/On the table: \$5\.00/)).toBeInTheDocument()
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 20))
+    })
+    expect(within(dialog).queryByRole('region', { name: 'Coach analysis' })).toBeNull()
+    expect(within(dialog).queryByText(/House edge/)).toBeNull()
+    expect(within(dialog).queryByText('Show math')).toBeNull()
+    expect(within(dialog).queryByRole('list', { name: 'Coach advice' })).toBeNull()
+    // Switching the coach back on brings the analysis in.
+    act(() => {
+      app.settings.getState().update({ coachMode: 'full' })
+    })
+    expect(await within(dialog).findByText('House edge 1.55%')).toBeInTheDocument()
+  })
+
+  it('coach quiet keeps the priced lines and Show math, and lists only gate-routed advice', async () => {
+    const app = renderApp({ cfg: COMPILED_PRESETS.traditionalBubble })
+    act(() => {
+      app.settings.getState().update({ coachMode: 'hints' })
+    })
+    app.run((state) => {
+      state.dispatch({ type: 'place', typeId: 'place', number: 4, amount: cents(1_500) })
+    })
+    const dialog = openOn(/^Place 4/)
+    // The same-event switch saves 2/105 ≥ a quarter of the place 4's 1/15: quiet still toasts it.
+    expect(await within(dialog).findByTestId('advice-fix-same-event')).toHaveTextContent(
+      'Switch to Buy 4',
+    )
+    expect(within(dialog).getByText(/House edge/)).toBeInTheDocument()
+    expect(within(dialog).getByText('Show math')).toBeInTheDocument()
+    // The edge warning (6.67%, under quiet's 9% bar) and the context rows are not listed.
+    const rules = [...dialog.querySelectorAll('[data-advice]')].map((el) =>
+      el.getAttribute('data-advice'),
+    )
+    expect(rules).toEqual(['same-event'])
+  })
+
+  it('a working-held advice carries the Set bets On fix and the assumed chip', async () => {
+    const app = renderApp()
+    app.run((state) => {
+      state.dispatch({ type: 'place', typeId: 'pass', amount: cents(500) })
+    })
+    app.roll(dice(1, 1)) // point 2
+    app.roll(dice(3, 4)) // seven-out
+    app.run((state) => {
+      state.dispatch({ type: 'place', typeId: 'place', number: 6, amount: cents(600) })
+    })
+    const dialog = openOn(/^Place 6/)
+    const fix = await within(dialog).findByTestId('advice-fix-working-held')
+    expect(fix).toHaveTextContent('Set bets On')
+    const row = fix.closest('li')
+    expect(row?.querySelector('.coach-assumed')?.getAttribute('title')).toContain('§9 #28')
+    fireEvent.click(fix)
+    expect(app.game.getState().view?.shown.globalOff).toBeNull()
   })
 })

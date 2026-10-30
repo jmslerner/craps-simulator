@@ -300,7 +300,9 @@ describe('golden recording', () => {
   it('reproduces the pinned hash for a pinned seed and start', () => {
     const { recording, attempts } = simulateThrow(0xc0ffee, synthesizeRest(7, [3, 4]))
     expect(attempts).toHaveLength(1)
-    expect(hashRecording(recording)).toBe('6030a138dfc5ffd7')
+    // Re-pinned in M10b from 6030a138dfc5ffd7: only the params fingerprint it covers changed
+    // (the new `handoff` thresholds); frames, contacts and depths are bit-identical.
+    expect(hashRecording(recording)).toBe('ea86e16b9a2178b8')
   })
 })
 

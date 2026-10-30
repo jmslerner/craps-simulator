@@ -1,7 +1,7 @@
 import type { MachineConfig } from '../config/compile.ts'
 import { cents, roundCents, type Cents, type Rounding } from '../core/money.ts'
 import { Fraction } from '../core/rational.ts'
-import { requireType } from '../bets/registry.ts'
+import { requireBet } from '../bets/registry.ts'
 import {
   payoutRoundingFor,
   type BetInstance,
@@ -73,7 +73,7 @@ function settleExactly(
   cfg: MachineConfig,
   round: RoundFn,
 ): SettlementTrace<Fraction> {
-  const { family, type } = requireType(cfg, bet.typeId)
+  const { family, type } = requireBet(cfg, bet.typeId)
   const stake = Fraction.of(bet.amount)
   const base = {
     betId: bet.id,

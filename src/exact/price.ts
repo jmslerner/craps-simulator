@@ -105,6 +105,14 @@ export interface Priced {
 }
 
 const MAX_CACHED = 4_000
+/**
+ * The most chain states the solved-chain cache keeps at once (M11). The main game's chains have
+ * at most 11 states each, so an entry count was budget enough; a side bet's chain has hundreds or
+ * a thousand (Roll 'Em All's 1,023 masks), several megabytes each, and a sweep over many configs
+ * (the property tests, the machine editor) must not pile them up. Distributions are small and keep
+ * the entry cap alone.
+ */
+const MAX_CACHED_STATES = 16_384
 const solvedCache = analysisCache<string, SolvedChain>()
 const distributionCache = analysisCache<string, Distribution>()
 
@@ -139,7 +147,22 @@ export function solvedChain(
   if (cached !== undefined) return cached
   const solved = solveBetChain(buildChain(spec, start, horizon, cfg))
   remember(solvedCache, key, solved, MAX_CACHED)
+  trimSolvedStates(key)
   return solved
+}
+
+/**
+ * Drops the oldest solved chains until the cache holds at most `MAX_CACHED_STATES` states; the
+ * chain just added (`newest`, last in insertion order) stays whatever its size.
+ */
+function trimSolvedStates(newest: string): void {
+  let states = 0
+  for (const entry of solvedCache.values()) states += entry.chain.nodes.length
+  for (const [key, entry] of solvedCache) {
+    if (states <= MAX_CACHED_STATES || key === newest) break
+    solvedCache.delete(key)
+    states -= entry.chain.nodes.length
+  }
 }
 
 /**

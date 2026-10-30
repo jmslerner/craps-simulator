@@ -2,9 +2,11 @@ import { hashJson } from '../../engine/index.ts'
 import type { BetId, Cents, MachineConfig, TableState } from '../../engine/index.ts'
 import { fromWire } from '../../exact/wire.ts'
 import type { BetSpec } from '../../exact/chain.ts'
+import type { CatalogRow } from '../../exact/catalog.ts'
 import { badgeKey } from '../../coach/types.ts'
 import type { ZoneBadge } from '../../coach/types.ts'
 import type { InspectorMath } from '../../coach/inspector.ts'
+import type { LayoutMeter, MeterToggle } from '../../coach/meter.ts'
 import type { AnalysisRequest, AnalysisResponse } from '../../workers/analysisProtocol.ts'
 
 /**
@@ -31,18 +33,24 @@ export type AnalysisTransport = (
 ) => Promise<AnalysisResponse> | AnalysisResponse
 
 const MAX_INSPECTIONS = 64
+const MAX_LAYOUTS = 16
 
 const listeners = new Set<() => void>()
 const badgeSets = new Map<string, BadgeSet>()
+const sheets = new Map<string, readonly CatalogRow[]>()
 const catalogPending = new Set<string>()
 const catalogFailed = new Set<string>()
 const inspections = new Map<string, InspectorMath>()
 const inspectPending = new Set<string>()
 const inspectFailed = new Set<string>()
+const layouts = new Map<string, LayoutMeter>()
+const layoutPending = new Set<string>()
+const layoutFailed = new Set<string>()
 const inflight = new Map<
   number,
   | { readonly kind: 'catalog'; readonly configHash: string }
   | { readonly kind: 'inspect'; readonly key: string }
+  | { readonly kind: 'layout'; readonly key: string }
 >()
 
 let nextId = 1
@@ -132,6 +140,55 @@ export function inspectFor(key: string): InspectorMath | null {
   return inspections.get(key) ?? null
 }
 
+/**
+ * The raw catalog rows behind a config's badges, `byEdge`-sorted — the cheat sheet's data — or
+ * null until the catalog arrives. The array is stored once per arrival, so it is snapshot-stable.
+ */
+export function sheetFor(configHash: string): readonly CatalogRow[] | null {
+  return sheets.get(configHash) ?? null
+}
+
+/** The layout request's identity: the config, the exact table, and the toggle being priced. */
+export function layoutKeyOf(
+  cfg: MachineConfig,
+  state: TableState,
+  toggle: MeterToggle | null,
+): string {
+  return [
+    cfg.configHash,
+    hashJson(state),
+    toggle === null ? '-' : toggle.showSetOn ? 'on' : 'off',
+  ].join('|')
+}
+
+/** Requests the layout meter once per `layoutKeyOf` key; returns the key to read results with. */
+export function requestLayout(
+  cfg: MachineConfig,
+  state: TableState,
+  toggle: MeterToggle | null,
+): string {
+  const key = layoutKeyOf(cfg, state, toggle)
+  if (layouts.has(key) || layoutPending.has(key) || layoutFailed.has(key)) return key
+  layoutPending.add(key)
+  send(
+    {
+      id: nextId++,
+      kind: 'layout',
+      configHash: cfg.configHash,
+      input: cfg.input,
+      state,
+      toggle,
+    },
+    (id) => inflight.set(id, { kind: 'layout', key }),
+  )
+  return key
+}
+
+/** The meter for a key from `requestLayout`, or null until it arrives. */
+export function layoutFor(key: string): LayoutMeter | null {
+  return layouts.get(key) ?? null
+}
+
 // ---------------------------------------------------------------------------------------------
 
 function send(request: AnalysisRequest, track: (id: number) => void): void {
@@ -191,7 +248,20 @@ function deliver(response: AnalysisResponse): void {
           const badge = fromWire<ZoneBadge>(wired)
           byKey.set(badgeKey(badge.typeId, badge.number), badge)
         }
+        const rows = response.rows.map((wired) => fromWire<CatalogRow>(wired))
         badgeSets.set(tracked.configHash, { byKey, fromCache: response.fromCache })
+        sheets.set(tracked.configHash, rows)
+      }
+    } else if (tracked.kind === 'layout') {
+      layoutPending.delete(tracked.key)
+      if (!response.ok || response.kind !== 'layout') {
+        layoutFailed.add(tracked.key)
+      } else {
+        if (layouts.size >= MAX_LAYOUTS) {
+          const oldest = layouts.keys().next()
+          if (oldest.done !== true) layouts.delete(oldest.value)
+        }
+        layouts.set(tracked.key, fromWire<LayoutMeter>(response.meter))
       }
     } else {
       inspectPending.delete(tracked.key)
@@ -208,6 +278,7 @@ function deliver(response: AnalysisResponse): void {
   } catch {
     // A malformed payload: treat it as a failure for that request.
     if (tracked.kind === 'catalog') catalogFailed.add(tracked.configHash)
+    else if (tracked.kind === 'layout') layoutFailed.add(tracked.key)
     else inspectFailed.add(tracked.key)
   }
   notify()
@@ -224,10 +295,14 @@ export function setAnalysisTransportForTests(transport: AnalysisTransport | null
 /** Clears every snapshot and in-flight request (isolated unit tests). */
 export function resetAnalysisForTests(): void {
   badgeSets.clear()
+  sheets.clear()
   catalogPending.clear()
   catalogFailed.clear()
   inspections.clear()
   inspectPending.clear()
   inspectFailed.clear()
+  layouts.clear()
+  layoutPending.clear()
+  layoutFailed.clear()
   inflight.clear()
 }

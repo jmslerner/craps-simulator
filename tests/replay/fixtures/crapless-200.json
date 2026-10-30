@@ -2,7 +2,7 @@
   "format": "bubble-craps-session",
   "version": 1,
   "header": {
-    "engineVersion": 2,
+    "engineVersion": 3,
     "configHash": "4537b96ffb0ea61c",
     "seed": "crapless-200",
     "config": {
@@ -1181,949 +1181,615 @@
   "windows": [
     {
       "actions": [
-        { "type": "place", "typeId": "buy", "amount": 2500, "number": 11 },
-        { "type": "place", "typeId": "place", "amount": 1200, "number": 6 }
-      ],
-      "roll": { "type": "roll" },
-      "hashAfter": "fd7144015d1d05e0"
-    },
-    {
-      "actions": [
-        { "type": "place", "typeId": "hard", "amount": 300, "number": 4 },
-        { "type": "place", "typeId": "come", "amount": 500 },
-        { "type": "batch", "actions": [{ "type": "setAmount", "betId": "b2", "amount": 2600 }] }
-      ],
-      "roll": { "type": "roll" },
-      "hashAfter": "1f893b03dfd50185"
-    },
-    {
-      "actions": [
-        { "type": "place", "typeId": "buy", "amount": 2500, "number": 10 },
-        { "type": "batch", "actions": [{ "type": "setAmount", "betId": "b2", "amount": 5600 }] },
-        { "type": "place", "typeId": "hard", "amount": 300, "number": 10 }
-      ],
-      "roll": { "type": "roll" },
-      "hashAfter": "5719784dd40255e1"
-    },
-    {
-      "actions": [
-        { "type": "place", "typeId": "comeOdds", "amount": 500, "parentId": "b4" },
-        { "type": "place", "typeId": "come", "amount": 1500 },
-        { "type": "place", "typeId": "hop23", "amount": 200 }
-      ],
-      "roll": { "type": "roll" },
-      "hashAfter": "269766a4ba802718"
-    },
-    {
-      "actions": [
-        { "type": "batch", "actions": [{ "type": "setAmount", "betId": "b2", "amount": 12100 }] }
-      ],
-      "roll": { "type": "roll" },
-      "hashAfter": "8a0d2077c5d18195"
-    },
-    {
-      "actions": [
-        { "type": "place", "typeId": "hop23", "amount": 200 },
-        { "type": "place", "typeId": "place", "amount": 1500, "number": 12 },
-        { "type": "place", "typeId": "pass", "amount": 300 }
-      ],
-      "roll": { "type": "roll" },
-      "hashAfter": "34de3e2ad6621a22"
-    },
-    {
-      "actions": [{ "type": "place", "typeId": "place", "amount": 500, "number": 11 }],
-      "roll": { "type": "roll" },
-      "hashAfter": "f349fe971ff4a001"
-    },
-    {
-      "actions": [
-        { "type": "place", "typeId": "buy", "amount": 5000, "number": 2 },
+        { "type": "place", "typeId": "luckyRollerAll", "amount": 100 },
         { "type": "place", "typeId": "pass", "amount": 500 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "4bb42886923459b7"
+      "hashAfter": "b07ff53e4a536596"
     },
     {
       "actions": [
-        { "type": "place", "typeId": "hard", "amount": 400, "number": 10 },
-        { "type": "setAmount", "betId": "b11", "amount": 2000 },
-        { "type": "place", "typeId": "buy", "amount": 7500, "number": 6 }
+        { "type": "place", "typeId": "hop13", "amount": 300 },
+        {
+          "type": "batch",
+          "actions": [{ "type": "place", "typeId": "passOdds", "parentId": "b2", "amount": 1000 }]
+        }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "d17edc44ecde70fe"
+      "hashAfter": "27e5596a7ee5e750"
+    },
+    {
+      "actions": [{ "type": "place", "typeId": "buy", "amount": 7500, "number": 8 }],
+      "roll": { "type": "roll" },
+      "hashAfter": "2b8550262622e501"
+    },
+    {
+      "actions": [{ "type": "setAmount", "betId": "b5", "amount": 0 }],
+      "roll": { "type": "roll" },
+      "hashAfter": "4f955902cd2c2737"
     },
     {
       "actions": [
-        { "type": "place", "typeId": "place", "amount": 1000, "number": 2 },
-        { "type": "place", "typeId": "place", "amount": 500, "number": 9 },
-        { "type": "place", "typeId": "pass", "amount": 500 }
+        { "type": "place", "typeId": "place", "amount": 1000, "number": 5 },
+        { "type": "place", "typeId": "place", "amount": 1500, "number": 12 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "b5d6309ad500151e"
+      "hashAfter": "1f9c298f029102f0"
     },
     {
       "actions": [
-        { "type": "place", "typeId": "place", "amount": 500, "number": 3 },
-        { "type": "place", "typeId": "hard", "amount": 200, "number": 4 }
+        { "type": "place", "typeId": "hard", "amount": 400, "number": 8 },
+        { "type": "place", "typeId": "pass", "amount": 1000 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "65ee377e068a4c11"
+      "hashAfter": "034679462b58ab09"
     },
     {
-      "actions": [{ "type": "place", "typeId": "pass", "amount": 500 }],
+      "actions": [{ "type": "place", "typeId": "hop23", "amount": 300 }],
       "roll": { "type": "roll" },
-      "hashAfter": "4c91a0bca209b8ec"
-    },
-    {
-      "actions": [
-        { "type": "place", "typeId": "come", "amount": 1500 },
-        { "type": "place", "typeId": "hop34", "amount": 300 },
-        { "type": "place", "typeId": "passOdds", "amount": 500, "parentId": "b23" }
-      ],
-      "roll": { "type": "roll" },
-      "hashAfter": "862200770eeefcf7"
-    },
-    {
-      "actions": [
-        { "type": "setGlobalWorking", "off": true },
-        { "type": "place", "typeId": "hop25", "amount": 100 }
-      ],
-      "roll": { "type": "roll" },
-      "hashAfter": "e3fc6c9dd9367e96"
+      "hashAfter": "a13d8c0378e6f6c6"
     },
     {
       "actions": [
         { "type": "place", "typeId": "hop36", "amount": 100 },
-        { "type": "place", "typeId": "place", "amount": 500, "number": 10 }
+        { "type": "setGlobalWorking", "off": true },
+        { "type": "place", "typeId": "pass", "amount": 400 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "21a8a2bd546a85ed"
-    },
-    {
-      "actions": [
-        { "type": "place", "typeId": "hop33", "amount": 200 },
-        { "type": "place", "typeId": "pass", "amount": 300 }
-      ],
-      "roll": { "type": "roll" },
-      "hashAfter": "0ecfcc04b68f06e2"
-    },
-    {
-      "actions": [
-        { "type": "setGlobalWorking", "off": null },
-        { "type": "place", "typeId": "hard", "amount": 300, "number": 10 }
-      ],
-      "roll": { "type": "roll" },
-      "hashAfter": "74ea628916668fa2"
-    },
-    {
-      "actions": [{ "type": "setAmount", "betId": "b29", "amount": 1000 }],
-      "roll": { "type": "roll" },
-      "hashAfter": "d7d3062c58615417"
-    },
-    {
-      "actions": [
-        { "type": "place", "typeId": "buy", "amount": 5000, "number": 4 },
-        { "type": "place", "typeId": "pass", "amount": 500 }
-      ],
-      "roll": { "type": "roll" },
-      "hashAfter": "cab9a12f7e602e03"
-    },
-    {
-      "actions": [
-        { "type": "deposit", "amount": 20000 },
-        { "type": "place", "typeId": "snakeEyes", "amount": 300 }
-      ],
-      "roll": { "type": "roll" },
-      "hashAfter": "541b4e1102c9eeff"
-    },
-    {
-      "actions": [{ "type": "place", "typeId": "hop25", "amount": 200 }],
-      "roll": { "type": "roll" },
-      "hashAfter": "54d30d57631fac73"
-    },
-    {
-      "actions": [
-        { "type": "place", "typeId": "horn", "amount": 300 },
-        { "type": "setAmount", "betId": "b37", "amount": 0 },
-        {
-          "type": "batch",
-          "actions": [
-            { "type": "setAmount", "betId": "b33", "amount": 10000 },
-            { "type": "setAmount", "betId": "b34", "amount": 1000 }
-          ]
-        }
-      ],
-      "roll": { "type": "roll" },
-      "hashAfter": "6bbd2a55bf0bc162"
+      "hashAfter": "a0036a107bcda605"
     },
     {
       "actions": [
         { "type": "place", "typeId": "buy", "amount": 2500, "number": 2 },
-        { "type": "place", "typeId": "passOdds", "amount": 500, "parentId": "b34" }
+        { "type": "place", "typeId": "come", "amount": 100 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "96bfeddd7b0138bb"
+      "hashAfter": "399a246ac302abdd"
     },
     {
       "actions": [
-        { "type": "place", "typeId": "come", "amount": 500 },
-        { "type": "place", "typeId": "hop24", "amount": 200 },
-        {
-          "type": "batch",
-          "actions": [
-            { "type": "place", "typeId": "buy", "amount": 2500, "number": 2 },
-            { "type": "place", "typeId": "passOdds", "amount": 500, "parentId": "b34" }
-          ]
-        }
-      ],
-      "roll": { "type": "roll" },
-      "hashAfter": "9d2ec55a9451c2ed"
-    },
-    {
-      "actions": [
-        { "type": "place", "typeId": "place", "amount": 1200, "number": 6 },
+        { "type": "place", "typeId": "hard", "amount": 100, "number": 4 },
+        { "type": "place", "typeId": "place", "amount": 1000, "number": 10 },
+        { "type": "place", "typeId": "hard", "amount": 500, "number": 6 },
         { "type": "place", "typeId": "pass", "amount": 500 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "cf88a23ab2848ec7"
+      "hashAfter": "e8a0941eaab330bc"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "hop55", "amount": 200 },
+        { "type": "place", "typeId": "place", "amount": 1200, "number": 8 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "cb9dd1548aacc86f"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "pass", "amount": 1000 },
+        { "type": "setAmount", "betId": "b21", "amount": 2000 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "ab67d60ba6428b8d"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "come", "amount": 2000 },
+        { "type": "place", "typeId": "buy", "amount": 7500, "number": 3 },
+        { "type": "place", "typeId": "place", "amount": 1500, "number": 9 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "e6d620fcf762aaa7"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "hop44", "amount": 200 },
+        { "type": "place", "typeId": "place", "amount": 600, "number": 6 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "631760c06da3f11d"
+    },
+    {
+      "actions": [
+        {
+          "type": "batch",
+          "actions": [{ "type": "place", "typeId": "comeOdds", "parentId": "b22", "amount": 4000 }]
+        }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "4345bcd570606079"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "place", "amount": 1000, "number": 12 },
+        { "type": "place", "typeId": "hop36", "amount": 100 },
+        { "type": "place", "typeId": "pass", "amount": 400 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "63c5325e88681aa6"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "c", "amount": 200 },
+        { "type": "place", "typeId": "passOdds", "amount": 500, "parentId": "b30" },
+        { "type": "batch", "actions": [{ "type": "setAmount", "betId": "b32", "amount": 800 }] }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "7ff468188b77c858"
+    },
+    {
+      "actions": [{ "type": "place", "typeId": "hop22", "amount": 100 }],
+      "roll": { "type": "roll" },
+      "hashAfter": "970c5cb44835ca61"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "place", "amount": 500, "number": 3 },
+        { "type": "place", "typeId": "hop15", "amount": 200 },
+        { "type": "place", "typeId": "pass", "amount": 300 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "883d5bc4db6f4d67"
+    },
+    {
+      "actions": [
+        { "type": "batch", "actions": [{ "type": "setAmount", "betId": "b36", "amount": 600 }] },
+        { "type": "setGlobalWorking", "off": null },
+        { "type": "setAmount", "betId": "b17", "amount": 800 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "c09c4a66f84a7580"
+    },
+    {
+      "actions": [
+        { "type": "setAmount", "betId": "b34", "amount": 0 },
+        { "type": "place", "typeId": "passOdds", "amount": 500, "parentId": "b36" }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "55f0cedfed8cb0ea"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "buy", "amount": 7500, "number": 4 },
+        { "type": "place", "typeId": "hop23", "amount": 100 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "07e538a9da5a6f83"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "any7", "amount": 300 },
+        { "type": "setAmount", "betId": "b28", "amount": 2500 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "331e5259658930de"
+    },
+    {
+      "actions": [
+        { "type": "batch", "actions": [{ "type": "setAmount", "betId": "b38", "amount": 22100 }] },
+        {
+          "type": "batch",
+          "actions": [{ "type": "place", "typeId": "passOdds", "parentId": "b36", "amount": 1200 }]
+        }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "c004d0c9c543bcb3"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "hop22", "amount": 200 },
+        { "type": "place", "typeId": "pass", "amount": 300 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "6a59740525aedad0"
     },
     {
       "actions": [
         { "type": "deposit", "amount": 20000 },
-        { "type": "place", "typeId": "place", "amount": 500, "number": 5 },
-        { "type": "place", "typeId": "anyCraps", "amount": 200 }
+        { "type": "place", "typeId": "passOdds", "amount": 600, "parentId": "b43" }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "71050d4013bea269"
+      "hashAfter": "830107a78d5c59dc"
     },
     {
       "actions": [
-        { "type": "place", "typeId": "come", "amount": 500 },
-        { "type": "place", "typeId": "hop16", "amount": 200 }
+        { "type": "place", "typeId": "hard", "amount": 300, "number": 4 },
+        { "type": "place", "typeId": "hop26", "amount": 300 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "2133da76b3c0d021"
+      "hashAfter": "fc91bca639d918f3"
+    },
+    {
+      "actions": [{ "type": "place", "typeId": "come", "amount": 1000 }],
+      "roll": { "type": "roll" },
+      "hashAfter": "6a0183a51a644edb"
     },
     {
       "actions": [
-        { "type": "place", "typeId": "passOdds", "amount": 1000, "parentId": "b43" },
-        { "type": "place", "typeId": "hop15", "amount": 100 }
+        { "type": "place", "typeId": "hop33", "amount": 300 },
+        { "type": "place", "typeId": "comeOdds", "amount": 500, "parentId": "b47" }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "19a8525b8cc36690"
-    },
-    {
-      "actions": [{ "type": "place", "typeId": "place", "amount": 1000, "number": 3 }],
-      "roll": { "type": "roll" },
-      "hashAfter": "5906682da5ff14f1"
+      "hashAfter": "ed4080cf3ff2db5c"
     },
     {
       "actions": [
-        { "type": "place", "typeId": "buy", "amount": 5000, "number": 9 },
-        { "type": "place", "typeId": "hard", "amount": 400, "number": 4 },
-        { "type": "place", "typeId": "place", "amount": 1500, "number": 12 }
+        { "type": "place", "typeId": "come", "amount": 1000 },
+        { "type": "place", "typeId": "buy", "amount": 5000, "number": 10 },
+        { "type": "setGlobalWorking", "off": true }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "c21a35289e806a17"
+      "hashAfter": "d05de2b6db55e897"
+    },
+    {
+      "actions": [
+        {
+          "type": "batch",
+          "actions": [{ "type": "place", "typeId": "comeOdds", "parentId": "b50", "amount": 2000 }]
+        },
+        { "type": "setAmount", "betId": "b51", "amount": 0 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "64fdd5b93fcd3fb1"
+    },
+    {
+      "actions": [{ "type": "setAmount", "betId": "b45", "amount": 400 }],
+      "roll": { "type": "roll" },
+      "hashAfter": "1ff297dd1dd2e88e"
+    },
+    {
+      "actions": [
+        { "type": "setAmount", "betId": "b43", "amount": 2300 },
+        { "type": "place", "typeId": "place", "amount": 500, "number": 11 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "ba5f2513097b7a2c"
+    },
+    {
+      "actions": [{ "type": "place", "typeId": "place", "amount": 1800, "number": 6 }],
+      "roll": { "type": "roll" },
+      "hashAfter": "e868275c3ac66674"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "buy", "amount": 2500, "number": 10 },
+        {
+          "type": "batch",
+          "actions": [{ "type": "place", "typeId": "place", "amount": 1800, "number": 6 }]
+        },
+        { "type": "setAmount", "betId": "b55", "amount": 5000 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "500a17ad121e7fb1"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "pass", "amount": 1500 },
+        { "type": "setAmount", "betId": "b45", "amount": 600 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "54ec0f0e4186596c"
     },
     {
       "actions": [
         {
           "type": "batch",
           "actions": [
-            { "type": "setAmount", "betId": "b33", "amount": 20000 },
-            { "type": "setAmount", "betId": "b42", "amount": 2400 },
-            { "type": "setAmount", "betId": "b44", "amount": 1000 },
-            { "type": "setAmount", "betId": "b50", "amount": 2000 },
-            { "type": "setAmount", "betId": "b51", "amount": 10000 },
-            { "type": "setAmount", "betId": "b52", "amount": 800 },
-            { "type": "setAmount", "betId": "b53", "amount": 3000 }
+            { "type": "setAmount", "betId": "b45", "amount": 0 },
+            { "type": "setAmount", "betId": "b53", "amount": 0 },
+            { "type": "setAmount", "betId": "b54", "amount": 0 },
+            { "type": "setAmount", "betId": "b55", "amount": 0 }
           ]
         }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "3c6e04cb8eadf426"
+      "hashAfter": "9c1f67b534c695cd"
     },
     {
       "actions": [
-        { "type": "batch", "actions": [{ "type": "setAmount", "betId": "b50", "amount": 7500 }] },
-        { "type": "place", "typeId": "hard", "amount": 400, "number": 8 }
+        { "type": "place", "typeId": "place", "amount": 1000, "number": 2 },
+        { "type": "place", "typeId": "pass", "amount": 500 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "eb1821f56288b6fb"
+      "hashAfter": "a1f4276c5de010af"
+    },
+    {
+      "actions": [{ "type": "setAmount", "betId": "b57", "amount": 0 }],
+      "roll": { "type": "roll" },
+      "hashAfter": "3cdb8c6400d67d03"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "place", "amount": 500, "number": 9 },
+        { "type": "place", "typeId": "place", "amount": 1000, "number": 5 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "f80152101e9614fe"
+    },
+    {
+      "actions": [
+        {
+          "type": "batch",
+          "actions": [{ "type": "place", "typeId": "passOdds", "parentId": "b58", "amount": 1000 }]
+        }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "458c7310456021ff"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "hard", "amount": 100, "number": 6 },
+        { "type": "setAmount", "betId": "b62", "amount": 400 },
+        { "type": "setAmount", "betId": "b60", "amount": 2500 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "fbb7c1f408801db7"
+    },
+    {
+      "actions": [{ "type": "place", "typeId": "hard", "amount": 400, "number": 4 }],
+      "roll": { "type": "roll" },
+      "hashAfter": "6e0bb3456a234492"
+    },
+    {
+      "actions": [{ "type": "setAmount", "betId": "b62", "amount": 0 }],
+      "roll": { "type": "roll" },
+      "hashAfter": "4350aff608afd08b"
+    },
+    {
+      "actions": [{ "type": "place", "typeId": "come", "amount": 500 }],
+      "roll": { "type": "roll" },
+      "hashAfter": "fd403df94b9fa60f"
+    },
+    {
+      "actions": [{ "type": "setAmount", "betId": "b60", "amount": 0 }],
+      "roll": { "type": "roll" },
+      "hashAfter": "72d6cd83ee64f775"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "hop34", "amount": 300 },
+        { "type": "place", "typeId": "hard", "amount": 300, "number": 6 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "b19f7617aceedb4f"
+    },
+    {
+      "actions": [
+        {
+          "type": "batch",
+          "actions": [{ "type": "place", "typeId": "passOdds", "parentId": "b58", "amount": 1000 }]
+        },
+        { "type": "place", "typeId": "come", "amount": 2000 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "df96534604e1dcd2"
+    },
+    {
+      "actions": [
+        { "type": "setAmount", "betId": "b63", "amount": 900 },
+        {
+          "type": "batch",
+          "actions": [
+            { "type": "setAmount", "betId": "b59", "amount": 1000 },
+            { "type": "setAmount", "betId": "b63", "amount": 1800 },
+            { "type": "setAmount", "betId": "b66", "amount": 600 }
+          ]
+        },
+        { "type": "place", "typeId": "pass", "amount": 500 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "8661f42d6bd1c164"
+    },
+    {
+      "actions": [{ "type": "place", "typeId": "come", "amount": 1000 }],
+      "roll": { "type": "roll" },
+      "hashAfter": "b798a9621ff46841"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "passOdds", "amount": 500, "parentId": "b69" },
+        { "type": "setAmount", "betId": "b66", "amount": 0 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "514122e6a7f7db9d"
+    },
+    {
+      "actions": [{ "type": "place", "typeId": "place", "amount": 1000, "number": 11 }],
+      "roll": { "type": "roll" },
+      "hashAfter": "1bd0eb9105f52c1d"
+    },
+    {
+      "actions": [{ "type": "place", "typeId": "buy", "amount": 5000, "number": 12 }],
+      "roll": { "type": "roll" },
+      "hashAfter": "074629d49bdf08fd"
+    },
+    {
+      "actions": [{ "type": "setAmount", "betId": "b63", "amount": 1900 }],
+      "roll": { "type": "roll" },
+      "hashAfter": "5c35fe964ce347ca"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "come", "amount": 1500 },
+        { "type": "setAmount", "betId": "b74", "amount": 3000 },
+        {
+          "type": "batch",
+          "actions": [
+            { "type": "setAmount", "betId": "b59", "amount": 2000 },
+            { "type": "setAmount", "betId": "b63", "amount": 3800 },
+            { "type": "setAmount", "betId": "b72", "amount": 2000 },
+            { "type": "setAmount", "betId": "b73", "amount": 10000 },
+            { "type": "setAmount", "betId": "b74", "amount": 6000 }
+          ]
+        }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "03ee195074eaf909"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "come", "amount": 1500 },
+        { "type": "place", "typeId": "place", "amount": 1000, "number": 4 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "f55897571ae1fcd2"
+    },
+    {
+      "actions": [{ "type": "place", "typeId": "buy", "amount": 5000, "number": 3 }],
+      "roll": { "type": "roll" },
+      "hashAfter": "a0c44e67cb3fae5c"
+    },
+    {
+      "actions": [
+        {
+          "type": "batch",
+          "actions": [{ "type": "place", "typeId": "buy", "amount": 5000, "number": 3 }]
+        },
+        { "type": "place", "typeId": "hard", "amount": 500, "number": 6 },
+        { "type": "place", "typeId": "come", "amount": 1000 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "9347033683c1767c"
     },
     {
       "actions": [
         { "type": "deposit", "amount": 10000 },
-        { "type": "place", "typeId": "any7", "amount": 200 },
-        { "type": "place", "typeId": "buy", "amount": 5000, "number": 3 },
-        {
-          "type": "batch",
-          "actions": [
-            { "type": "setAmount", "betId": "b50", "amount": 7500 },
-            { "type": "place", "typeId": "hard", "amount": 400, "number": 8 }
-          ]
-        }
+        { "type": "place", "typeId": "hop16", "amount": 300 },
+        { "type": "setAmount", "betId": "b63", "amount": 3900 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "964e169d0681e475"
-    },
-    {
-      "actions": [{ "type": "place", "typeId": "hop22", "amount": 200 }],
-      "roll": { "type": "roll" },
-      "hashAfter": "4c870a65dd32dd82"
+      "hashAfter": "59839f0fdabca358"
     },
     {
       "actions": [
-        { "type": "place", "typeId": "come", "amount": 1000 },
-        { "type": "batch", "actions": [{ "type": "place", "typeId": "hop22", "amount": 200 }] }
-      ],
-      "roll": { "type": "roll" },
-      "hashAfter": "b58a9c4b8be59a3b"
-    },
-    {
-      "actions": [
-        { "type": "place", "typeId": "hard", "amount": 200, "number": 6 },
-        { "type": "place", "typeId": "buy", "amount": 5000, "number": 2 },
-        { "type": "place", "typeId": "buy", "amount": 5000, "number": 11 },
-        { "type": "place", "typeId": "pass", "amount": 300 }
-      ],
-      "roll": { "type": "roll" },
-      "hashAfter": "8524030cbc0ca475"
-    },
-    {
-      "actions": [
-        { "type": "deposit", "amount": 20000 },
+        { "type": "place", "typeId": "hard", "amount": 100, "number": 8 },
         { "type": "place", "typeId": "come", "amount": 1500 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "78592fdf49b706a2"
+      "hashAfter": "b79c6691342cc8be"
     },
     {
-      "actions": [
-        { "type": "place", "typeId": "hop33", "amount": 200 },
-        { "type": "place", "typeId": "pass", "amount": 300 }
-      ],
+      "actions": [{ "type": "place", "typeId": "hop13", "amount": 200 }],
       "roll": { "type": "roll" },
-      "hashAfter": "6abbbe7a280798a0"
+      "hashAfter": "f9bab14264ed2f70"
     },
     {
-      "actions": [{ "type": "place", "typeId": "passOdds", "amount": 600, "parentId": "b66" }],
+      "actions": [{ "type": "place", "typeId": "hard", "amount": 200, "number": 10 }],
       "roll": { "type": "roll" },
-      "hashAfter": "e2e04ab66853212e"
-    },
-    {
-      "actions": [
-        { "type": "place", "typeId": "hard", "amount": 400, "number": 6 },
-        { "type": "batch", "actions": [{ "type": "setAmount", "betId": "b66", "amount": 600 }] }
-      ],
-      "roll": { "type": "roll" },
-      "hashAfter": "594f320c74adde3b"
-    },
-    {
-      "actions": [{ "type": "place", "typeId": "place", "amount": 1500, "number": 5 }],
-      "roll": { "type": "roll" },
-      "hashAfter": "3f9a976c332ba8d7"
-    },
-    {
-      "actions": [
-        { "type": "place", "typeId": "place", "amount": 1500, "number": 12 },
-        { "type": "place", "typeId": "come", "amount": 1000 },
-        { "type": "place", "typeId": "place", "amount": 1500, "number": 4 }
-      ],
-      "roll": { "type": "roll" },
-      "hashAfter": "72937e917ac6890a"
-    },
-    {
-      "actions": [
-        { "type": "place", "typeId": "hard", "amount": 300, "number": 6 },
-        { "type": "place", "typeId": "come", "amount": 1500 },
-        { "type": "setAmount", "betId": "b61", "amount": 7500 }
-      ],
-      "roll": { "type": "roll" },
-      "hashAfter": "6621a8f89d5900fd"
-    },
-    {
-      "actions": [
-        { "type": "place", "typeId": "hard", "amount": 400, "number": 10 },
-        { "type": "place", "typeId": "place", "amount": 500, "number": 2 }
-      ],
-      "roll": { "type": "roll" },
-      "hashAfter": "c49e83caf1b09d7d"
-    },
-    {
-      "actions": [{ "type": "setAmount", "betId": "b69", "amount": 0 }],
-      "roll": { "type": "roll" },
-      "hashAfter": "986332974944b8c5"
-    },
-    {
-      "actions": [
-        { "type": "setAmount", "betId": "b66", "amount": 1600 },
-        { "type": "place", "typeId": "comeOdds", "amount": 1000, "parentId": "b71" },
-        { "type": "setAmount", "betId": "b66", "amount": 3100 }
-      ],
-      "roll": { "type": "roll" },
-      "hashAfter": "8565362214d56ea1"
-    },
-    {
-      "actions": [{ "type": "setAmount", "betId": "b66", "amount": 5100 }],
-      "roll": { "type": "roll" },
-      "hashAfter": "90661ce4abc37508"
+      "hashAfter": "f3a6f16a96afb58d"
     },
     {
       "actions": [
         {
           "type": "batch",
-          "actions": [{ "type": "place", "typeId": "passOdds", "parentId": "b66", "amount": 10200 }]
+          "actions": [{ "type": "place", "typeId": "hard", "amount": 200, "number": 10 }]
         },
-        { "type": "place", "typeId": "come", "amount": 1500 },
-        { "type": "place", "typeId": "buy", "amount": 2500, "number": 10 }
+        { "type": "place", "typeId": "place", "amount": 1500, "number": 3 },
+        { "type": "place", "typeId": "come", "amount": 1500 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "7122e2d85b70e8fa"
+      "hashAfter": "9c1d63d1438b7551"
     },
     {
       "actions": [
-        { "type": "deposit", "amount": 30000 },
-        { "type": "place", "typeId": "buy", "amount": 5000, "number": 3 },
-        { "type": "place", "typeId": "e", "amount": 300 },
+        { "type": "place", "typeId": "hop46", "amount": 300 },
         { "type": "place", "typeId": "pass", "amount": 200 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "9b23fc6c32678a0b"
+      "hashAfter": "ff4aa54da80e4a5e"
+    },
+    {
+      "actions": [
+        { "type": "setAmount", "betId": "b85", "amount": 3000 },
+        { "type": "place", "typeId": "come", "amount": 300 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "620adf0b5383ebfe"
+    },
+    {
+      "actions": [
+        { "type": "setAmount", "betId": "b81", "amount": 200 },
+        { "type": "place", "typeId": "pass", "amount": 500 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "8722a20443a0b2f6"
     },
     {
       "actions": [
         {
           "type": "batch",
-          "actions": [{ "type": "place", "typeId": "passOdds", "parentId": "b83", "amount": 400 }]
+          "actions": [{ "type": "place", "typeId": "passOdds", "parentId": "b90", "amount": 1000 }]
         }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "55fbf322692312b1"
-    },
-    {
-      "actions": [
-        { "type": "place", "typeId": "hard", "amount": 500, "number": 10 },
-        { "type": "setAmount", "betId": "b81", "amount": 12500 }
-      ],
-      "roll": { "type": "roll" },
-      "hashAfter": "19f1e0e6a8ff38cf"
-    },
-    {
-      "actions": [
-        { "type": "batch", "actions": [{ "type": "setAmount", "betId": "b83", "amount": 400 }] },
-        { "type": "place", "typeId": "hard", "amount": 100, "number": 8 }
-      ],
-      "roll": { "type": "roll" },
-      "hashAfter": "5fbbc59839f5df42"
-    },
-    {
-      "actions": [
-        { "type": "place", "typeId": "buy", "amount": 2500, "number": 12 },
-        { "type": "place", "typeId": "hop23", "amount": 200 }
-      ],
-      "roll": { "type": "roll" },
-      "hashAfter": "909dc0938a4a28fb"
-    },
-    {
-      "actions": [{ "type": "setAmount", "betId": "b83", "amount": 2400 }],
-      "roll": { "type": "roll" },
-      "hashAfter": "2392484fc855c848"
-    },
-    {
-      "actions": [
-        { "type": "setGlobalWorking", "off": true },
-        { "type": "place", "typeId": "come", "amount": 1000 }
-      ],
-      "roll": { "type": "roll" },
-      "hashAfter": "e2c9f23a814f4a6c"
-    },
-    {
-      "actions": [
-        { "type": "place", "typeId": "boxcars", "amount": 300 },
-        { "type": "setGlobalWorking", "off": null },
-        { "type": "place", "typeId": "buy", "amount": 7500, "number": 5 }
-      ],
-      "roll": { "type": "roll" },
-      "hashAfter": "021c6e086d5cce63"
-    },
-    {
-      "actions": [{ "type": "place", "typeId": "hard", "amount": 100, "number": 4 }],
-      "roll": { "type": "roll" },
-      "hashAfter": "52a0e9dc3e210f18"
-    },
-    {
-      "actions": [
-        { "type": "setAmount", "betId": "b91", "amount": 10000 },
-        { "type": "place", "typeId": "come", "amount": 1000 },
-        { "type": "batch", "actions": [{ "type": "setAmount", "betId": "b91", "amount": 20800 }] }
-      ],
-      "roll": { "type": "roll" },
-      "hashAfter": "7bd52d77e3a03ca7"
-    },
-    {
-      "actions": [{ "type": "place", "typeId": "come", "amount": 1000 }],
-      "roll": { "type": "roll" },
-      "hashAfter": "ea6961739755e645"
-    },
-    {
-      "actions": [
-        { "type": "setAmount", "betId": "b42", "amount": 3600 },
-        { "type": "place", "typeId": "comeOdds", "amount": 1000, "parentId": "b89" }
-      ],
-      "roll": { "type": "roll" },
-      "hashAfter": "eb7926fb46ba30e5"
-    },
-    {
-      "actions": [
-        { "type": "place", "typeId": "hop45", "amount": 100 },
-        { "type": "place", "typeId": "place", "amount": 1000, "number": 2 },
-        { "type": "setAmount", "betId": "b81", "amount": 0 }
-      ],
-      "roll": { "type": "roll" },
-      "hashAfter": "13736fbd16691b2d"
-    },
-    {
-      "actions": [{ "type": "place", "typeId": "come", "amount": 2000 }],
-      "roll": { "type": "roll" },
-      "hashAfter": "c89800d7032e62b2"
-    },
-    {
-      "actions": [
-        { "type": "place", "typeId": "place", "amount": 1500, "number": 10 },
-        { "type": "place", "typeId": "any7", "amount": 100 },
-        { "type": "batch", "actions": [{ "type": "setAmount", "betId": "b95", "amount": 2000 }] }
-      ],
-      "roll": { "type": "roll" },
-      "hashAfter": "494825b04f65969d"
-    },
-    {
-      "actions": [{ "type": "place", "typeId": "pass", "amount": 500 }],
-      "roll": { "type": "roll" },
-      "hashAfter": "e6a441342b2298c6"
-    },
-    {
-      "actions": [{ "type": "place", "typeId": "hop45", "amount": 300 }],
-      "roll": { "type": "roll" },
-      "hashAfter": "d832249850705c39"
-    },
-    {
-      "actions": [{ "type": "place", "typeId": "pass", "amount": 1000 }],
-      "roll": { "type": "roll" },
-      "hashAfter": "4a9b17464f570690"
-    },
-    {
-      "actions": [
-        { "type": "setGlobalWorking", "off": true },
-        { "type": "place", "typeId": "place", "amount": 1500, "number": 4 }
-      ],
-      "roll": { "type": "roll" },
-      "hashAfter": "3183bd0e531cfe03"
+      "hashAfter": "eccc698574f5ee2e"
     },
     {
       "actions": [
         {
           "type": "batch",
-          "actions": [{ "type": "place", "typeId": "place", "amount": 1500, "number": 4 }]
+          "actions": [
+            { "type": "setAmount", "betId": "b59", "amount": 0 },
+            { "type": "setAmount", "betId": "b63", "amount": 0 },
+            { "type": "setAmount", "betId": "b72", "amount": 0 },
+            { "type": "setAmount", "betId": "b73", "amount": 0 },
+            { "type": "setAmount", "betId": "b76", "amount": 0 },
+            { "type": "setAmount", "betId": "b77", "amount": 0 },
+            { "type": "setAmount", "betId": "b78", "amount": 0 },
+            { "type": "setAmount", "betId": "b81", "amount": 0 },
+            { "type": "setAmount", "betId": "b84", "amount": 0 },
+            { "type": "setAmount", "betId": "b85", "amount": 0 }
+          ]
         },
         { "type": "place", "typeId": "pass", "amount": 500 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "fb52e34565e7d8ee"
+      "hashAfter": "061c1c50e6baf09e"
     },
     {
-      "actions": [
-        { "type": "place", "typeId": "hard", "amount": 300, "number": 6 },
-        {
-          "type": "batch",
-          "actions": [{ "type": "place", "typeId": "passOdds", "parentId": "b105", "amount": 1000 }]
-        }
-      ],
+      "actions": [{ "type": "place", "typeId": "passOdds", "amount": 1000, "parentId": "b92" }],
       "roll": { "type": "roll" },
-      "hashAfter": "b5fd27590bf549f9"
+      "hashAfter": "0053a9adabcc2907"
     },
     {
-      "actions": [{ "type": "setAmount", "betId": "b106", "amount": 0 }],
+      "actions": [{ "type": "place", "typeId": "place", "amount": 1000, "number": 3 }],
       "roll": { "type": "roll" },
-      "hashAfter": "149f41fafc183f96"
-    },
-    {
-      "actions": [{ "type": "place", "typeId": "come", "amount": 1000 }],
-      "roll": { "type": "roll" },
-      "hashAfter": "c7e28ef3f9fbe562"
-    },
-    {
-      "actions": [
-        { "type": "place", "typeId": "hop44", "amount": 300 },
-        { "type": "place", "typeId": "buy", "amount": 7500, "number": 12 }
-      ],
-      "roll": { "type": "roll" },
-      "hashAfter": "7f5ce8884d45316b"
-    },
-    {
-      "actions": [
-        { "type": "place", "typeId": "comeOdds", "amount": 500, "parentId": "b108" },
-        { "type": "place", "typeId": "buy", "amount": 7500, "number": 2 }
-      ],
-      "roll": { "type": "roll" },
-      "hashAfter": "d55a094d97b73273"
+      "hashAfter": "6eb9dff48b7132d6"
     },
     {
       "actions": [
         { "type": "setGlobalWorking", "off": null },
-        { "type": "setAmount", "betId": "b111", "amount": 1500 },
-        { "type": "place", "typeId": "hop33", "amount": 200 }
-      ],
-      "roll": { "type": "roll" },
-      "hashAfter": "5184cc7815c4cd48"
-    },
-    {
-      "actions": [
-        { "type": "place", "typeId": "anyCraps", "amount": 200 },
-        { "type": "place", "typeId": "pass", "amount": 2000 }
-      ],
-      "roll": { "type": "roll" },
-      "hashAfter": "f9db24de4e9cc977"
-    },
-    {
-      "actions": [
-        { "type": "deposit", "amount": 20000 },
-        { "type": "place", "typeId": "hop35", "amount": 200 },
-        { "type": "place", "typeId": "place", "amount": 500, "number": 9 }
-      ],
-      "roll": { "type": "roll" },
-      "hashAfter": "d205291f80a312a5"
-    },
-    {
-      "actions": [{ "type": "place", "typeId": "hard", "amount": 400, "number": 8 }],
-      "roll": { "type": "roll" },
-      "hashAfter": "46f43ff56189cd3c"
-    },
-    {
-      "actions": [{ "type": "place", "typeId": "buy", "amount": 7500, "number": 10 }],
-      "roll": { "type": "roll" },
-      "hashAfter": "4ccd03e0d977c7af"
-    },
-    {
-      "actions": [{ "type": "place", "typeId": "c", "amount": 300 }],
-      "roll": { "type": "roll" },
-      "hashAfter": "2ca073eb629dc37c"
-    },
-    {
-      "actions": [
-        { "type": "place", "typeId": "passOdds", "amount": 1000, "parentId": "b115" },
-        {
-          "type": "batch",
-          "actions": [
-            { "type": "setAmount", "betId": "b117", "amount": 0 },
-            { "type": "setAmount", "betId": "b119", "amount": 0 },
-            { "type": "setAmount", "betId": "b121", "amount": 0 }
-          ]
-        }
-      ],
-      "roll": { "type": "roll" },
-      "hashAfter": "a9193cacb2cf0c0c"
-    },
-    {
-      "actions": [
-        {
-          "type": "batch",
-          "actions": [{ "type": "place", "typeId": "passOdds", "parentId": "b115", "amount": 4000 }]
-        }
-      ],
-      "roll": { "type": "roll" },
-      "hashAfter": "fc65fee1715f56d1"
-    },
-    {
-      "actions": [
-        { "type": "place", "typeId": "buy", "amount": 5000, "number": 9 },
-        { "type": "place", "typeId": "place", "amount": 1000, "number": 3 }
-      ],
-      "roll": { "type": "roll" },
-      "hashAfter": "7b74bde1af6e6382"
-    },
-    {
-      "actions": [{ "type": "place", "typeId": "place", "amount": 1000, "number": 4 }],
-      "roll": { "type": "roll" },
-      "hashAfter": "668d11d66bb0e932"
-    },
-    {
-      "actions": [
-        {
-          "type": "batch",
-          "actions": [
-            { "type": "setAmount", "betId": "b123", "amount": 10000 },
-            { "type": "setAmount", "betId": "b124", "amount": 2000 },
-            { "type": "setAmount", "betId": "b125", "amount": 2000 }
-          ]
-        }
-      ],
-      "roll": { "type": "roll" },
-      "hashAfter": "178d93bd5757d15d"
-    },
-    {
-      "actions": [{ "type": "place", "typeId": "come", "amount": 2000 }],
-      "roll": { "type": "roll" },
-      "hashAfter": "993991b9aa13a9aa"
-    },
-    {
-      "actions": [
-        { "type": "setAmount", "betId": "b125", "amount": 2500 },
-        { "type": "place", "typeId": "comeOdds", "amount": 1000, "parentId": "b126" }
-      ],
-      "roll": { "type": "roll" },
-      "hashAfter": "a87c1dbedbf4c432"
-    },
-    {
-      "actions": [
-        { "type": "place", "typeId": "come", "amount": 2000 },
-        { "type": "setAmount", "betId": "b128", "amount": 4000 },
-        { "type": "place", "typeId": "hard", "amount": 500, "number": 10 }
-      ],
-      "roll": { "type": "roll" },
-      "hashAfter": "9ff9d5b9bf953ab9"
-    },
-    {
-      "actions": [
-        { "type": "place", "typeId": "come", "amount": 500 },
-        { "type": "batch", "actions": [{ "type": "setAmount", "betId": "b127", "amount": 4000 }] }
-      ],
-      "roll": { "type": "roll" },
-      "hashAfter": "d142f466d499eb0a"
-    },
-    {
-      "actions": [
-        { "type": "place", "typeId": "buy", "amount": 5000, "number": 8 },
-        { "type": "place", "typeId": "hop55", "amount": 200 },
-        { "type": "place", "typeId": "horn", "amount": 200 }
-      ],
-      "roll": { "type": "roll" },
-      "hashAfter": "092889452ed7a532"
-    },
-    {
-      "actions": [{ "type": "place", "typeId": "pass", "amount": 1500 }],
-      "roll": { "type": "roll" },
-      "hashAfter": "44ea8604062d6a8b"
-    },
-    {
-      "actions": [
-        {
-          "type": "batch",
-          "actions": [{ "type": "place", "typeId": "passOdds", "parentId": "b134", "amount": 3000 }]
-        },
-        { "type": "place", "typeId": "come", "amount": 1000 }
-      ],
-      "roll": { "type": "roll" },
-      "hashAfter": "d2e598d057591f24"
-    },
-    {
-      "actions": [{ "type": "place", "typeId": "place", "amount": 1800, "number": 8 }],
-      "roll": { "type": "roll" },
-      "hashAfter": "991dd509c01bb9d9"
-    },
-    {
-      "actions": [
-        { "type": "batch", "actions": [{ "type": "setAmount", "betId": "b137", "amount": 3600 }] },
-        { "type": "place", "typeId": "place", "amount": 500, "number": 3 }
-      ],
-      "roll": { "type": "roll" },
-      "hashAfter": "38d665d007b4cc3a"
-    },
-    {
-      "actions": [{ "type": "place", "typeId": "come", "amount": 1500 }],
-      "roll": { "type": "roll" },
-      "hashAfter": "cf52d21aea16219a"
-    },
-    {
-      "actions": [{ "type": "place", "typeId": "place", "amount": 1000, "number": 10 }],
-      "roll": { "type": "roll" },
-      "hashAfter": "1d3514e53653300d"
-    },
-    {
-      "actions": [{ "type": "place", "typeId": "buy", "amount": 5000, "number": 11 }],
-      "roll": { "type": "roll" },
-      "hashAfter": "422c70216df6ac7d"
-    },
-    {
-      "actions": [
-        { "type": "place", "typeId": "hop55", "amount": 100 },
-        { "type": "place", "typeId": "place", "amount": 500, "number": 10 },
-        { "type": "place", "typeId": "pass", "amount": 400 }
-      ],
-      "roll": { "type": "roll" },
-      "hashAfter": "1d5439a43060b022"
-    },
-    {
-      "actions": [
-        { "type": "place", "typeId": "place", "amount": 1500, "number": 12 },
-        {
-          "type": "batch",
-          "actions": [
-            { "type": "setAmount", "betId": "b143", "amount": 1000 },
-            { "type": "setAmount", "betId": "b145", "amount": 3000 }
-          ]
-        },
-        { "type": "place", "typeId": "place", "amount": 1500, "number": 4 }
-      ],
-      "roll": { "type": "roll" },
-      "hashAfter": "7e641ecc6b29c220"
-    },
-    {
-      "actions": [
-        { "type": "place", "typeId": "come", "amount": 2000 },
-        { "type": "place", "typeId": "hard", "amount": 300, "number": 10 }
-      ],
-      "roll": { "type": "roll" },
-      "hashAfter": "c25ee0d9f42c5b8e"
-    },
-    {
-      "actions": [{ "type": "setAmount", "betId": "b145", "amount": 4500 }],
-      "roll": { "type": "roll" },
-      "hashAfter": "d2fc2fdc05b4d63b"
-    },
-    {
-      "actions": [
-        { "type": "place", "typeId": "horn", "amount": 300 },
-        { "type": "place", "typeId": "buy", "amount": 7500, "number": 8 }
-      ],
-      "roll": { "type": "roll" },
-      "hashAfter": "211c8ba980cfee73"
-    },
-    {
-      "actions": [{ "type": "setAmount", "betId": "b144", "amount": 1400 }],
-      "roll": { "type": "roll" },
-      "hashAfter": "f8d156977ef86b9b"
-    },
-    {
-      "actions": [
-        { "type": "place", "typeId": "place", "amount": 1500, "number": 5 },
-        { "type": "place", "typeId": "place", "amount": 1500, "number": 9 }
-      ],
-      "roll": { "type": "roll" },
-      "hashAfter": "829f994385d1758b"
-    },
-    {
-      "actions": [
-        { "type": "setAmount", "betId": "b152", "amount": 2000 },
-        {
-          "type": "batch",
-          "actions": [
-            { "type": "place", "typeId": "place", "amount": 1500, "number": 5 },
-            { "type": "place", "typeId": "place", "amount": 1500, "number": 9 }
-          ]
-        },
-        { "type": "place", "typeId": "place", "amount": 500, "number": 3 }
-      ],
-      "roll": { "type": "roll" },
-      "hashAfter": "efd0454e25ce9f0f"
-    },
-    {
-      "actions": [
-        { "type": "place", "typeId": "hop45", "amount": 300 },
-        { "type": "place", "typeId": "come", "amount": 1000 }
-      ],
-      "roll": { "type": "roll" },
-      "hashAfter": "f2e79786e9076ce4"
-    },
-    {
-      "actions": [
-        { "type": "batch", "actions": [{ "type": "setAmount", "betId": "b151", "amount": 7200 }] }
-      ],
-      "roll": { "type": "roll" },
-      "hashAfter": "a70c54228ada8c8a"
-    },
-    {
-      "actions": [{ "type": "place", "typeId": "boxcars", "amount": 300 }],
-      "roll": { "type": "roll" },
-      "hashAfter": "871e5973e7af10f7"
-    },
-    {
-      "actions": [{ "type": "place", "typeId": "aceDeuce", "amount": 200 }],
-      "roll": { "type": "roll" },
-      "hashAfter": "6dddd3485dc08e32"
-    },
-    {
-      "actions": [{ "type": "place", "typeId": "passOdds", "amount": 500, "parentId": "b144" }],
-      "roll": { "type": "roll" },
-      "hashAfter": "f696e92b7cdfad61"
-    },
-    {
-      "actions": [
-        { "type": "place", "typeId": "comeOdds", "amount": 1000, "parentId": "b155" },
-        { "type": "place", "typeId": "buy", "amount": 5000, "number": 12 },
-        {
-          "type": "batch",
-          "actions": [{ "type": "place", "typeId": "passOdds", "amount": 500, "parentId": "b144" }]
-        }
-      ],
-      "roll": { "type": "roll" },
-      "hashAfter": "6acd6f8acc4f44b0"
-    },
-    {
-      "actions": [
-        { "type": "place", "typeId": "place", "amount": 1500, "number": 5 },
-        { "type": "place", "typeId": "pass", "amount": 500 }
-      ],
-      "roll": { "type": "roll" },
-      "hashAfter": "ff17352183210cfe"
-    },
-    {
-      "actions": [{ "type": "place", "typeId": "buy", "amount": 2500, "number": 12 }],
-      "roll": { "type": "roll" },
-      "hashAfter": "1c41cba16550bf6c"
-    },
-    {
-      "actions": [
-        {
-          "type": "batch",
-          "actions": [{ "type": "place", "typeId": "passOdds", "parentId": "b162", "amount": 1000 }]
-        },
-        { "type": "place", "typeId": "hop22", "amount": 300 }
-      ],
-      "roll": { "type": "roll" },
-      "hashAfter": "1881de4bb3854a3f"
-    },
-    {
-      "actions": [{ "type": "place", "typeId": "come", "amount": 1000 }],
-      "roll": { "type": "roll" },
-      "hashAfter": "39dada1393dc8ed6"
-    },
-    {
-      "actions": [
-        { "type": "place", "typeId": "comeOdds", "amount": 500, "parentId": "b166" },
-        { "type": "place", "typeId": "place", "amount": 1000, "number": 9 },
         { "type": "place", "typeId": "come", "amount": 1500 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "ccf72d88afd58206"
+      "hashAfter": "50a16a093c192192"
     },
     {
       "actions": [
-        { "type": "place", "typeId": "come", "amount": 500 },
-        { "type": "setAmount", "betId": "b170", "amount": 1500 }
+        {
+          "type": "batch",
+          "actions": [{ "type": "place", "typeId": "comeOdds", "parentId": "b95", "amount": 3000 }]
+        },
+        { "type": "place", "typeId": "hop26", "amount": 300 },
+        { "type": "place", "typeId": "come", "amount": 1000 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "e882a7c977e3efb8"
+      "hashAfter": "04b829f89a633a24"
     },
     {
-      "actions": [{ "type": "place", "typeId": "place", "amount": 1500, "number": 2 }],
+      "actions": [{ "type": "place", "typeId": "buy", "amount": 7500, "number": 5 }],
       "roll": { "type": "roll" },
-      "hashAfter": "9275aab74723fc86"
-    },
-    {
-      "actions": [{ "type": "place", "typeId": "come", "amount": 1000 }],
-      "roll": { "type": "roll" },
-      "hashAfter": "8c774cf38a52f8d7"
+      "hashAfter": "85e0cbc9e407212f"
     },
     {
       "actions": [
-        { "type": "place", "typeId": "place", "amount": 600, "number": 6 },
-        { "type": "place", "typeId": "hop35", "amount": 200 },
-        { "type": "place", "typeId": "hard", "amount": 100, "number": 8 }
+        {
+          "type": "batch",
+          "actions": [{ "type": "place", "typeId": "buy", "amount": 7500, "number": 5 }]
+        }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "12d67413700ba26b"
+      "hashAfter": "85a8a79038c0118b"
     },
     {
       "actions": [
@@ -2131,704 +1797,1040 @@
         { "type": "place", "typeId": "pass", "amount": 500 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "ffd52ee912783d62"
-    },
-    {
-      "actions": [
-        {
-          "type": "batch",
-          "actions": [
-            { "type": "place", "typeId": "place", "amount": 1500, "number": 4 },
-            { "type": "place", "typeId": "pass", "amount": 500 }
-          ]
-        },
-        { "type": "batch", "actions": [{ "type": "setAmount", "betId": "b177", "amount": 1500 }] },
-        { "type": "place", "typeId": "buy", "amount": 2500, "number": 6 }
-      ],
-      "roll": { "type": "roll" },
-      "hashAfter": "30b51e9096c81a08"
-    },
-    {
-      "actions": [{ "type": "place", "typeId": "come", "amount": 1500 }],
-      "roll": { "type": "roll" },
-      "hashAfter": "d1003d05f04022ec"
-    },
-    {
-      "actions": [
-        { "type": "batch", "actions": [{ "type": "place", "typeId": "come", "amount": 1500 }] },
-        { "type": "place", "typeId": "passOdds", "amount": 1000, "parentId": "b177" }
-      ],
-      "roll": { "type": "roll" },
-      "hashAfter": "ee587dfb07f93ae9"
-    },
-    {
-      "actions": [
-        { "type": "place", "typeId": "buy", "amount": 2500, "number": 2 },
-        { "type": "place", "typeId": "place", "amount": 1000, "number": 3 },
-        { "type": "place", "typeId": "comeOdds", "amount": 500, "parentId": "b179" }
-      ],
-      "roll": { "type": "roll" },
-      "hashAfter": "ef38bb26d7db0fb8"
-    },
-    {
-      "actions": [
-        { "type": "place", "typeId": "hard", "amount": 200, "number": 10 },
-        { "type": "place", "typeId": "pass", "amount": 300 }
-      ],
-      "roll": { "type": "roll" },
-      "hashAfter": "2c2291a0df9a13d6"
-    },
-    {
-      "actions": [
-        { "type": "deposit", "amount": 30000 },
-        { "type": "place", "typeId": "hop14", "amount": 300 },
-        {
-          "type": "batch",
-          "actions": [{ "type": "place", "typeId": "passOdds", "parentId": "b186", "amount": 600 }]
-        }
-      ],
-      "roll": { "type": "roll" },
-      "hashAfter": "176e6950174235f8"
-    },
-    {
-      "actions": [
-        { "type": "place", "typeId": "place", "amount": 1500, "number": 3 },
-        { "type": "place", "typeId": "pass", "amount": 500 }
-      ],
-      "roll": { "type": "roll" },
-      "hashAfter": "5cc39291f378ce9f"
-    },
-    {
-      "actions": [{ "type": "place", "typeId": "hard", "amount": 300, "number": 6 }],
-      "roll": { "type": "roll" },
-      "hashAfter": "d75bf1a024564ca6"
-    },
-    {
-      "actions": [
-        { "type": "place", "typeId": "come", "amount": 1500 },
-        { "type": "place", "typeId": "place", "amount": 600, "number": 8 },
-        {
-          "type": "batch",
-          "actions": [{ "type": "place", "typeId": "passOdds", "parentId": "b190", "amount": 1000 }]
-        }
-      ],
-      "roll": { "type": "roll" },
-      "hashAfter": "c9240eafb35d4bd1"
-    },
-    {
-      "actions": [
-        {
-          "type": "batch",
-          "actions": [{ "type": "place", "typeId": "comeOdds", "parentId": "b192", "amount": 3000 }]
-        },
-        {
-          "type": "batch",
-          "actions": [
-            { "type": "setAmount", "betId": "b143", "amount": 2000 },
-            { "type": "setAmount", "betId": "b161", "amount": 3000 },
-            { "type": "setAmount", "betId": "b176", "amount": 6000 },
-            { "type": "setAmount", "betId": "b189", "amount": 3000 },
-            { "type": "setAmount", "betId": "b190", "amount": 1000 },
-            { "type": "setAmount", "betId": "b193", "amount": 1200 }
-          ]
-        }
-      ],
-      "roll": { "type": "roll" },
-      "hashAfter": "8e98a3a6f562dd1c"
-    },
-    {
-      "actions": [
-        { "type": "place", "typeId": "place", "amount": 1500, "number": 9 },
-        { "type": "place", "typeId": "hop24", "amount": 300 },
-        { "type": "place", "typeId": "buy", "amount": 5000, "number": 3 }
-      ],
-      "roll": { "type": "roll" },
-      "hashAfter": "11ef8ca984b91acb"
-    },
-    {
-      "actions": [
-        { "type": "setAmount", "betId": "b189", "amount": 0 },
-        { "type": "place", "typeId": "hop36", "amount": 100 },
-        {
-          "type": "batch",
-          "actions": [{ "type": "place", "typeId": "passOdds", "parentId": "b190", "amount": 2000 }]
-        }
-      ],
-      "roll": { "type": "roll" },
-      "hashAfter": "7a22abd2b876d1fd"
-    },
-    {
-      "actions": [
-        { "type": "place", "typeId": "hard", "amount": 100, "number": 6 },
-        { "type": "place", "typeId": "pass", "amount": 400 }
-      ],
-      "roll": { "type": "roll" },
-      "hashAfter": "398146912aabaa2b"
-    },
-    {
-      "actions": [{ "type": "place", "typeId": "come", "amount": 2000 }],
-      "roll": { "type": "roll" },
-      "hashAfter": "3d2e72ca06041e87"
-    },
-    {
-      "actions": [
-        { "type": "place", "typeId": "hop33", "amount": 200 },
-        { "type": "place", "typeId": "hard", "amount": 300, "number": 10 }
-      ],
-      "roll": { "type": "roll" },
-      "hashAfter": "6ed5c1e5a4481e04"
-    },
-    {
-      "actions": [
-        { "type": "place", "typeId": "comeOdds", "amount": 500, "parentId": "b203" },
-        { "type": "batch", "actions": [{ "type": "setAmount", "betId": "b202", "amount": 800 }] }
-      ],
-      "roll": { "type": "roll" },
-      "hashAfter": "4e7a2b69f72129a6"
-    },
-    {
-      "actions": [
-        { "type": "place", "typeId": "hard", "amount": 400, "number": 4 },
-        { "type": "setAmount", "betId": "b161", "amount": 4500 },
-        {
-          "type": "batch",
-          "actions": [
-            { "type": "place", "typeId": "comeOdds", "amount": 500, "parentId": "b203" },
-            { "type": "setAmount", "betId": "b202", "amount": 800 }
-          ]
-        }
-      ],
-      "roll": { "type": "roll" },
-      "hashAfter": "53e15735e93447c4"
-    },
-    {
-      "actions": [
-        { "type": "batch", "actions": [{ "type": "setAmount", "betId": "b206", "amount": 4000 }] }
-      ],
-      "roll": { "type": "roll" },
-      "hashAfter": "c8800e5b4921fe08"
-    },
-    {
-      "actions": [
-        { "type": "place", "typeId": "buy", "amount": 5000, "number": 3 },
-        { "type": "place", "typeId": "hop14", "amount": 100 },
-        { "type": "place", "typeId": "pass", "amount": 400 }
-      ],
-      "roll": { "type": "roll" },
-      "hashAfter": "cc398b22eef196cc"
-    },
-    {
-      "actions": [{ "type": "place", "typeId": "hard", "amount": 400, "number": 4 }],
-      "roll": { "type": "roll" },
-      "hashAfter": "e68fee1e68a7a232"
-    },
-    {
-      "actions": [
-        {
-          "type": "batch",
-          "actions": [
-            { "type": "setAmount", "betId": "b143", "amount": 4000 },
-            { "type": "setAmount", "betId": "b161", "amount": 9000 },
-            { "type": "setAmount", "betId": "b176", "amount": 12000 },
-            { "type": "setAmount", "betId": "b208", "amount": 10000 },
-            { "type": "setAmount", "betId": "b211", "amount": 800 }
-          ]
-        },
-        { "type": "setAmount", "betId": "b208", "amount": 12500 }
-      ],
-      "roll": { "type": "roll" },
-      "hashAfter": "122ebc01f01ee6ed"
-    },
-    {
-      "actions": [{ "type": "place", "typeId": "horn", "amount": 300 }],
-      "roll": { "type": "roll" },
-      "hashAfter": "423862f215657842"
-    },
-    {
-      "actions": [
-        { "type": "setGlobalWorking", "off": true },
-        { "type": "setAmount", "betId": "b208", "amount": 0 },
-        { "type": "place", "typeId": "pass", "amount": 500 }
-      ],
-      "roll": { "type": "roll" },
-      "hashAfter": "be19486ab82658b6"
-    },
-    {
-      "actions": [
-        { "type": "place", "typeId": "come", "amount": 500 },
-        { "type": "setAmount", "betId": "b214", "amount": 1000 },
-        { "type": "place", "typeId": "hard", "amount": 400, "number": 8 }
-      ],
-      "roll": { "type": "roll" },
-      "hashAfter": "18cba225be8797b4"
-    },
-    {
-      "actions": [
-        {
-          "type": "batch",
-          "actions": [
-            { "type": "place", "typeId": "come", "amount": 500 },
-            { "type": "setAmount", "betId": "b214", "amount": 1000 },
-            { "type": "place", "typeId": "hard", "amount": 400, "number": 8 }
-          ]
-        }
-      ],
-      "roll": { "type": "roll" },
-      "hashAfter": "de974f2b7732b40b"
-    },
-    {
-      "actions": [
-        { "type": "place", "typeId": "hard", "amount": 500, "number": 4 },
-        { "type": "place", "typeId": "pass", "amount": 500 }
-      ],
-      "roll": { "type": "roll" },
-      "hashAfter": "2f7ecdc9fc54979e"
-    },
-    {
-      "actions": [{ "type": "setAmount", "betId": "b143", "amount": 0 }],
-      "roll": { "type": "roll" },
-      "hashAfter": "a8d14524306e334b"
-    },
-    {
-      "actions": [{ "type": "place", "typeId": "hop46", "amount": 100 }],
-      "roll": { "type": "roll" },
-      "hashAfter": "c0f64d7698e328df"
-    },
-    {
-      "actions": [
-        { "type": "setAmount", "betId": "b215", "amount": 1000 },
-        { "type": "place", "typeId": "come", "amount": 1500 }
-      ],
-      "roll": { "type": "roll" },
-      "hashAfter": "e8c55e9c296d0e52"
-    },
-    {
-      "actions": [
-        { "type": "place", "typeId": "pass", "amount": 1500 },
-        { "type": "place", "typeId": "place", "amount": 500, "number": 12 }
-      ],
-      "roll": { "type": "roll" },
-      "hashAfter": "6be965eaa782cf27"
-    },
-    {
-      "actions": [
-        { "type": "setGlobalWorking", "off": null },
-        { "type": "place", "typeId": "passOdds", "amount": 500, "parentId": "b221" },
-        { "type": "setAmount", "betId": "b161", "amount": 10500 }
-      ],
-      "roll": { "type": "roll" },
-      "hashAfter": "dc02b7527a07eb87"
-    },
-    {
-      "actions": [
-        { "type": "place", "typeId": "come", "amount": 1000 },
-        { "type": "setAmount", "betId": "b224", "amount": 1500 },
-        {
-          "type": "batch",
-          "actions": [
-            { "type": "setAmount", "betId": "b161", "amount": 21000 },
-            { "type": "setAmount", "betId": "b176", "amount": 24000 },
-            { "type": "setAmount", "betId": "b215", "amount": 2000 },
-            { "type": "setAmount", "betId": "b222", "amount": 1000 },
-            { "type": "setAmount", "betId": "b223", "amount": 1000 },
-            { "type": "setAmount", "betId": "b224", "amount": 3000 }
-          ]
-        }
-      ],
-      "roll": { "type": "roll" },
-      "hashAfter": "051ab3444c9f5d15"
-    },
-    {
-      "actions": [{ "type": "place", "typeId": "place", "amount": 1500, "number": 11 }],
-      "roll": { "type": "roll" },
-      "hashAfter": "7ec2a6fd4f0a096a"
-    },
-    {
-      "actions": [{ "type": "place", "typeId": "hard", "amount": 500, "number": 4 }],
-      "roll": { "type": "roll" },
-      "hashAfter": "746eb5fcf51c6cdc"
-    },
-    {
-      "actions": [{ "type": "place", "typeId": "pass", "amount": 500 }],
-      "roll": { "type": "roll" },
-      "hashAfter": "7720fda9cba50c0f"
-    },
-    {
-      "actions": [
-        {
-          "type": "batch",
-          "actions": [{ "type": "place", "typeId": "passOdds", "parentId": "b227", "amount": 1000 }]
-        },
-        { "type": "place", "typeId": "buy", "amount": 2500, "number": 10 }
-      ],
-      "roll": { "type": "roll" },
-      "hashAfter": "713519ac29ef42e5"
-    },
-    {
-      "actions": [
-        { "type": "place", "typeId": "hard", "amount": 100, "number": 6 },
-        { "type": "place", "typeId": "pass", "amount": 400 }
-      ],
-      "roll": { "type": "roll" },
-      "hashAfter": "990495dad76d1e5c"
-    },
-    {
-      "actions": [
-        { "type": "place", "typeId": "buy", "amount": 2500, "number": 8 },
-        {
-          "type": "batch",
-          "actions": [
-            { "type": "place", "typeId": "hard", "amount": 100, "number": 6 },
-            { "type": "place", "typeId": "pass", "amount": 400 }
-          ]
-        }
-      ],
-      "roll": { "type": "roll" },
-      "hashAfter": "bfa2de073b919aee"
-    },
-    {
-      "actions": [{ "type": "place", "typeId": "buy", "amount": 5000, "number": 12 }],
-      "roll": { "type": "roll" },
-      "hashAfter": "6a4c156866828499"
-    },
-    {
-      "actions": [
-        {
-          "type": "batch",
-          "actions": [{ "type": "place", "typeId": "passOdds", "parentId": "b231", "amount": 1600 }]
-        },
-        { "type": "place", "typeId": "buy", "amount": 7500, "number": 11 },
-        { "type": "place", "typeId": "place", "amount": 1000, "number": 4 }
-      ],
-      "roll": { "type": "roll" },
-      "hashAfter": "0ba9a953854bb1cf"
-    },
-    {
-      "actions": [
-        {
-          "type": "batch",
-          "actions": [
-            { "type": "setAmount", "betId": "b234", "amount": 10000 },
-            { "type": "setAmount", "betId": "b236", "amount": 15000 },
-            { "type": "setAmount", "betId": "b237", "amount": 2000 }
-          ]
-        },
-        { "type": "place", "typeId": "buy", "amount": 2500, "number": 8 }
-      ],
-      "roll": { "type": "roll" },
-      "hashAfter": "501803fc68038540"
-    },
-    {
-      "actions": [{ "type": "place", "typeId": "come", "amount": 2000 }],
-      "roll": { "type": "roll" },
-      "hashAfter": "8cff47c744b5050c"
-    },
-    {
-      "actions": [
-        { "type": "place", "typeId": "hop24", "amount": 100 },
-        { "type": "place", "typeId": "pass", "amount": 400 }
-      ],
-      "roll": { "type": "roll" },
-      "hashAfter": "b876340b78f35987"
-    },
-    {
-      "actions": [
-        {
-          "type": "batch",
-          "actions": [{ "type": "place", "typeId": "passOdds", "parentId": "b241", "amount": 800 }]
-        }
-      ],
-      "roll": { "type": "roll" },
-      "hashAfter": "a622e0a9ac899d75"
-    },
-    {
-      "actions": [
-        { "type": "place", "typeId": "buy", "amount": 5000, "number": 4 },
-        { "type": "batch", "actions": [{ "type": "setAmount", "betId": "b241", "amount": 800 }] }
-      ],
-      "roll": { "type": "roll" },
-      "hashAfter": "a5fee5ab9777c268"
-    },
-    {
-      "actions": [
-        { "type": "place", "typeId": "come", "amount": 2000 },
-        { "type": "place", "typeId": "hard", "amount": 400, "number": 8 }
-      ],
-      "roll": { "type": "roll" },
-      "hashAfter": "a10a6bb6e873c615"
-    },
-    {
-      "actions": [
-        {
-          "type": "batch",
-          "actions": [{ "type": "place", "typeId": "comeOdds", "parentId": "b244", "amount": 4000 }]
-        },
-        { "type": "place", "typeId": "buy", "amount": 5000, "number": 2 }
-      ],
-      "roll": { "type": "roll" },
-      "hashAfter": "4cd36ece8d1d0995"
-    },
-    {
-      "actions": [
-        { "type": "place", "typeId": "come", "amount": 1500 },
-        { "type": "setAmount", "betId": "b247", "amount": 0 }
-      ],
-      "roll": { "type": "roll" },
-      "hashAfter": "c113808aadfeadb3"
-    },
-    {
-      "actions": [
-        { "type": "batch", "actions": [{ "type": "setAmount", "betId": "b243", "amount": 0 }] },
-        { "type": "place", "typeId": "hard", "amount": 400, "number": 10 }
-      ],
-      "roll": { "type": "roll" },
-      "hashAfter": "8f79876d74525ce4"
-    },
-    {
-      "actions": [
-        { "type": "place", "typeId": "hard", "amount": 300, "number": 4 },
-        { "type": "place", "typeId": "place", "amount": 500, "number": 9 },
-        { "type": "place", "typeId": "pass", "amount": 1500 }
-      ],
-      "roll": { "type": "roll" },
-      "hashAfter": "baacec2b955723c9"
-    },
-    {
-      "actions": [
-        { "type": "place", "typeId": "place", "amount": 500, "number": 12 },
-        { "type": "place", "typeId": "place", "amount": 500, "number": 10 },
-        { "type": "place", "typeId": "any7", "amount": 200 }
-      ],
-      "roll": { "type": "roll" },
-      "hashAfter": "224515dce1f09b86"
-    },
-    {
-      "actions": [{ "type": "place", "typeId": "hop55", "amount": 200 }],
-      "roll": { "type": "roll" },
-      "hashAfter": "37dbaf8f45de7c88"
-    },
-    {
-      "actions": [
-        { "type": "setGlobalWorking", "off": true },
-        {
-          "type": "batch",
-          "actions": [{ "type": "place", "typeId": "passOdds", "parentId": "b252", "amount": 3000 }]
-        },
-        { "type": "place", "typeId": "anyCraps", "amount": 300 }
-      ],
-      "roll": { "type": "roll" },
-      "hashAfter": "e6aacfd4f002a399"
-    },
-    {
-      "actions": [
-        { "type": "setAmount", "betId": "b250", "amount": 600 },
-        { "type": "place", "typeId": "hop24", "amount": 200 },
-        { "type": "setAmount", "betId": "b259", "amount": 0 }
-      ],
-      "roll": { "type": "roll" },
-      "hashAfter": "1dc355267ba00edd"
-    },
-    {
-      "actions": [
-        { "type": "setAmount", "betId": "b257", "amount": 0 },
-        { "type": "setAmount", "betId": "b250", "amount": 0 }
-      ],
-      "roll": { "type": "roll" },
-      "hashAfter": "6af1ff9a816ca64e"
+      "hashAfter": "166ef2038d915dd4"
     },
     {
       "actions": [
         { "type": "deposit", "amount": 20000 },
-        { "type": "place", "typeId": "place", "amount": 500, "number": 4 }
+        { "type": "place", "typeId": "come", "amount": 2000 },
+        { "type": "place", "typeId": "passOdds", "amount": 500, "parentId": "b101" },
+        { "type": "setAmount", "betId": "b102", "amount": 0 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "8b4ccfe7a2da9bb8"
+      "hashAfter": "c3886495cd543b36"
     },
     {
       "actions": [
-        { "type": "place", "typeId": "buy", "amount": 5000, "number": 9 },
-        { "type": "place", "typeId": "place", "amount": 600, "number": 6 }
-      ],
-      "roll": { "type": "roll" },
-      "hashAfter": "faf15e8a8212b085"
-    },
-    {
-      "actions": [
-        { "type": "place", "typeId": "buy", "amount": 2500, "number": 4 },
-        { "type": "place", "typeId": "passOdds", "amount": 500, "parentId": "b252" },
-        { "type": "place", "typeId": "hop14", "amount": 100 }
-      ],
-      "roll": { "type": "roll" },
-      "hashAfter": "ae4a4a45ad7d17e9"
-    },
-    {
-      "actions": [
-        { "type": "place", "typeId": "hop16", "amount": 300 },
-        { "type": "place", "typeId": "hard", "amount": 200, "number": 6 }
-      ],
-      "roll": { "type": "roll" },
-      "hashAfter": "a010b4234fac6372"
-    },
-    {
-      "actions": [
-        { "type": "place", "typeId": "buy", "amount": 7500, "number": 6 },
-        { "type": "setAmount", "betId": "b254", "amount": 1000 }
-      ],
-      "roll": { "type": "roll" },
-      "hashAfter": "d13615376f554dbf"
-    },
-    {
-      "actions": [
-        { "type": "setAmount", "betId": "b264", "amount": 1000 },
-        { "type": "setAmount", "betId": "b267", "amount": 300 },
-        { "type": "place", "typeId": "buy", "amount": 2500, "number": 8 }
-      ],
-      "roll": { "type": "roll" },
-      "hashAfter": "43ea500fcf47b52c"
-    },
-    {
-      "actions": [
-        { "type": "setAmount", "betId": "b264", "amount": 1500 },
-        { "type": "place", "typeId": "place", "amount": 1500, "number": 11 },
+        { "type": "place", "typeId": "buy", "amount": 7500, "number": 11 },
         { "type": "place", "typeId": "come", "amount": 2000 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "2fbc7079cd02e227"
+      "hashAfter": "ef53c1bbd73108ca"
+    },
+    {
+      "actions": [{ "type": "place", "typeId": "come", "amount": 1500 }],
+      "roll": { "type": "roll" },
+      "hashAfter": "90cf0831d38514e4"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "comeOdds", "amount": 500, "parentId": "b106" },
+        { "type": "place", "typeId": "come", "amount": 1500 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "dba99462fccbd459"
+    },
+    {
+      "actions": [
+        {
+          "type": "batch",
+          "actions": [
+            { "type": "setAmount", "betId": "b100", "amount": 3000 },
+            { "type": "setAmount", "betId": "b103", "amount": 1000 },
+            { "type": "setAmount", "betId": "b104", "amount": 15000 },
+            { "type": "setAmount", "betId": "b107", "amount": 1000 }
+          ]
+        },
+        { "type": "place", "typeId": "buy", "amount": 2500, "number": 6 },
+        { "type": "setGlobalWorking", "off": true }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "38c5f334b94b08ca"
+    },
+    {
+      "actions": [
+        {
+          "type": "batch",
+          "actions": [
+            { "type": "setAmount", "betId": "b100", "amount": 3000 },
+            { "type": "setAmount", "betId": "b103", "amount": 1000 },
+            { "type": "setAmount", "betId": "b104", "amount": 15000 },
+            { "type": "setAmount", "betId": "b107", "amount": 1000 },
+            { "type": "place", "typeId": "buy", "amount": 2500, "number": 6 }
+          ]
+        },
+        { "type": "place", "typeId": "buy", "amount": 2500, "number": 10 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "14743ddd05cb20dd"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "come", "amount": 1000 },
+        { "type": "place", "typeId": "place", "amount": 1000, "number": 10 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "8700e2a3026c03d5"
+    },
+    {
+      "actions": [{ "type": "place", "typeId": "buy", "amount": 7500, "number": 12 }],
+      "roll": { "type": "roll" },
+      "hashAfter": "639873ee4c853bdb"
+    },
+    {
+      "actions": [
+        { "type": "deposit", "amount": 20000 },
+        { "type": "place", "typeId": "comeOdds", "amount": 500, "parentId": "b108" }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "687b38e0c25bfc1a"
+    },
+    {
+      "actions": [{ "type": "place", "typeId": "hop25", "amount": 200 }],
+      "roll": { "type": "roll" },
+      "hashAfter": "adb1b8658ee968c0"
+    },
+    {
+      "actions": [
+        { "type": "batch", "actions": [{ "type": "place", "typeId": "hop25", "amount": 200 }] },
+        { "type": "place", "typeId": "hop33", "amount": 100 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "38f6296264d9583c"
+    },
+    {
+      "actions": [{ "type": "setAmount", "betId": "b109", "amount": 0 }],
+      "roll": { "type": "roll" },
+      "hashAfter": "eb3d32e0fbe6227e"
+    },
+    {
+      "actions": [{ "type": "setAmount", "betId": "b107", "amount": 2000 }],
+      "roll": { "type": "roll" },
+      "hashAfter": "f65d24b0722f9705"
+    },
+    {
+      "actions": [{ "type": "place", "typeId": "come", "amount": 1000 }],
+      "roll": { "type": "roll" },
+      "hashAfter": "e00d926d55f27d5d"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "buy", "amount": 5000, "number": 8 },
+        { "type": "place", "typeId": "pass", "amount": 500 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "0a9703a003ca38ff"
+    },
+    {
+      "actions": [{ "type": "setAmount", "betId": "b113", "amount": 10000 }],
+      "roll": { "type": "roll" },
+      "hashAfter": "6ef690707ac2d080"
+    },
+    {
+      "actions": [{ "type": "place", "typeId": "hop24", "amount": 100 }],
+      "roll": { "type": "roll" },
+      "hashAfter": "f8f24463e83552f6"
+    },
+    {
+      "actions": [
+        { "type": "setGlobalWorking", "off": null },
+        { "type": "batch", "actions": [{ "type": "place", "typeId": "hop24", "amount": 100 }] }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "87e96e57faf71988"
+    },
+    {
+      "actions": [{ "type": "setAmount", "betId": "b119", "amount": 7500 }],
+      "roll": { "type": "roll" },
+      "hashAfter": "6185538af2754c58"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "place", "amount": 500, "number": 9 },
+        { "type": "setAmount", "betId": "b104", "amount": 22500 },
+        { "type": "place", "typeId": "passOdds", "amount": 1000, "parentId": "b120" }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "a4c91778280efde8"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "come", "amount": 2000 },
+        { "type": "place", "typeId": "buy", "amount": 7500, "number": 5 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "3cb982b42b8ee30f"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "place", "amount": 1500, "number": 11 },
+        { "type": "setAmount", "betId": "b127", "amount": 0 },
+        { "type": "place", "typeId": "pass", "amount": 500 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "e083eca82d7e82ea"
+    },
+    {
+      "actions": [{ "type": "place", "typeId": "place", "amount": 500, "number": 2 }],
+      "roll": { "type": "roll" },
+      "hashAfter": "fbe22f66c20349b2"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "boxcars", "amount": 200 },
+        { "type": "place", "typeId": "come", "amount": 1000 },
+        { "type": "setGlobalWorking", "off": true }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "2bf89f6ff54cc90c"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "passOdds", "amount": 1000, "parentId": "b128" },
+        { "type": "place", "typeId": "come", "amount": 2000 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "91d29af8e39dcc8d"
+    },
+    {
+      "actions": [
+        { "type": "deposit", "amount": 20000 },
+        { "type": "place", "typeId": "comeOdds", "amount": 500, "parentId": "b133" }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "478520d637e3a1e9"
+    },
+    {
+      "actions": [{ "type": "place", "typeId": "hop25", "amount": 100 }],
+      "roll": { "type": "roll" },
+      "hashAfter": "004d596c8c485ddb"
+    },
+    {
+      "actions": [{ "type": "place", "typeId": "passOdds", "amount": 1000, "parentId": "b128" }],
+      "roll": { "type": "roll" },
+      "hashAfter": "3ad9f75e78d2a55e"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "hard", "amount": 100, "number": 8 },
+        { "type": "place", "typeId": "come", "amount": 500 },
+        { "type": "setAmount", "betId": "b138", "amount": 1000 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "6230156d9af8d5bf"
+    },
+    {
+      "actions": [{ "type": "place", "typeId": "come", "amount": 1500 }],
+      "roll": { "type": "roll" },
+      "hashAfter": "4262101ba1e4e6a3"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "come", "amount": 2000 },
+        {
+          "type": "batch",
+          "actions": [
+            { "type": "setAmount", "betId": "b129", "amount": 1000 },
+            { "type": "setAmount", "betId": "b137", "amount": 200 },
+            { "type": "setAmount", "betId": "b140", "amount": 4000 }
+          ]
+        },
+        { "type": "setAmount", "betId": "b140", "amount": 6000 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "2f43d7d70c38be9d"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "hard", "amount": 200, "number": 10 },
+        { "type": "setAmount", "betId": "b128", "amount": 1000 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "aaf5b051490d1f95"
+    },
+    {
+      "actions": [
+        {
+          "type": "batch",
+          "actions": [{ "type": "place", "typeId": "comeOdds", "parentId": "b139", "amount": 3000 }]
+        },
+        {
+          "type": "batch",
+          "actions": [
+            { "type": "place", "typeId": "hard", "amount": 200, "number": 10 },
+            { "type": "setAmount", "betId": "b128", "amount": 1000 }
+          ]
+        }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "edad39677fd23c42"
+    },
+    {
+      "actions": [{ "type": "setAmount", "betId": "b129", "amount": 0 }],
+      "roll": { "type": "roll" },
+      "hashAfter": "837a236518ed182c"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "place", "amount": 500, "number": 11 },
+        { "type": "place", "typeId": "buy", "amount": 5000, "number": 2 },
+        { "type": "place", "typeId": "come", "amount": 2000 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "1ae74fb82ad1c114"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "buy", "amount": 2500, "number": 10 },
+        { "type": "setAmount", "betId": "b137", "amount": 600 },
+        { "type": "place", "typeId": "pass", "amount": 500 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "081a64e8a82fc415"
+    },
+    {
+      "actions": [
+        {
+          "type": "batch",
+          "actions": [
+            { "type": "place", "typeId": "buy", "amount": 2500, "number": 10 },
+            { "type": "setAmount", "betId": "b137", "amount": 600 },
+            { "type": "place", "typeId": "pass", "amount": 500 }
+          ]
+        },
+        {
+          "type": "batch",
+          "actions": [
+            { "type": "setAmount", "betId": "b137", "amount": 1200 },
+            { "type": "setAmount", "betId": "b141", "amount": 800 },
+            { "type": "setAmount", "betId": "b143", "amount": 1000 },
+            { "type": "setAmount", "betId": "b144", "amount": 10000 },
+            { "type": "setAmount", "betId": "b146", "amount": 10000 },
+            { "type": "setAmount", "betId": "b147", "amount": 2000 }
+          ]
+        },
+        { "type": "place", "typeId": "hard", "amount": 100, "number": 6 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "01a3c1fbbda222b7"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "come", "amount": 2000 },
+        { "type": "place", "typeId": "hard", "amount": 200, "number": 4 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "b9cb8fa6a076ab63"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "snakeEyes", "amount": 300 },
+        { "type": "setAmount", "betId": "b137", "amount": 1300 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "e2055106041dc0c0"
+    },
+    {
+      "actions": [{ "type": "place", "typeId": "field", "amount": 300 }],
+      "roll": { "type": "roll" },
+      "hashAfter": "aa82fa5278edd14e"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "buy", "amount": 5000, "number": 4 },
+        { "type": "batch", "actions": [{ "type": "place", "typeId": "field", "amount": 300 }] }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "ce6c7beb7c749605"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "place", "amount": 500, "number": 9 },
+        { "type": "place", "typeId": "come", "amount": 2000 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "1abeee9c2878043c"
+    },
+    {
+      "actions": [
+        { "type": "deposit", "amount": 30000 },
+        { "type": "place", "typeId": "place", "amount": 600, "number": 8 },
+        { "type": "setAmount", "betId": "b155", "amount": 1500 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "a93c1a49f0555287"
+    },
+    {
+      "actions": [
+        {
+          "type": "batch",
+          "actions": [{ "type": "place", "typeId": "comeOdds", "parentId": "b156", "amount": 4000 }]
+        },
+        { "type": "place", "typeId": "come", "amount": 1000 },
+        {
+          "type": "batch",
+          "actions": [{ "type": "place", "typeId": "comeOdds", "parentId": "b149", "amount": 4000 }]
+        }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "cf5463b356bdf22b"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "place", "amount": 1000, "number": 3 },
+        { "type": "place", "typeId": "pass", "amount": 500 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "126a5863430af592"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "any7", "amount": 300 },
+        { "type": "place", "typeId": "horn", "amount": 300 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "ccd10eb36cd83bdf"
+    },
+    {
+      "actions": [
+        {
+          "type": "batch",
+          "actions": [
+            { "type": "place", "typeId": "any7", "amount": 300 },
+            { "type": "place", "typeId": "horn", "amount": 300 }
+          ]
+        },
+        { "type": "place", "typeId": "hop22", "amount": 100 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "03254c0c8acac6e4"
+    },
+    {
+      "actions": [
+        { "type": "setGlobalWorking", "off": null },
+        { "type": "setAmount", "betId": "b144", "amount": 15000 },
+        { "type": "place", "typeId": "hop15", "amount": 300 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "67eda9a11f116d40"
+    },
+    {
+      "actions": [
+        { "type": "batch", "actions": [{ "type": "setAmount", "betId": "b150", "amount": 1600 }] }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "dbd830c7654f1504"
+    },
+    {
+      "actions": [{ "type": "place", "typeId": "hard", "amount": 500, "number": 6 }],
+      "roll": { "type": "roll" },
+      "hashAfter": "414a8bea9908912e"
+    },
+    {
+      "actions": [
+        { "type": "deposit", "amount": 20000 },
+        { "type": "place", "typeId": "come", "amount": 1500 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "1e29e8c7fd1754f0"
+    },
+    {
+      "actions": [{ "type": "place", "typeId": "pass", "amount": 1500 }],
+      "roll": { "type": "roll" },
+      "hashAfter": "1f42655684be45b3"
+    },
+    {
+      "actions": [{ "type": "place", "typeId": "place", "amount": 500, "number": 5 }],
+      "roll": { "type": "roll" },
+      "hashAfter": "76484838db317a07"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "buy", "amount": 2500, "number": 10 },
+        { "type": "place", "typeId": "e", "amount": 200 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "0d5b05c7100ebb1f"
+    },
+    {
+      "actions": [{ "type": "setAmount", "betId": "b171", "amount": 2500 }],
+      "roll": { "type": "roll" },
+      "hashAfter": "0c91bcc22d5ff2da"
+    },
+    {
+      "actions": [
+        { "type": "batch", "actions": [{ "type": "setAmount", "betId": "b173", "amount": 7300 }] }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "8b8372153cfdab8a"
+    },
+    {
+      "actions": [{ "type": "place", "typeId": "come", "amount": 2000 }],
+      "roll": { "type": "roll" },
+      "hashAfter": "2fd0c92af8e0bc11"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "luckyRollerAll", "amount": 100 },
+        { "type": "place", "typeId": "pass", "amount": 500 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "6aeb1eb84875f0ee"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "aceDeuce", "amount": 300 },
+        { "type": "setGlobalWorking", "off": true }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "200cdf7e9d021311"
+    },
+    {
+      "actions": [
+        {
+          "type": "batch",
+          "actions": [{ "type": "place", "typeId": "passOdds", "parentId": "b177", "amount": 1000 }]
+        }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "2edea8e41f204490"
+    },
+    {
+      "actions": [
+        { "type": "setGlobalWorking", "off": null },
+        { "type": "place", "typeId": "hop44", "amount": 200 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "83fdceb6ff4b2ff9"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "passOdds", "amount": 1000, "parentId": "b177" },
+        { "type": "place", "typeId": "place", "amount": 500, "number": 12 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "4e82b40275314d96"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "come", "amount": 500 },
+        { "type": "place", "typeId": "buy", "amount": 5000, "number": 9 },
+        { "type": "place", "typeId": "place", "amount": 500, "number": 10 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "95a6a93ec3ee7f0f"
     },
     {
       "actions": [{ "type": "place", "typeId": "pass", "amount": 2000 }],
       "roll": { "type": "roll" },
-      "hashAfter": "df985c4641e7950c"
+      "hashAfter": "1f40405659515517"
     },
     {
       "actions": [
-        { "type": "place", "typeId": "passOdds", "amount": 500, "parentId": "b272" },
+        { "type": "place", "typeId": "hop16", "amount": 100 },
+        { "type": "place", "typeId": "hard", "amount": 300, "number": 6 },
+        { "type": "setAmount", "betId": "b188", "amount": 0 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "db3cab08f0e864ab"
+    },
+    {
+      "actions": [{ "type": "place", "typeId": "hop34", "amount": 100 }],
+      "roll": { "type": "roll" },
+      "hashAfter": "30693941b4bfed9c"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "hard", "amount": 200, "number": 10 },
+        { "type": "batch", "actions": [{ "type": "place", "typeId": "hop34", "amount": 100 }] }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "00e5fc95efc8f84e"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "hard", "amount": 300, "number": 4 },
+        { "type": "place", "typeId": "pass", "amount": 200 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "7f810c92d8aa03f6"
+    },
+    {
+      "actions": [
+        { "type": "setAmount", "betId": "b192", "amount": 0 },
+        { "type": "place", "typeId": "come", "amount": 300 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "b2e39f371ea63326"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "hard", "amount": 100, "number": 4 },
+        { "type": "place", "typeId": "hard", "amount": 200, "number": 6 },
+        { "type": "setGlobalWorking", "off": true }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "857d29f6f36450c5"
+    },
+    {
+      "actions": [
+        { "type": "setAmount", "betId": "b195", "amount": 0 },
+        { "type": "place", "typeId": "pass", "amount": 500 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "ed08ba12832f0578"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "hop24", "amount": 100 },
+        { "type": "place", "typeId": "buy", "amount": 2500, "number": 8 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "3fa06827be36627a"
+    },
+    {
+      "actions": [
+        {
+          "type": "batch",
+          "actions": [
+            { "type": "setAmount", "betId": "b196", "amount": 400 },
+            { "type": "setAmount", "betId": "b199", "amount": 5000 }
+          ]
+        },
+        { "type": "place", "typeId": "hop46", "amount": 100 },
+        { "type": "place", "typeId": "come", "amount": 500 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "228cad8079838f81"
+    },
+    {
+      "actions": [{ "type": "place", "typeId": "place", "amount": 1500, "number": 9 }],
+      "roll": { "type": "roll" },
+      "hashAfter": "29a0b595f6d633fb"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "luckyRollerAll", "amount": 300 },
+        { "type": "place", "typeId": "pass", "amount": 500 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "0d036e0dd6b8df22"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "hop46", "amount": 100 },
+        { "type": "place", "typeId": "hard", "amount": 400, "number": 4 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "e9be6b0e42c5035f"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "passOdds", "amount": 500, "parentId": "b204" },
+        { "type": "place", "typeId": "c", "amount": 300 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "a3575fb285002770"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "horn", "amount": 300 },
+        { "type": "place", "typeId": "buy", "amount": 7500, "number": 10 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "755283ddeb38da31"
+    },
+    {
+      "actions": [{ "type": "place", "typeId": "buy", "amount": 7500, "number": 4 }],
+      "roll": { "type": "roll" },
+      "hashAfter": "16563785cdd95f2e"
+    },
+    {
+      "actions": [
+        {
+          "type": "batch",
+          "actions": [{ "type": "place", "typeId": "buy", "amount": 7500, "number": 4 }]
+        },
+        { "type": "place", "typeId": "pass", "amount": 500 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "9f22810066bfafb3"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "passOdds", "amount": 1000, "parentId": "b212" },
+        { "type": "place", "typeId": "come", "amount": 1000 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "af8aafe589ec384c"
+    },
+    {
+      "actions": [
+        { "type": "setAmount", "betId": "b196", "amount": 700 },
+        { "type": "place", "typeId": "place", "amount": 1500, "number": 11 },
+        { "type": "place", "typeId": "pass", "amount": 500 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "91e035d1d6669e92"
+    },
+    {
+      "actions": [
+        {
+          "type": "batch",
+          "actions": [
+            { "type": "setAmount", "betId": "b196", "amount": 0 },
+            { "type": "setAmount", "betId": "b199", "amount": 0 },
+            { "type": "setAmount", "betId": "b202", "amount": 0 },
+            { "type": "setAmount", "betId": "b206", "amount": 0 },
+            { "type": "setAmount", "betId": "b210", "amount": 0 },
+            { "type": "setAmount", "betId": "b211", "amount": 0 },
+            { "type": "setAmount", "betId": "b215", "amount": 0 },
+            { "type": "setAmount", "betId": "b216", "amount": 0 }
+          ]
+        },
+        { "type": "place", "typeId": "pass", "amount": 500 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "f3da313ffc120a4d"
+    },
+    {
+      "actions": [{ "type": "place", "typeId": "field", "amount": 200 }],
+      "roll": { "type": "roll" },
+      "hashAfter": "9413805236acd8ba"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "come", "amount": 500 },
+        { "type": "setAmount", "betId": "b219", "amount": 1000 },
+        {
+          "type": "batch",
+          "actions": [{ "type": "place", "typeId": "passOdds", "parentId": "b217", "amount": 1000 }]
+        }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "0dedacb60c7ac33a"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "come", "amount": 500 },
+        {
+          "type": "batch",
+          "actions": [{ "type": "place", "typeId": "comeOdds", "parentId": "b219", "amount": 2000 }]
+        }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "898f5fc3604d09b2"
+    },
+    {
+      "actions": [{ "type": "place", "typeId": "place", "amount": 1000, "number": 12 }],
+      "roll": { "type": "roll" },
+      "hashAfter": "2dafb6f4f949b57a"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "hard", "amount": 500, "number": 10 },
+        { "type": "place", "typeId": "pass", "amount": 500 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "530ab98beb16f95d"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "passOdds", "amount": 500, "parentId": "b225" },
+        { "type": "place", "typeId": "buy", "amount": 5000, "number": 6 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "52a5cd2ca6506cb8"
+    },
+    {
+      "actions": [
         { "type": "setGlobalWorking", "off": null },
-        { "type": "setAmount", "betId": "b261", "amount": 10000 }
+        { "type": "place", "typeId": "place", "amount": 1800, "number": 6 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "4ec6592db695b2f2"
+      "hashAfter": "951fe5b08be7eef9"
     },
     {
       "actions": [
-        { "type": "setAmount", "betId": "b273", "amount": 1500 },
-        { "type": "setAmount", "betId": "b262", "amount": 2400 },
-        { "type": "batch", "actions": [{ "type": "setAmount", "betId": "b269", "amount": 5300 }] }
+        { "type": "place", "typeId": "yo", "amount": 100 },
+        { "type": "place", "typeId": "come", "amount": 2000 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "371726dac51c3b13"
+      "hashAfter": "5d5dfc7a7f1e01ea"
     },
     {
-      "actions": [{ "type": "setAmount", "betId": "b273", "amount": 2000 }],
+      "actions": [{ "type": "place", "typeId": "buy", "amount": 5000, "number": 4 }],
       "roll": { "type": "roll" },
-      "hashAfter": "792a025dc8605682"
+      "hashAfter": "e83317581d82895f"
+    },
+    {
+      "actions": [{ "type": "place", "typeId": "hop24", "amount": 100 }],
+      "roll": { "type": "roll" },
+      "hashAfter": "27df6afde320fcd6"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "hard", "amount": 300, "number": 6 },
+        { "type": "batch", "actions": [{ "type": "setAmount", "betId": "b227", "amount": 10700 }] }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "f31268b628fd8297"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "hop46", "amount": 300 },
+        { "type": "place", "typeId": "pass", "amount": 200 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "0a437cb82b846930"
+    },
+    {
+      "actions": [{ "type": "place", "typeId": "place", "amount": 1000, "number": 5 }],
+      "roll": { "type": "roll" },
+      "hashAfter": "34ba80857bb2af56"
+    },
+    {
+      "actions": [
+        { "type": "setGlobalWorking", "off": true },
+        { "type": "place", "typeId": "come", "amount": 2000 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "8ef4ba92f528b8ea"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "passOdds", "amount": 400, "parentId": "b235" },
+        {
+          "type": "batch",
+          "actions": [{ "type": "place", "typeId": "comeOdds", "parentId": "b237", "amount": 4000 }]
+        }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "ffd2cb223d625225"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "buy", "amount": 7500, "number": 5 },
+        { "type": "place", "typeId": "come", "amount": 500 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "47f5524a4be03f05"
+    },
+    {
+      "actions": [{ "type": "place", "typeId": "hop33", "amount": 200 }],
+      "roll": { "type": "roll" },
+      "hashAfter": "e19a820f09409f3c"
+    },
+    {
+      "actions": [
+        { "type": "deposit", "amount": 20000 },
+        { "type": "place", "typeId": "place", "amount": 500, "number": 12 },
+        { "type": "setAmount", "betId": "b240", "amount": 0 },
+        { "type": "place", "typeId": "buy", "amount": 7500, "number": 2 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "f766ba4accd8d6c0"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "come", "amount": 1000 },
+        { "type": "setGlobalWorking", "off": null }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "9679ca4ff8e3a51c"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "hop22", "amount": 100 },
+        { "type": "place", "typeId": "buy", "amount": 5000, "number": 6 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "03065d7bf41e4783"
+    },
+    {
+      "actions": [{ "type": "place", "typeId": "place", "amount": 500, "number": 4 }],
+      "roll": { "type": "roll" },
+      "hashAfter": "554b8c99d35be691"
+    },
+    {
+      "actions": [
+        {
+          "type": "batch",
+          "actions": [
+            { "type": "setAmount", "betId": "b236", "amount": 2000 },
+            { "type": "setAmount", "betId": "b243", "amount": 1000 },
+            { "type": "setAmount", "betId": "b244", "amount": 15000 },
+            { "type": "setAmount", "betId": "b247", "amount": 10000 },
+            { "type": "setAmount", "betId": "b248", "amount": 1000 }
+          ]
+        }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "57fc15633f090aea"
     },
     {
       "actions": [
         { "type": "place", "typeId": "come", "amount": 1500 },
-        { "type": "place", "typeId": "buy", "amount": 2500, "number": 11 }
+        { "type": "place", "typeId": "hard", "amount": 100, "number": 10 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "8b9a2d32511a4d10"
+      "hashAfter": "d1edc2f3b7c9613f"
     },
     {
       "actions": [
-        { "type": "place", "typeId": "place", "amount": 1000, "number": 5 },
-        { "type": "place", "typeId": "place", "amount": 600, "number": 6 },
+        { "type": "setAmount", "betId": "b243", "amount": 0 },
+        { "type": "place", "typeId": "comeOdds", "amount": 500, "parentId": "b245" }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "744e03237130c26d"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "snakeEyes", "amount": 200 },
+        { "type": "place", "typeId": "pass", "amount": 300 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "ef67fd6ccf31f9c0"
+    },
+    {
+      "actions": [{ "type": "place", "typeId": "come", "amount": 1000 }],
+      "roll": { "type": "roll" },
+      "hashAfter": "e6c38d90458eaa22"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "buy", "amount": 7500, "number": 10 },
+        {
+          "type": "batch",
+          "actions": [{ "type": "place", "typeId": "passOdds", "parentId": "b253", "amount": 600 }]
+        },
+        { "type": "place", "typeId": "come", "amount": 2000 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "9929b4c2d0ac4f83"
+    },
+    {
+      "actions": [
+        {
+          "type": "batch",
+          "actions": [{ "type": "place", "typeId": "comeOdds", "parentId": "b257", "amount": 4000 }]
+        }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "494ccb8f71cbb95f"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "come", "amount": 500 },
+        { "type": "setAmount", "betId": "b255", "amount": 12500 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "882f721b3c4f0046"
+    },
+    {
+      "actions": [{ "type": "place", "typeId": "hard", "amount": 500, "number": 10 }],
+      "roll": { "type": "roll" },
+      "hashAfter": "0bb3c458b95ee6ca"
+    },
+    {
+      "actions": [
+        {
+          "type": "batch",
+          "actions": [{ "type": "place", "typeId": "hard", "amount": 500, "number": 10 }]
+        },
+        { "type": "place", "typeId": "buy", "amount": 5000, "number": 6 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "51c9ca63c42f7c42"
+    },
+    {
+      "actions": [{ "type": "place", "typeId": "buy", "amount": 2500, "number": 9 }],
+      "roll": { "type": "roll" },
+      "hashAfter": "f66a17c8fd43df52"
+    },
+    {
+      "actions": [{ "type": "place", "typeId": "come", "amount": 1500 }],
+      "roll": { "type": "roll" },
+      "hashAfter": "7a4cafc6f7575660"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "come", "amount": 1000 },
+        {
+          "type": "batch",
+          "actions": [
+            { "type": "setAmount", "betId": "b260", "amount": 2000 },
+            { "type": "setAmount", "betId": "b261", "amount": 10000 },
+            { "type": "setAmount", "betId": "b262", "amount": 5000 },
+            { "type": "setAmount", "betId": "b264", "amount": 2000 }
+          ]
+        }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "c7e1de9371618651"
+    },
+    {
+      "actions": [{ "type": "place", "typeId": "pass", "amount": 1000 }],
+      "roll": { "type": "roll" },
+      "hashAfter": "2d871bbbf10230b4"
+    },
+    {
+      "actions": [{ "type": "place", "typeId": "hop55", "amount": 100 }],
+      "roll": { "type": "roll" },
+      "hashAfter": "b286ac104983ecfa"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "pass", "amount": 1000 },
+        { "type": "setAmount", "betId": "b267", "amount": 0 },
         { "type": "place", "typeId": "pass", "amount": 500 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "c6250c1811e32d3d"
+      "hashAfter": "333c783fede5e75a"
     },
     {
       "actions": [
         {
           "type": "batch",
-          "actions": [{ "type": "place", "typeId": "passOdds", "parentId": "b278", "amount": 1000 }]
-        },
-        { "type": "place", "typeId": "come", "amount": 2000 }
+          "actions": [{ "type": "place", "typeId": "passOdds", "parentId": "b268", "amount": 1000 }]
+        }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "0316b9534ab1e1e9"
+      "hashAfter": "51c1534eb2acdcb0"
+    },
+    {
+      "actions": [{ "type": "place", "typeId": "buy", "amount": 7500, "number": 5 }],
+      "roll": { "type": "roll" },
+      "hashAfter": "745f416fdc49b028"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "e", "amount": 300 },
+        { "type": "place", "typeId": "come", "amount": 1000 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "860d68ae80353c88"
+    },
+    {
+      "actions": [
+        { "type": "place", "typeId": "place", "amount": 1500, "number": 4 },
+        { "type": "place", "typeId": "pass", "amount": 500 }
+      ],
+      "roll": { "type": "roll" },
+      "hashAfter": "fe9e4f36995c5956"
     },
     {
       "actions": [
         {
           "type": "batch",
-          "actions": [{ "type": "place", "typeId": "comeOdds", "parentId": "b280", "amount": 4000 }]
+          "actions": [{ "type": "place", "typeId": "passOdds", "parentId": "b274", "amount": 1000 }]
         },
-        { "type": "place", "typeId": "come", "amount": 500 },
-        { "type": "place", "typeId": "place", "amount": 1000, "number": 3 }
+        { "type": "place", "typeId": "hard", "amount": 500, "number": 10 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "e40c3fa5715b5758"
-    },
-    {
-      "actions": [{ "type": "place", "typeId": "comeOdds", "amount": 1000, "parentId": "b282" }],
-      "roll": { "type": "roll" },
-      "hashAfter": "138b99c0dfccbff1"
-    },
-    {
-      "actions": [{ "type": "place", "typeId": "place", "amount": 1000, "number": 4 }],
-      "roll": { "type": "roll" },
-      "hashAfter": "297b700dd6b757ad"
-    },
-    {
-      "actions": [
-        { "type": "place", "typeId": "pass", "amount": 2000 },
-        { "type": "setAmount", "betId": "b286", "amount": 4000 }
-      ],
-      "roll": { "type": "roll" },
-      "hashAfter": "87307b2ff84677f7"
-    },
-    {
-      "actions": [
-        { "type": "place", "typeId": "come", "amount": 500 },
-        { "type": "place", "typeId": "buy", "amount": 2500, "number": 3 }
-      ],
-      "roll": { "type": "roll" },
-      "hashAfter": "902adf8cb57f9007"
-    },
-    {
-      "actions": [{ "type": "place", "typeId": "pass", "amount": 2000 }],
-      "roll": { "type": "roll" },
-      "hashAfter": "5ba171a953674fe5"
-    },
-    {
-      "actions": [
-        { "type": "place", "typeId": "hard", "amount": 200, "number": 8 },
-        { "type": "place", "typeId": "come", "amount": 2000 }
-      ],
-      "roll": { "type": "roll" },
-      "hashAfter": "156a03fa175a5a9b"
-    },
-    {
-      "actions": [{ "type": "place", "typeId": "comeOdds", "amount": 500, "parentId": "b291" }],
-      "roll": { "type": "roll" },
-      "hashAfter": "729d788f190991ef"
-    },
-    {
-      "actions": [
-        { "type": "place", "typeId": "buy", "amount": 7500, "number": 3 },
-        { "type": "place", "typeId": "buy", "amount": 5000, "number": 8 }
-      ],
-      "roll": { "type": "roll" },
-      "hashAfter": "db5dae64865c6f6b"
-    },
-    {
-      "actions": [
-        { "type": "place", "typeId": "hop15", "amount": 100 },
-        { "type": "place", "typeId": "pass", "amount": 400 }
-      ],
-      "roll": { "type": "roll" },
-      "hashAfter": "cffacccd236658c2"
-    },
-    {
-      "actions": [{ "type": "place", "typeId": "place", "amount": 1000, "number": 11 }],
-      "roll": { "type": "roll" },
-      "hashAfter": "28d4440b6145393f"
+      "hashAfter": "ce8fb0bdae681f77"
     }
   ],
   "pending": [],
-  "finalStateHash": "28d4440b6145393f"
+  "finalStateHash": "ce8fb0bdae681f77"
 }

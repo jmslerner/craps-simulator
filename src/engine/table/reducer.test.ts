@@ -117,18 +117,20 @@ describe('commission plumbing (what M4b fills in for buy and lay)', () => {
 })
 
 describe('the roll pipeline', () => {
-  it('reports progress decisions (what side bets will use, M11)', () => {
-    const progress: Partial<BetFamily<never>> = {
-      decide: () => ({ kind: 'progress', progress: 3 }),
-      apply: (bet, decision) =>
-        decision.kind === 'progress' ? { ...bet, progress: decision.progress } : bet,
-    }
-    withOddsHooks(progress, () => {
-      const state = play([place('pass', 1_000), roll(2, 2), place('passOdds', 1_000, 1)])
-      const rolled = ok(applyAction(state, roll(5, 5), crapless))
-      expect(rolled.events).toContainEqual({ type: 'betProgress', betId: 'b2', progress: 3 })
-      expect(rolled.state.bets[1]?.progress).toBe(3)
-    })
+  it('reports progress decisions as betProgress events and keeps them on the bet (M11)', () => {
+    // Low Rolls on crapless: the come-out 2 is the first of its five targets (bit 1 << 2).
+    const state = play([place('pass', 1_000), place('luckyRollerLow', 100)])
+    const rolled = ok(applyAction(state, roll(1, 1), crapless))
+    expect(rolled.events).toContainEqual({ type: 'betProgress', betId: 'b2', progress: 4 })
+    expect(rolled.state.bets[1]).toMatchObject({ typeId: 'luckyRollerLow', progress: 4 })
+    // Only a side bet may carry progress: the table invariants refuse it on anything else.
+    expect(() =>
+      applyAction(
+        { ...rolled.state, bets: rolled.state.bets.map((b) => ({ ...b, progress: 4 })) },
+        roll(1, 2),
+        crapless,
+      ),
+    ).toThrow(InvariantError)
   })
 })
 

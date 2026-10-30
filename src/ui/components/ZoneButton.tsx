@@ -2,11 +2,13 @@ import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { formatCents } from '../../engine/index.ts'
 import type { Cents } from '../../engine/index.ts'
 import { formatCoachNumber } from '../../coach/format.ts'
+import { badgeVisibleIn, coachModeName } from '../../coach/policy.ts'
 import { badgeKey } from '../../coach/types.ts'
 import type { ZoneBadge } from '../../coach/types.ts'
 import { badgeFor, ensureCatalog, subscribeAnalysis } from '../services/analysisClient.ts'
 import type { ZoneSpec } from '../layout/layoutSpec.ts'
-import { useGameState, useUi } from './context.tsx'
+import type { SideBetProgress } from '../layout/sideBetProgress.ts'
+import { useGameState, useSettingsState, useUi } from './context.tsx'
 import { useLongPress } from './useLongPress.ts'
 
 /**
@@ -23,6 +25,11 @@ import { useLongPress } from './useLongPress.ts'
  * rendered from a `CoachNumber`. The e2e badge check reads `data-coach-badge` and compares the
  * text against `__CRAPS_TEST__.analyze`. Machine text and coach numbers never share a slot, so a
  * machine with its own badge wording keeps it verbatim.
+ *
+ * **Side-bet progress (plan §10 M11):** a zone with a `track` draws its numbers as pips and lights
+ * the ones the bet has collected (`progressOf` over the engine's `BetInstance.progress`), with the
+ * Lucky Shooter's point drawn apart; the Hot Shooter shows its roll count instead. `data-lit` on
+ * the track names the lit numbers for the e2e check.
  */
 
 export interface ZoneView {
@@ -36,7 +43,14 @@ export interface ZoneView {
   readonly blocked: boolean
   /** The point puck sits on this zone. */
   readonly puck: 'on' | 'off' | null
+  /** A side bet's progress (M11); null on every other zone and on an empty side-bet spot. */
+  readonly progress: SideBetProgress | null
   readonly ariaLabel: string
+}
+
+/** The class of one track pip: lit when collected, marked when it is the Lucky Shooter's point. */
+export function pipClass(lit: boolean, point: boolean): string {
+  return ['pip', lit ? 'pip-lit' : '', point ? 'pip-point' : ''].filter((c) => c !== '').join(' ')
 }
 
 export function ZoneButton({
@@ -51,11 +65,15 @@ export function ZoneButton({
   /** Tighter styling for strips inside a number column. */
   compact?: boolean
 }) {
-  const { zone, amount, oddsAmount, off, blocked, puck, ariaLabel } = view
+  const { zone, amount, oddsAmount, off, blocked, puck, progress, ariaLabel } = view
   const ui = useUi()
   const press = useLongPress(onTap, onInspect)
   const shake = useShake(zone.key)
-  const coach = useCoachBadge(zone)
+  // The coach mode decides which badges show (plan §5.6): all in coach, poor/awful in quiet,
+  // none when the coach is off. The machine's own badge text is not coaching and always shows.
+  const coachMode = useSettingsState((state) => coachModeName(state.coachMode))
+  const badge = useCoachBadge(zone)
+  const coach = badge !== null && badgeVisibleIn(coachMode, badge.grade) ? badge : null
   const highlighted = ui.highlight === zone.target
   const ref = useRef<HTMLButtonElement>(null)
 
@@ -88,6 +106,23 @@ export function ZoneButton({
       {...press}
     >
       <span className="zone-label">{zone.label}</span>
+      {zone.track !== null && (
+        <span className="zone-track" aria-hidden="true" data-lit={progress?.lit.join(' ') ?? ''}>
+          {zone.track.map((n) => (
+            <span
+              key={n}
+              className={pipClass(progress?.lit.includes(n) ?? false, progress?.point === n)}
+            >
+              {n}
+            </span>
+          ))}
+        </span>
+      )}
+      {progress !== null && progress.count !== null && (
+        <span className="zone-count" data-count={progress.count}>
+          {progress.count} {progress.count === 1 ? 'roll' : 'rolls'}
+        </span>
+      )}
       {zone.payLabel !== null && <span className="zone-pay">{zone.payLabel}</span>}
       {zone.badge !== null && <span className="zone-badge">{zone.badge}</span>}
       {coach !== null && (

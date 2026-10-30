@@ -8,8 +8,9 @@ import {
   heldOffOf,
   isDoubles,
   isSettled,
-  resolveType,
+  resolveBet,
   settle,
+  totalBit,
   totalOf,
   type BetId,
   type BetInstance,
@@ -18,7 +19,7 @@ import {
   type Ledger,
   type MachineConfig,
   type Phase,
-  type ResolvedType,
+  type ResolvedBet,
   type RngState,
   type RollContext,
   type RoundState,
@@ -51,6 +52,11 @@ import { nextBelow, pickWeighted, prepareWeightedPick } from './uniform.ts'
  * (decisions read nothing else of it) and keeps every bet's held commission at zero, pricing a
  * settlement as `credited + vigRearm` — `src/exact/price.ts`'s accounting — plus the stake when
  * it stays up, since a stake left standing at the decision horizon counts as returned.
+ *
+ * Side bets (M11) walk like any other bet: a `progress` decision moves the bet on and the walk
+ * continues, a start may carry the bet's progress so far (`StartContext.progress`: a Lucky Roller
+ * with three targets rolled), and nothing is lumped — a Hot Shooter's count grows roll by roll
+ * until the seven-out — so the walk cross-checks the solver's lumped chain (`canonicalProgress`).
  *
  * Everything returned is exact: integer decision counts, integer cents. The float statistics
  * (means, sigmas, chi-squared) belong in the test files.
@@ -181,7 +187,7 @@ class Sampler {
   private readonly spec: BetSpec
   private readonly amount: Cents
   private readonly cfg: MachineConfig
-  private readonly slots: readonly ResolvedType[]
+  private readonly slots: readonly ResolvedBet[]
   private readonly subject: number
   private readonly nodes = new Map<string, Node>()
 
@@ -196,8 +202,15 @@ class Sampler {
     this.startNodes = start.phases.map(({ phase }) => this.node(this.startTable(phase, start)))
   }
 
-  /** The table a decision starts on: a fresh subject (and its parent) with the start's toggles. */
+  /**
+   * The table a decision starts on: the subject (and its parent) with the start's toggles, and the
+   * subject's progress so far for a side bet already on the table.
+   */
   private startTable(phase: Phase, start: StartContext): WalkTable {
+    const progress = start.progress ?? 0
+    if (progress !== 0 && !start.carried) {
+      throw new Error(`${this.spec.typeId} has progress, so it has rolled: it is carried`)
+    }
     const bets = this.slots.map((slot, index): BetInstance => {
       const isSubject = index === this.subject
       return {
@@ -208,7 +221,7 @@ class Sampler {
         amount: isSubject ? this.amount : PARENT_NOMINAL,
         vigHeld: cents(0),
         working: isSubject ? start.working : null,
-        progress: 0,
+        progress: isSubject ? progress : 0,
         // A parent is already on its number, so it was placed in an earlier window.
         placedAtRoll: isSubject && !start.carried ? 1 : 0,
       }
@@ -360,7 +373,7 @@ class Sampler {
       v: 1,
       configHash: this.cfg.configHash,
       rng: WALK_RNG,
-      round: projectedRound(walk.phase),
+      round: projectedRound(walk.phase, bets, this.cfg),
       bets,
       nextBetSeq: walk.bets.length + 1,
       ledger: WALK_LEDGER,
@@ -377,12 +390,12 @@ class Sampler {
 function slotsFor(
   spec: BetSpec,
   cfg: MachineConfig,
-): { readonly slots: readonly ResolvedType[]; readonly subject: number } {
-  const resolved = resolveType(cfg, spec.typeId)
+): { readonly slots: readonly ResolvedBet[]; readonly subject: number } {
+  const resolved = resolveBet(cfg, spec.typeId)
   if (resolved === null) throw new Error(`${cfg.id} does not offer "${spec.typeId}"`)
   if (resolved.type.family === 'odds') {
     if (spec.number === null) throw new Error(`${spec.typeId} needs the point it sits on`)
-    const parent = resolveType(cfg, resolved.type.parent)
+    const parent = resolveBet(cfg, resolved.type.parent)
     if (parent === null) throw new Error(`No ${resolved.type.parent} for ${spec.typeId}`)
     return { slots: [parent, resolved], subject: 1 }
   }
@@ -392,14 +405,24 @@ function slotsFor(
 /**
  * A round in `phase`, projected as the solver projects it: decisions read only the phase and point
  * (plus the bet's own progress), so the walk need not track roll counts or hand masks. Roll 1 of a
- * hand under way: `placedAtRoll` 1 is new to the coming roll, 0 was carried.
+ * hand under way: `placedAtRoll` 1 is new to the coming roll, 0 was carried. With a side bet's
+ * progress on the table the hand is one that could have produced it — long enough for a Hot
+ * Shooter's count (roll 1 + the largest progress), with every point made for a Fire Bet's points —
+ * which only the families' invariants read.
  */
-function projectedRound(phase: Phase): RoundState {
+function projectedRound(
+  phase: Phase,
+  bets: readonly BetInstance[],
+  cfg: MachineConfig,
+): RoundState {
+  const rolls = 1 + bets.reduce((most, bet) => (bet.progress > most ? bet.progress : most), 0)
+  const pointsMadeMask =
+    rolls === 1 ? 0 : cfg.ruleset.points.reduce((mask, point) => mask | totalBit(point), 0)
   return {
     phase,
-    rollIndex: 1,
-    hand: { index: 0, rolls: 1, pointsMadeMask: 0 },
-    sinceSeven: { rolls: 1, totalsMask: 0 },
+    rollIndex: rolls,
+    hand: { index: 0, rolls, pointsMadeMask },
+    sinceSeven: { rolls, totalsMask: 0 },
   }
 }
 

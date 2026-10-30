@@ -93,5 +93,27 @@ describe('roundingPeriod', () => {
     expect(period('craplessBubble', 'pass', null)).toBe(1)
     // 5:6 to the cent, 5% of the win rounded up to the cent: lcm(6, 20 × 6).
     expect(period('traditionalBubble', 'lay', 6)).toBe(120)
+    // Whole-number pays to the cent: every stake pays a Lucky Roller exactly.
+    expect(period('craplessBubble', 'luckyRollerLow', null)).toBe(1)
+  })
+})
+
+describe('side bets (M11)', () => {
+  it('places them at the session start, where every window is open, with the Hot Shooter qualifier', () => {
+    const crapless = cfgOf('craplessBubble')
+    const low: BetSpec = { typeId: 'luckyRollerLow', number: null }
+    expect(legalAmounts(low, crapless, { from: 0, to: Number.MAX_SAFE_INTEGER }, 3)).toEqual([
+      100, 200, 300,
+    ])
+    expect(smallestAmount(low, crapless)).toBe(100)
+    expect(largestAmount(low, crapless)).toBe(50_000)
+    expect(exactUnit(low, labels(low, 'craplessBubble'), crapless)).toBe(100)
+    // The Hot Shooter needs 3 credits on the main game first (CW §33b): the dry run carries them.
+    const hot: BetSpec = { typeId: 'hotShooter', number: null }
+    expect(smallestAmount(hot, cfgOf('traditionalBubble'))).toBe(100)
+    expect(smallestAmount({ typeId: 'fire', number: null }, cfgOf('traditionalLive345'))).toBe(100)
+    expect(smallestAmount({ typeId: 'luckyShooter', number: null }, cfgOf('strictBubble'))).toBe(
+      100,
+    )
   })
 })

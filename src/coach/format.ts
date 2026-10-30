@@ -31,15 +31,26 @@ export function formatCoachNumber(n: CoachNumber): string {
 /** A template part as text: literal strings pass through, numbers are formatted by kind. */
 export function formatPart(part: TemplatePart): string {
   if (typeof part === 'string') return part
-  if (isStyled(part)) return formatMoneyExact(frac(part.n))
+  if (isStyled(part)) {
+    return part.style === 'exact' ? formatMoneyExact(frac(part.n)) : formatMoneyCompact(part.n)
+  }
   return formatCoachNumber(part)
 }
 
 /** A styled part is `{ n, style }`; a `CoachNumber` itself never carries a `style` key. */
 function isStyled(
   part: TemplatePart,
-): part is { readonly n: CoachNumber; readonly style: 'exact' } {
+): part is { readonly n: CoachNumber; readonly style: 'exact' | 'compact' } {
   return typeof part === 'object' && 'style' in part
+}
+
+/** Money with whole dollars trimmed ("$5"), for recap arithmetic; fractions stay approximate. */
+function formatMoneyCompact(n: CoachNumber): string {
+  if (typeof n.exact === 'number') return formatCents(n.exact, { trimWholeDollars: true })
+  const rounded = roundedCents(n.exact)
+  return n.exact.equals(Fraction.of(rounded))
+    ? formatCents(rounded, { trimWholeDollars: true })
+    : `≈ ${formatCents(rounded)}`
 }
 
 /** The number's value as a `Fraction` (cents stay what they are, as a fraction over 1). */
@@ -59,7 +70,9 @@ export function formatMoneyFraction(value: Fraction): string {
 
 /**
  * Money unrounded, for derivations: "$5.833…" for 35/6 dollars — three decimals of a dollar, an
- * ellipsis when more follow, trailing mill dropped when the cent is exact ("$5.83", "$5.835").
+ * ellipsis when more follow, trailing mill dropped when the cent is exact ("$5.83", "$5.835"). The
+ * dollars are grouped like `formatCents` ("$11,666.666…"), so a high-limit recap reads one way
+ * throughout (M9 audit MINOR-3).
  */
 export function formatMoneyExact(value: Fraction): string {
   const sign = value.isNegative() ? '-' : ''
@@ -69,11 +82,16 @@ export function formatMoneyExact(value: Fraction): string {
   const whole = mills.floorDiv(Fraction.of(1))
   const remainder = !mills.equals(Fraction.of(whole))
   const text = whole.toString().padStart(4, '0')
-  const dollars = text.slice(0, -3)
+  const dollars = groupThousands(text.slice(0, -3))
   const centsPart = text.slice(-3, -1)
   const mill = text.slice(-1)
   const tail = mill === '0' && !remainder ? '' : mill
   return `${sign}$${dollars}.${centsPart}${tail}${remainder ? '…' : ''}`
+}
+
+/** "1166666" → "1,166,666": the en-US grouping `formatCents` uses, on a digit string. */
+function groupThousands(digits: string): string {
+  return digits.replace(/\B(?=(\d{3})+(?!\d))/g, ',')
 }
 
 /** A money `Fraction` of cents rounded half away from zero to whole cents. */

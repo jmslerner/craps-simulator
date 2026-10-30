@@ -758,40 +758,42 @@ export interface OneRollBetType extends TypeBase {
 export type CompiledBetType =
   LineBetType | OddsBetType | NumberBetType | HardwayBetType | OneRollBetType
 
-export interface CollectSetBetType {
+/**
+ * What every side bet carries besides its family's data. A side bet sets no rounding of its own, so
+ * `payoutRounding` is the config's `/money/payoutRounding` (`payoutRoundingFor` reads it there).
+ */
+type SideBetBase = TypeBase
+
+/** Lucky Roller: Low Rolls / All Small, High Rolls / All Tall, Roll 'Em All (rules spec §6.4). */
+export interface CollectSetBetType extends SideBetBase {
   readonly family: 'collectSet'
-  readonly typeId: string
-  readonly label: string
   readonly targets: readonly Total[]
   readonly pays: Ratio
   readonly endsOn: 'anySeven' | 'sevenOut'
   readonly placement: 'afterSevenOrStart' | 'noneOfTypeActive' | 'newHand'
 }
 
-export interface UniquePointsBetType {
+/** The Fire Bet (rules spec §6.6): `payTable` by the count of unique points made. */
+export interface UniquePointsBetType extends SideBetBase {
   readonly family: 'uniquePointsMade'
-  readonly typeId: string
-  readonly label: string
   readonly countedPoints: readonly PointNumber[]
   readonly payTable: ReadonlyMap<number, Ratio>
   readonly payImmediatelyAt: number | null
   readonly placement: 'newHand'
 }
 
-export interface HandLengthBetType {
+/** The Hot Shooter Jackpot (rules spec §6.2): tiers ascending in `minRolls`; `push` is "1 for 1". */
+export interface HandLengthBetType extends SideBetBase {
   readonly family: 'handLength'
-  readonly typeId: string
-  readonly label: string
   readonly countDefinition: HandLengthConfig['countDefinition']
   readonly tiers: readonly { readonly minRolls: number; readonly pays: Ratio | 'push' }[]
   readonly placement: HandLengthConfig['placement']
   readonly qualifyingBet: Cents
 }
 
-export interface PointRunBetType {
+/** The Lucky Shooter (rules spec §6.3): `payTable` by hits; `topAward` for every hit then the point. */
+export interface PointRunBetType extends SideBetBase {
   readonly family: 'pointRun'
-  readonly typeId: string
-  readonly label: string
   readonly points: readonly PointNumber[]
   readonly payTable: ReadonlyMap<number, Ratio>
   readonly topAward: Ratio
@@ -973,7 +975,7 @@ function build(input: MachineConfigInput): MachineConfig {
   }
   const sideBets = new Map<string, CompiledSideBet>()
   for (const [typeId, bet] of Object.entries(input.sideBets)) {
-    sideBets.set(typeId, compileSideBet(typeId, bet))
+    sideBets.set(typeId, compileSideBet(typeId, bet, payoutRounding))
   }
   const composites = new Map<string, CompositeBet>()
   for (const [id, { label, parts }] of Object.entries(input.composites)) {
@@ -1214,8 +1216,12 @@ function countTable(table: Readonly<Record<string, string>>): ReadonlyMap<number
   )
 }
 
-function compileSideBet(typeId: string, bet: SideBetConfig): CompiledSideBet {
-  const base = { typeId, label: bet.label }
+function compileSideBet(
+  typeId: string,
+  bet: SideBetConfig,
+  payoutRounding: Rounding,
+): CompiledSideBet {
+  const base = { typeId, label: bet.label, payoutRounding }
   switch (bet.family) {
     case 'collectSet':
       return Object.freeze({

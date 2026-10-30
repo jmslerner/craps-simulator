@@ -34,6 +34,7 @@ describe('paramsFingerprint', () => {
   })
 
   it('pins the defaults: re-pin this and the golden recording hash after tuning', () => {
-    expect(fingerprint).toBe('a715829ad46046a2')
+    // M10b added `handoff`; the frames every seed produces are unchanged by it.
+    expect(fingerprint).toBe('234fff9278848888')
   })
 })

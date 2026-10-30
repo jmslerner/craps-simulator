@@ -68,6 +68,15 @@ describe('formatMoneyExact', () => {
     expect(formatMoneyExact(Fraction.of(5))).toBe('$0.05')
     expect(formatMoneyExact(Fraction.of(-583))).toBe('-$5.83')
   })
+
+  it('groups the dollars in thousands like formatCents (the $10,000 place 6 recap, M9 audit)', () => {
+    expect(formatMoneyExact(Fraction.of(3_500_000, 3))).toBe('$11,666.666…') // $10,000 × 7/6
+    expect(formatMoneyExact(Fraction.of(1_166_666))).toBe('$11,666.66')
+    expect(formatMoneyExact(Fraction.of(100_000_000))).toBe('$1,000,000.00')
+    expect(formatMoneyExact(Fraction.of(99_999))).toBe('$999.99')
+    expect(formatMoneyExact(Fraction.of(100_000))).toBe('$1,000.00')
+    expect(formatMoneyExact(Fraction.of(-2_000_001, 2))).toBe('-$10,000.005')
+  })
 })
 
 describe('roundedCents', () => {

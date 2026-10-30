@@ -69,12 +69,13 @@ interface TriggerCase {
 const TRIGGERS: readonly TriggerCase[] = [
   {
     code: 'NOT_OFFERED',
-    title: 'a type the machine lacks, an unknown one, and a side bet the engine lacks (M11)',
+    title: 'a type the machine lacks, an unknown one, and a side bet the machine lacks (M11)',
     run: () =>
       scenario('craplessBubble')
         .expectReject('NOT_OFFERED', place('dontPass', 500), { typeId: 'dontPass' })
         .expectReject('NOT_OFFERED', place('nope', 500))
-        .expectReject('NOT_OFFERED', place('luckyRollerLow', 500)),
+        .expectReject('NOT_OFFERED', place('fire', 500), { typeId: 'fire' })
+        .expectReject('NOT_OFFERED', place('hotShooter', 500), { typeId: 'hotShooter' }),
   },
   {
     code: 'BAD_PARAMS',

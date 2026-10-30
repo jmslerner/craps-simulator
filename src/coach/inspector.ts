@@ -9,6 +9,8 @@ import {
   takeDownValue,
 } from '../exact/index.ts'
 import type { BetAnalysis, BetSpec, DerivationStep } from '../exact/index.ts'
+import { adviseSpot } from './advisors/index.ts'
+import type { Advice } from './advisors/advice.ts'
 import {
   chanceLine,
   chancesStep,
@@ -25,7 +27,9 @@ import {
   waysIncompleteNote,
   waysStep,
 } from './content/templates.ts'
+import { returnsUnplayed, winChanceOfDecisions } from './decisions.ts'
 import { coachCount, coachMoney, coachPercent, coachProbability, sourceOf } from './numbers.ts'
+import { sideBetProgress, type SideBetProgress } from './sideBetProgress.ts'
 import type { CoachLine, CoachNumber, CoachSource } from './types.ts'
 
 /**
@@ -60,6 +64,19 @@ export interface InspectorMath {
   /** The "Show math" derivation, one line per `DerivationStep`. */
   readonly steps: readonly CoachLine[]
   readonly existing: ExistingMath | null
+  /**
+   * For a side bet on the table (M11, plan §5.4 `sideBetProgress`): where it stands, what settling
+   * now assures, the next tier with the exact chance of reaching it, and its equity from now. Its
+   * lines are also appended to `lines`. Null for every other bet and for an empty spot (optional,
+   * so a hand-built `InspectorMath` from before M11 still type-checks).
+   */
+  readonly sideBet?: SideBetProgress | null
+  /**
+   * What the advisors say about this spot (plan §5.4, §10 M9c): alternatives with their one-tap
+   * switch, the edge warning, odds, efficiency, variant and working context. The UI routes them
+   * through the gate (`coach/policy.ts`) before showing anything.
+   */
+  readonly advice: readonly Advice[]
   /** Config pointers with `assumed` provenance under any shown number. */
   readonly assumedPaths: readonly string[]
 }
@@ -102,10 +119,16 @@ export function inspectorMath(
       })
     }
     lines.push({ id: 'edge', parts: edgeLine({ edge }) })
-    lines.push({
-      id: 'chance',
-      parts: chanceLine({ pWin: coachProbability(analysis.pWin, source, assumed) }),
-    })
+    // "Wins … of decisions": odds returned unplayed are not decisions (rules spec §0.1 [M]), so an
+    // odds bet's chance is conditioned on being played, under a source that says so.
+    const pWin = returnsUnplayed(cfg, spec)
+      ? coachProbability(
+          winChanceOfDecisions(cfg, spec, analysis),
+          sourceOf('analyzeBet', { spec, amount, start: 'typical', field: 'pWinDecided' }, cfg),
+          assumed,
+        )
+      : coachProbability(analysis.pWin, source, assumed)
+    lines.push({ id: 'chance', parts: chanceLine({ pWin }) })
     const deriveSource = sourceOf('derive', { spec, amount, start: 'typical' }, cfg)
     for (const [index, step] of derive(spec, amount, cfg).entries()) {
       steps.push(stepLine(step, index, deriveSource, assumed))
@@ -126,6 +149,12 @@ export function inspectorMath(
     }
   }
 
+  const sideBet =
+    existing !== null && state !== null && betId !== null && cfg.sideBets.has(spec.typeId)
+      ? sideBetMath(betId, state, cfg)
+      : null
+  if (sideBet !== null) lines.push(...sideBet.lines)
+
   return {
     spec,
     amount,
@@ -134,7 +163,19 @@ export function inspectorMath(
     lines,
     steps,
     existing,
+    sideBet,
+    advice: adviseSpot({ cfg, spec, amount, state, betId }),
     assumedPaths: analysis?.assumedPaths ?? assumedPaths(spec, cfg),
+  }
+}
+
+/** The side-bet progress block; null when the solver cannot price the bet from here. */
+function sideBetMath(betId: BetId, state: TableState, cfg: MachineConfig): SideBetProgress | null {
+  try {
+    return sideBetProgress(betId, state, cfg)
+  } catch (error) {
+    if (error instanceof ExactError) return null
+    throw error
   }
 }
 

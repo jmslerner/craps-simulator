@@ -1,7 +1,7 @@
 import type { MachineConfig } from '../config/compile.ts'
 import { TOTALS } from '../core/dice.ts'
 import { checkAmount, typeLimits } from '../bets/limits.ts'
-import { resolveType } from '../bets/registry.ts'
+import { resolveBet } from '../bets/registry.ts'
 import { betSeq, type BetInstance } from '../bets/types.ts'
 import { imbalance, onTable } from './ledger.ts'
 import { heldOffOf, type TableState } from './state.ts'
@@ -16,7 +16,8 @@ import { heldOffOf, type TableState } from './state.ts'
  *   offered and implemented; amounts are positive and within the type's limits (`/limits`, with
  *   the unit on its number where the type sets one), and the table within `/limits/tableMax`;
  *   numbers are points of the game; only odds back a parent, and the parent exists; a bet holds
- *   up-front commission only if its family charges commission.
+ *   up-front commission only if its family charges commission; progress is a whole count or mask,
+ *   and only a side bet has any (M11).
  * - **No merging:** at most one bet per type, number and parent. A come bet travelling to a number
  *   that already has one would break this, and rules spec §0.2 #12 says the existing bet is always
  *   decided on that same roll, so it never happens; merging them would hide a bug, so it is a
@@ -69,7 +70,7 @@ export function invariantViolations(
     add('the history has a bad total')
   if (state.globalOff !== null && typeof state.globalOff !== 'boolean') add('globalOff is not set')
   state.rebetBlocked.forEach((typeId, index) => {
-    if (resolveType(cfg, typeId) === null) add(`rebetBlocked names "${typeId}", not a bet type`)
+    if (resolveBet(cfg, typeId) === null) add(`rebetBlocked names "${typeId}", not a bet type`)
     if (state.rebetBlocked.indexOf(typeId) !== index) add(`rebetBlocked lists ${typeId} twice`)
   })
   const holds = cfg.working.afterSevenOut?.types ?? []
@@ -113,7 +114,12 @@ export function invariantViolations(
     if (!(Number.isSafeInteger(bet.placedAtRoll) && bet.placedAtRoll <= rollIndex)) {
       add(`${bet.id} was placed at roll ${bet.placedAtRoll}, after roll ${rollIndex}`)
     }
-    const resolved = resolveType(cfg, bet.typeId)
+    if (!Number.isSafeInteger(bet.progress) || bet.progress < 0) {
+      add(`${bet.id} has bad progress: ${bet.progress}`)
+    } else if (bet.progress !== 0 && !cfg.sideBets.has(bet.typeId)) {
+      add(`${bet.id} (${bet.typeId}) has progress ${bet.progress}, which only side bets keep`)
+    }
+    const resolved = resolveBet(cfg, bet.typeId)
     if (resolved === null) {
       add(`${bet.id} has type "${bet.typeId}", which this config does not offer`)
       continue

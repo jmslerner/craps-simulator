@@ -12,16 +12,22 @@ import { newTable } from '../../src/engine/table/state.ts'
 import {
   analyzeBet,
   analyzeExisting,
+  checkBet,
   combinedEdge,
+  distribution,
   roundStats,
   standingCost,
+  startAt,
+  typicalStart,
   type BetSpec,
 } from '../../src/exact/index.ts'
 
 // Published exact values (plan §9 item 5), every one through the exact solver and compared with
 // exact rational equality. The expected fractions are this file's own constants, from the plan's
-// table and docs/rules/rules-spec.md (§1.3, §3, §4.2, §4.3, §4.4, §8.3) and docs/rules/glossary.md.
-// Side bets (All Small/Tall, Make 'Em All, Fire) arrive with M11.
+// table and docs/rules/rules-spec.md (§1.3, §3, §4.2, §4.3, §4.4, §6.2–§6.4, §6.6, §8.3) and
+// docs/rules/glossary.md. The side bets (M11) follow docs/rules/research/sidebets.md: where the
+// research gives a fraction it is matched exactly; where it gives only a decimal, the solver's
+// exact fraction must print to every published digit.
 //
 // Stakes are ones the machine pays exactly, unless the row is about rounding: a published edge is
 // the nominal one (rules spec §4.2 lists what breakage does at other stakes).
@@ -467,4 +473,358 @@ describe('equity and standing cost (glossary)', () => {
       )
     }
   })
+})
+
+// --- Side bets (M11; rules spec §6.2–§6.4, §6.6; docs/rules/research/sidebets.md §2–§5) ---
+
+const side = (typeId: string): BetSpec => ({ typeId, number: null })
+
+/** The chance of each settlement label of the first decision from the bet's typical start. */
+function firstDecisionChances(cfg: MachineConfig, typeId: string): Map<string, Fraction> {
+  const dist = distribution(side(typeId), typicalStart(side(typeId), cfg), 'decision', cfg)
+  return new Map(
+    dist.labels.map((label, index) => [label.key, dist.counts[index] ?? Fraction.ZERO]),
+  )
+}
+
+/** A fraction printed to `digits` decimals, as the research prints its probabilities. */
+const decimal = (value: Fraction, digits: number) => value.toNumber().toFixed(digits)
+
+describe('Lucky Roller / All Small / All Tall / Make ’Em All (rules spec §6.4)', () => {
+  it('P(Small) = P(Tall) = 20049/760760 and P(All) = 126538525259/24067258815600, on every machine', () => {
+    for (const id of ['craplessBubble', 'traditionalBubble', 'strictBubble'] as const) {
+      const cfg = preset(id)
+      for (const typeId of ['luckyRollerLow', 'luckyRollerHigh']) {
+        const bet = analyzeBet(side(typeId), cents(100), 'typical', cfg)
+        expect(bet.pWin.toString(), `${id} ${typeId}`).toBe(exact(20049, 760760))
+        // Any 7 loses, a come-out 7 included: no push, nothing else ends it.
+        expect(bet.pLose.toString(), `${id} ${typeId}`).toBe(Fraction.ONE.sub(bet.pWin).toString())
+        expect(bet.pPush.toString(), `${id} ${typeId}`).toBe('0')
+      }
+      const all = analyzeBet(side('luckyRollerAll'), cents(100), 'typical', cfg)
+      expect(all.pWin.toString(), id).toBe(Fraction.of(126538525259n, 24067258815600n).toString())
+    }
+  })
+
+  it('30 to 1 costs 139241/760760 (18.3029%), 34 to 1 59045/760760; All at 155 to 1 17.9798%, 150 to 1 20.6087%', () => {
+    const ib = preset('craplessBubble')
+    expect(edge(ib, 'luckyRollerLow', null, 100)).toBe(exact(139241, 760760))
+    expect(edge(ib, 'luckyRollerHigh', null, 100)).toBe(exact(139241, 760760))
+    expect(
+      analyzeBet(side('luckyRollerLow'), cents(100), 'typical', ib).edge.formatPercent(4),
+    ).toBe('18.3029')
+    const pAll = Fraction.of(126538525259n, 24067258815600n)
+    const allAt = (pay: number) => Fraction.ONE.sub(Fraction.of(pay + 1).mul(pAll))
+    expect(edge(ib, 'luckyRollerAll', null, 100)).toBe(allAt(155).toString())
+    expect(allAt(155).formatPercent(4)).toBe('17.9798')
+    // Shoot To Win writes the same pays "to 1"; the strict machine pays 150 to 1 on All.
+    const stw = preset('traditionalBubble')
+    expect(edge(stw, 'luckyRollerLow', null, 100)).toBe(exact(139241, 760760))
+    expect(edge(stw, 'luckyRollerAll', null, 100)).toBe(allAt(155).toString())
+    const strict = preset('strictBubble')
+    expect(edge(strict, 'luckyRollerAll', null, 100)).toBe(allAt(150).toString())
+    expect(allAt(150).formatPercent(4)).toBe('20.6087')
+    // The research's other paytables, as config edits.
+    const smallAt = (pays: string) =>
+      analyzeBet(
+        side('luckyRollerLow'),
+        cents(100),
+        'typical',
+        variant('craplessBubble', (input) => {
+          const low = input.sideBets.luckyRollerLow
+          if (low?.family !== 'collectSet') throw new Error('no Lucky Roller')
+          low.pays = pays
+        }),
+      ).edge
+    expect(smallAt('35 for 1').toString()).toBe(exact(59045, 760760))
+    expect(smallAt('35 for 1').formatPercent(4)).toBe('7.7613')
+    expect(smallAt('31:1').formatPercent(4)).toBe('15.6675')
+    expect(smallAt('33:1').formatPercent(4)).toBe('10.3967')
+    expect(smallAt('35:1').formatPercent(4)).toBe('5.1259')
+    for (const [pay, he] of [
+      [160, '15.3510'],
+      [170, '10.0933'],
+      [174, '7.9902'],
+      [175, '7.4644'],
+    ] as const) {
+      expect(allAt(pay).formatPercent(4), `All at ${pay} to 1`).toBe(he)
+    }
+    // Break-even pays: 36.945 to 1 for Small or Tall, 189.197 to 1 for All.
+    expect(decimal(Fraction.ONE.div(Fraction.of(20049, 760760)).sub(Fraction.ONE), 3)).toBe(
+      '36.945',
+    )
+    expect(decimal(Fraction.ONE.div(pAll).sub(Fraction.ONE), 3)).toBe('189.197')
+  })
+
+  it('tracking starts fresh at placement, so when it is placed does not change the edge', () => {
+    const ib = preset('craplessBubble')
+    const typical = analyzeBet(side('luckyRollerLow'), cents(100), 'typical', ib)
+    for (const point of ib.ruleset.points) {
+      const later = analyzeBet(
+        side('luckyRollerLow'),
+        cents(100),
+        startAt({ kind: 'point', point }),
+        ib,
+      )
+      expect(later.edge.toString(), `point ${point}`).toBe(typical.edge.toString())
+      expect(later.expectedRolls.toString(), `point ${point}`).toBe(
+        typical.expectedRolls.toString(),
+      )
+    }
+  })
+})
+
+describe('Hot Shooter Jackpot (rules spec §6.2)', () => {
+  const stw = () => preset('traditionalBubble')
+
+  it('definition A: 9.0740% per wager, 1.064% a roll, the tiers to every published digit', () => {
+    const bet = analyzeBet(side('hotShooter'), cents(100), 'typical', stw())
+    expect(bet.edge.formatPercent(4)).toBe('9.0740')
+    // A hand is exactly 1671/196 rolls, every one of which the bet counts.
+    expect(bet.expectedRolls.toString()).toBe(exact(1671, 196))
+    expect(bet.lifecycle.rolls.toString()).toBe(exact(1671, 196))
+    expect(bet.edgePerWorkingRoll.formatPercent(3)).toBe('1.064')
+    const chances = firstDecisionChances(stw(), 'hotShooter')
+    const expected: readonly [string, string][] = [
+      ['lose:-:lost', '0.57095589'],
+      ['push:zeroNet:returned', '0.29742455'],
+      ['win:16:returned', '0.09130006'],
+      ['win:24:returned', '0.02797297'],
+      ['win:32:returned', '0.00856620'],
+      ['win:40:returned', '0.00197622'],
+      ['win:45:returned', '0.00094313'],
+      ['win:50:returned', '0.00086098'],
+    ]
+    for (const [key, chance] of expected) {
+      expect(decimal(chances.get(key) ?? Fraction.ZERO, 8), key).toBe(chance)
+    }
+    expect([...chances.keys()].sort()).toEqual(expected.map(([key]) => key).sort())
+    expect(Fraction.sum([...chances.values()]).toString()).toBe('1')
+  })
+
+  it('the count definition decides the edge: B 21.5608%, C 32.3353%; the Grand at 51 rolls 9.9029%', () => {
+    const under = (
+      edit: (
+        hot: Extract<MachineConfigInput['sideBets'][string], { family: 'handLength' }>,
+      ) => void,
+    ) =>
+      analyzeBet(
+        side('hotShooter'),
+        cents(100),
+        'typical',
+        variant('traditionalBubble', (input) => {
+          const hot = input.sideBets.hotShooter
+          if (hot?.family !== 'handLength') throw new Error('no Hot Shooter')
+          edit(hot)
+        }),
+      ).edge
+    expect(under((hot) => (hot.countDefinition = 'exceptSevenOut')).formatPercent(4)).toBe(
+      '21.5608',
+    )
+    expect(
+      under((hot) => (hot.countDefinition = 'exceptComeOutAndSevenOut')).formatPercent(4),
+    ).toBe('32.3353')
+    expect(
+      under((hot) => {
+        hot.tiers = hot.tiers.map((tier) =>
+          tier.minRolls === 50 ? { ...tier, minRolls: 51 } : tier,
+        )
+      }).formatPercent(4),
+    ).toBe('9.9029')
+    // Pennsylvania's window (any come-out) prices the same: every hand runs come-out to seven-out.
+    expect(under((hot) => (hot.placement = 'anyComeOut')).toString()).toBe(
+      analyzeBet(side('hotShooter'), cents(100), 'typical', stw()).edge.toString(),
+    )
+  })
+
+  it('reading the "for 1" tiers as "to 1" makes it a player bet, which the sanity check rejects', () => {
+    const toOne = variant('traditionalBubble', (input) => {
+      const hot = input.sideBets.hotShooter
+      if (hot?.family !== 'handLength') throw new Error('no Hot Shooter')
+      hot.tiers = hot.tiers.map((tier) =>
+        tier.pays === 'push' ? tier : { ...tier, pays: tier.pays.replace(' for 1', ':1') },
+      )
+    })
+    const bet = analyzeBet(side('hotShooter'), cents(100), 'typical', toOne)
+    expect(bet.edge.isNegative()).toBe(true)
+    expect(checkBet(side('hotShooter'), toOne).map((issue) => issue.code)).toContain(
+      'playerAdvantage',
+    )
+  })
+})
+
+describe('Lucky Shooter (rules spec §6.3)', () => {
+  const strict = () => preset('strictBubble')
+
+  it('per come-out roll: 7/11 push 2/9, 2/3/12 lose 1/9, then each hit count exactly as published', () => {
+    const chances = firstDecisionChances(strict(), 'luckyShooter')
+    expect(chances.get('push:bar:stays')?.toString()).toBe(exact(2, 9))
+    // 2/3/12 (1/9), then a point and no hit (97/324) or one hit (67/324): the losing outcomes.
+    expect(chances.get('lose:-:lost')?.toString()).toBe(
+      Fraction.of(1, 9).add(Fraction.of(97, 324)).add(Fraction.of(67, 324)).toString(),
+    )
+    expect(chances.get('win:2:returned')?.toString()).toBe(exact(7583, 69984))
+    expect(chances.get('win:3:returned')?.toString()).toBe(exact(8597, 209952))
+    expect(chances.get('win:4:returned')?.toString()).toBe(exact(175, 17496))
+    expect(chances.get('win:5:returned')?.toString()).toBe(exact(125, 118098))
+    expect(chances.get('win:top:returned')?.toString()).toBe(exact(125, 944784))
+  })
+
+  it('table D: 159317/1469664 per resolved wager (10.840%), × 7/9 per come-out roll; 474275/163296 rolls', () => {
+    const bet = analyzeBet(side('luckyShooter'), cents(100), 'typical', strict())
+    // The trainer counts the 7/11 push as a decision (ties counted, like a barred 12), so its
+    // edge is the research's "per come-out roll" figure; a resolved wager takes 9/7 decisions.
+    expect(bet.edge.toString()).toBe(Fraction.of(159317, 1469664).mul(Fraction.of(7, 9)).toString())
+    expect(bet.edge.formatPercent(4)).toBe('8.4314')
+    expect(bet.lifecycle.decisions.toString()).toBe(exact(9, 7))
+    expect(bet.lifecycle.rolls.toString()).toBe(exact(474275, 163296))
+    // Per resolved wager: the lifecycle loss over the one stake, 10.840%.
+    const perResolved = bet.lifecycle.loss.div(Fraction.of(100))
+    expect(perResolved.toString()).toBe(exact(159317, 1469664))
+    expect(perResolved.formatPercent(3)).toBe('10.840')
+  })
+
+  it('tables A, B and C: 249299/1469664, 118345/734832, 154799/1469664 per resolved wager', () => {
+    const table = (payTable: Record<string, string>, topAward: string) =>
+      analyzeBet(
+        side('luckyShooter'),
+        cents(100),
+        'typical',
+        variant('strictBubble', (input) => {
+          const shooter = input.sideBets.luckyShooter
+          if (shooter?.family !== 'pointRun') throw new Error('no Lucky Shooter')
+          shooter.payTable = payTable
+          shooter.topAward = topAward
+        }),
+      )
+    const perResolved = (pays: Record<string, string>, top: string) =>
+      table(pays, top).lifecycle.loss.div(Fraction.of(100))
+    const a = perResolved({ '3': '5 for 1', '4': '15 for 1', '5': '150 for 1' }, '1000 for 1')
+    expect(a.toString()).toBe(exact(249299, 1469664))
+    expect(a.mul(Fraction.of(7, 9)).formatPercent(4)).toBe('13.1934')
+    const b = perResolved(
+      { '2': '2 for 1', '3': '4 for 1', '4': '10 for 1', '5': '100 for 1' },
+      '500 for 1',
+    )
+    expect(b.toString()).toBe(exact(118345, 734832))
+    expect(b.mul(Fraction.of(7, 9)).formatPercent(4)).toBe('12.5261')
+    const c = perResolved({ '3': '5 for 1', '4': '20 for 1', '5': '150 for 1' }, '1000 for 1')
+    expect(c.toString()).toBe(exact(154799, 1469664))
+    expect(c.mul(Fraction.of(7, 9)).formatPercent(4)).toBe('8.1923')
+    // The coaching trap: table D read "to 1" is a player +9.79% bet per resolved wager.
+    const trap = table(
+      { '2': '2:1', '3': '5:1', '4': '10:1', '5': '100:1' },
+      '500:1',
+    ).lifecycle.loss.div(Fraction.of(100))
+    expect(trap.formatPercent(2)).toBe('-9.79')
+  })
+})
+
+describe('Fire Bet (rules spec §6.6)', () => {
+  const live = () => preset('traditionalLive345')
+  const fireVariant = (
+    edit: (
+      fire: Extract<MachineConfigInput['sideBets'][string], { family: 'uniquePointsMade' }>,
+    ) => void,
+  ) =>
+    variant('traditionalLive345', (input) => {
+      const fire = input.sideBets.fire
+      if (fire?.family !== 'uniquePointsMade') throw new Error('no Fire Bet')
+      edit(fire)
+    })
+
+  it('P(0) = 98/165, P(1) = 78834/302335, then 0.101275, 0.033434, 0.008798, 0.001640, 0.000162', () => {
+    // A paytable paying every count, so each count is its own label.
+    const every = fireVariant((fire) => {
+      fire.payTable = Object.fromEntries([1, 2, 3, 4, 5, 6].map((n) => [String(n), '1 to 1']))
+    })
+    const chances = firstDecisionChances(every, 'fire')
+    expect(chances.get('lose:-:lost')?.toString()).toBe(exact(98, 165))
+    expect(chances.get('win:1:returned')?.toString()).toBe(exact(78834, 302335))
+    for (const [count, chance] of [
+      [2, '0.101275'],
+      [3, '0.033434'],
+      [4, '0.008798'],
+      [5, '0.001640'],
+      [6, '0.000162'],
+    ] as const) {
+      expect(decimal(chances.get(`win:${count}:returned`) ?? Fraction.ZERO, 6), `${count}`).toBe(
+        chance,
+      )
+    }
+    expect(Fraction.sum([...chances.values()]).toString()).toBe('1')
+  })
+
+  it('table A (24/249/999 to 1): 20.7628%, P(4 or more) 0.0106005, a hand of 1671/196 rolls', () => {
+    const bet = analyzeBet(side('fire'), cents(100), 'typical', live())
+    expect(bet.edge.formatPercent(4)).toBe('20.7628')
+    expect(decimal(bet.pWin, 7)).toBe('0.0106005')
+    expect(bet.expectedRolls.toString()).toBe(exact(1671, 196))
+    expect(bet.pPush.toString()).toBe('0')
+  })
+
+  it('tables B 24.8562%, C 20.7295%, MD B 23.8869%; paying the sixth point at once changes nothing', () => {
+    const edgeOf = (cfg: MachineConfig) => analyzeBet(side('fire'), cents(100), 'typical', cfg).edge
+    expect(
+      edgeOf(
+        fireVariant(
+          (fire) => (fire.payTable = { '4': '10 to 1', '5': '200 to 1', '6': '2000 to 1' }),
+        ),
+      ).formatPercent(4),
+    ).toBe('24.8562')
+    expect(
+      edgeOf(
+        fireVariant(
+          (fire) =>
+            (fire.payTable = { '3': '6 to 1', '4': '29 to 1', '5': '149 to 1', '6': '299 to 1' }),
+        ),
+      ).formatPercent(4),
+    ).toBe('20.7295')
+    expect(
+      edgeOf(
+        fireVariant(
+          (fire) => (fire.payTable = { '4': '39 to 1', '5': '199 to 1', '6': '499 to 1' }),
+        ),
+      ).formatPercent(4),
+    ).toBe('23.8869')
+    expect(edgeOf(fireVariant((fire) => (fire.payImmediatelyAt = 6))).toString()).toBe(
+      edgeOf(live()).toString(),
+    )
+  })
+
+  it('on a crapless machine: 13.4152% when all ten points count and six or more pay the top, 70.4488% when only 4–10 do', () => {
+    // Rules spec §6.6's crapless figures [M]. With ten points counted a hand can make seven or
+    // more; the spec's 13.4152% reads the top pay as "six or more", which the paytable states
+    // outright here (the engine pays only counts the table lists). The same figure follows from
+    // paying the sixth point at once. Paying nothing above six — table A as written — costs
+    // 17.1059%. The independent side-bet oracle (tests/oracle/sideBetEdges.test.ts) reads both the
+    // same way.
+    const TOP = '999 to 1'
+    const crapless = (
+      countedPoints: readonly PointNumber[],
+      payTable: Record<string, string>,
+      payImmediatelyAt: number | null = null,
+    ) =>
+      variant('craplessBubble', (input) => {
+        input.sideBets.fire = {
+          family: 'uniquePointsMade',
+          label: 'Fire Bet',
+          countedPoints: [...countedPoints],
+          payTable,
+          payImmediatelyAt,
+          placement: 'newHand',
+        }
+      })
+    const edgeOn = (cfg: MachineConfig) =>
+      analyzeBet(side('fire'), cents(100), 'typical', cfg).edge.formatPercent(4)
+    const tableA = { '4': '24 to 1', '5': '249 to 1', '6': TOP }
+    const ten: readonly PointNumber[] = [2, 3, 4, 5, 6, 8, 9, 10, 11, 12]
+    expect(edgeOn(crapless(ten, { ...tableA, '7': TOP, '8': TOP, '9': TOP, '10': TOP }))).toBe(
+      '13.4152',
+    )
+    expect(edgeOn(crapless(ten, tableA, 6))).toBe('13.4152')
+    expect(edgeOn(crapless(ten, tableA))).toBe('17.1059')
+    expect(edgeOn(crapless([4, 5, 6, 8, 9, 10], tableA))).toBe('70.4488')
+    // Six chains of 1,024 masks × 11 phases: seconds under a loaded test run, not the default 5.
+  }, 60_000)
 })

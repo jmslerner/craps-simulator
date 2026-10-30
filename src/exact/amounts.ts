@@ -3,14 +3,17 @@ import {
   betId,
   cents,
   commissionRule,
+  initialRound,
   newTable,
-  requireType,
+  requireBet,
   settle,
+  smallestBet,
   typeLimits,
   validateAction,
   vigBase,
   type Action,
   type BetInstance,
+  type BetType,
   type Cents,
   type MachineConfig,
   type Phase,
@@ -170,7 +173,7 @@ export function roundingPeriod(
   labels: readonly ChainLabel[],
   cfg: MachineConfig,
 ): number {
-  const { family, type } = requireType(cfg, spec.typeId)
+  const { family, type } = requireBet(cfg, spec.typeId)
   const probe = typeLimits(cfg, spec.typeId).min
   let period = 1n
   for (const label of labels) {
@@ -197,10 +200,11 @@ interface Placement {
 
 /**
  * A table on which `spec` can be placed, and the `place` action for a stake: its phase (pass on
- * the come-out, come with a point on, odds behind a parent on their number) and ample credit.
+ * the come-out, come with a point on, odds behind a parent on their number; a side bet at the
+ * session's start, where every window is open) and ample credit.
  */
 function placementFor(spec: BetSpec, cfg: MachineConfig): Placement {
-  const { type } = requireType(cfg, spec.typeId)
+  const { type } = requireBet(cfg, spec.typeId)
   const base = newTable(cfg, 'exact-amounts')
   const ledger = { ...base.ledger, deposits: AMPLE, bankroll: AMPLE }
   const on = (phase: Phase, bets: readonly BetInstance[]): TableState => ({
@@ -260,7 +264,47 @@ function placementFor(spec: BetSpec, cfg: MachineConfig): Placement {
         state: on(COME_OUT, []),
         action: (amount) => ({ type: 'place', typeId: type.typeId, amount }),
       }
+    case 'collectSet':
+    case 'uniquePointsMade':
+    case 'handLength':
+    case 'pointRun':
+      // The session's first come-out opens every side-bet window (no roll since a 7, a new hand,
+      // no point); the Hot Shooter also wants the main game's qualifying stake on the table.
+      return {
+        state: { ...on(COME_OUT, qualifyingBets(type, cfg)), round: initialRound() },
+        action: (amount) => ({ type: 'place', typeId: type.typeId, amount }),
+      }
   }
+}
+
+/**
+ * The main-game stake a side bet of `type` needs on the table before it may be placed
+ * (`/sideBets/<t>/qualifyingBet`, the Hot Shooter's 3 credits): the machine's pass-type line bet,
+ * stepped up to cover it. None for every other type.
+ */
+function qualifyingBets(type: BetType, cfg: MachineConfig): BetInstance[] {
+  if (type.family !== 'handLength' || type.qualifyingBet <= 0) return []
+  const line = [...cfg.catalog.values()].find(
+    (candidate) =>
+      candidate.family === 'line' && candidate.window === 'comeOut' && candidate.side === 'do',
+  )
+  if (line === undefined) return []
+  const limits = typeLimits(cfg, line.typeId)
+  let amount: number = smallestBet(limits)
+  while (amount < type.qualifyingBet) amount += limits.increment
+  return [
+    {
+      id: betId(1),
+      typeId: line.typeId,
+      number: null,
+      parentId: null,
+      amount: cents(amount),
+      vigHeld: cents(0),
+      working: null,
+      progress: 0,
+      placedAtRoll: 0,
+    },
+  ]
 }
 
 function firstPoint(cfg: MachineConfig) {

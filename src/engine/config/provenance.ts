@@ -57,6 +57,10 @@ export const SOURCES: Readonly<Record<string, string>> = Object.freeze({
   'LVA-RND': 'https://www.lasvegasadvisor.com/question/rounding-down-6-5-blackjack/',
   'LVA-PTS': 'https://www.lasvegasadvisor.com/question/etgs-player-points/',
   VA: 'https://vegasadvantage.com/electronic-table-games/',
+  'VA-VEN': 'https://vegasadvantage.com/casino-hotel/strip/venetian/',
+  'CH-VEGAS': 'https://crapshero.com/craps/vegas/',
+  'OTS-CRAPS': 'https://onthestrip.com/casinos/craps-on-the-las-vegas-strip/',
+  'YT-DICEY': 'https://www.youtube.com/watch?v=kiRO21x8WyU',
   'VV-STW':
     'https://www.casino.org/vitalvegas/the-casino-game-were-loving-right-now-shoot-to-win-craps/',
   'VV-DTG': 'https://www.casino.org/vitalvegas/hybrid-stadium-craps-rolls-into-downtown-grand/',

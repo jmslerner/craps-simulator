@@ -8,10 +8,10 @@ import { standingCost } from './standing.ts'
 import { isPutStart, typicalStart } from './start.ts'
 
 /**
- * The catalog table (plan §5.2 `catalogTable`): every non-side bet the machine offers, on every
- * number it can be on, analysed exactly. It feeds the cheat sheet (sorted by edge, with assumed
- * chips), the layout meter's per-bet figures, `scripts/edges.ts` and the preset fingerprints
- * (plan §9 item 11). Side bets join in M11.
+ * The catalog table (plan §5.2 `catalogTable`): every bet the machine offers, on every number it
+ * can be on, analysed exactly — the main game's types, the composites and, since M11, the side
+ * bets. It feeds the cheat sheet (sorted by edge, with assumed chips), the layout meter's per-bet
+ * figures, `scripts/edges.ts` and the preset fingerprints (plan §9 item 11).
  *
  * Each row is priced at the bet's **exact unit**: the smallest legal stake the machine pays
  * exactly, with no commission minimum above the rate (rules spec §3.2's "exact unit, live /
@@ -48,9 +48,10 @@ export interface CatalogRow {
 const cache = analysisCache<string, readonly CatalogRow[]>()
 
 /**
- * Every non-side bet `cfg` offers, on each of its numbers, in config order. Where the machine
- * allows put bets (`/rules/allowPutBets`), a do-side come-out line bet also gets one spec per
- * point: the put bet on that number (rules spec §3.1; M9 prices put advice from these).
+ * Every bet `cfg` offers, on each of its numbers, in config order: the catalog's types, then the
+ * composites, then the side bets (M11), each on no number. Where the machine allows put bets
+ * (`/rules/allowPutBets`), a do-side come-out line bet also gets one spec per point: the put bet
+ * on that number (rules spec §3.1; M9 prices put advice from these).
  */
 export function catalogSpecs(cfg: MachineConfig): BetSpec[] {
   const specs: BetSpec[] = []
@@ -77,6 +78,7 @@ export function catalogSpecs(cfg: MachineConfig): BetSpec[] {
     for (const number of numbers) specs.push({ typeId, number })
   }
   for (const typeId of cfg.composites.keys()) specs.push({ typeId, number: null })
+  for (const typeId of cfg.sideBets.keys()) specs.push({ typeId, number: null })
   return specs
 }
 
@@ -122,7 +124,8 @@ export function catalogRow(spec: BetSpec, cfg: MachineConfig): CatalogRow {
   if (amount === null) throw new ExactError('BAD_SPEC', `${spec.typeId} takes no legal stake`)
   const analysis = analyzeBet(spec, amount, start, cfg)
   const minimum = smallestAmount(spec, cfg)
-  const type = cfg.catalog.get(spec.typeId) ?? cfg.composites.get(spec.typeId)
+  const type =
+    cfg.catalog.get(spec.typeId) ?? cfg.composites.get(spec.typeId) ?? cfg.sideBets.get(spec.typeId)
   const name = type?.label ?? spec.typeId
   const put = isPutStart(spec, start, cfg)
   return {

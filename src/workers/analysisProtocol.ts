@@ -1,6 +1,7 @@
 import type { BetId, Cents, MachineConfigInput, TableState } from '../engine/index.ts'
-import type { BetSpec, Wire } from '../exact/index.ts'
+import type { BetSpec, CatalogRow, Wire } from '../exact/index.ts'
 import type { InspectorMath } from '../coach/inspector.ts'
+import type { LayoutMeter, MeterToggle } from '../coach/meter.ts'
 import type { ZoneBadge } from '../coach/types.ts'
 
 /**
@@ -31,7 +32,18 @@ export interface InspectRequest {
   readonly betId: BetId | null
 }
 
-export type AnalysisRequest = CatalogRequest | InspectRequest
+export interface LayoutRequest {
+  readonly id: number
+  readonly kind: 'layout'
+  readonly configHash: string
+  readonly input: MachineConfigInput
+  /** The table the meter prices (JSON-safe by contract). */
+  readonly state: TableState
+  /** The working toggle to price on the dry-run table, when the machine offers one. */
+  readonly toggle: MeterToggle | null
+}
+
+export type AnalysisRequest = CatalogRequest | InspectRequest | LayoutRequest
 
 export interface CatalogResponse {
   readonly id: number
@@ -39,8 +51,18 @@ export interface CatalogResponse {
   readonly kind: 'catalog'
   readonly configHash: string
   readonly badges: readonly Wire<ZoneBadge>[]
-  /** True when every badge came from the IndexedDB analysis cache (no solver work ran). */
+  /** The raw catalog rows behind the badges, `byEdge`-sorted (§10 M9d cheat sheet). */
+  readonly rows: readonly Wire<CatalogRow>[]
+  /** True when every badge and row came from the IndexedDB analysis cache (no solver work ran). */
   readonly fromCache: boolean
+}
+
+export interface LayoutResponse {
+  readonly id: number
+  readonly ok: true
+  readonly kind: 'layout'
+  readonly configHash: string
+  readonly meter: Wire<LayoutMeter>
 }
 
 export interface InspectResponse {
@@ -57,4 +79,4 @@ export interface FailureResponse {
   readonly error: string
 }
 
-export type AnalysisResponse = CatalogResponse | InspectResponse | FailureResponse
+export type AnalysisResponse = CatalogResponse | InspectResponse | LayoutResponse | FailureResponse

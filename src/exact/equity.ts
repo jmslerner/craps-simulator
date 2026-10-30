@@ -2,7 +2,7 @@ import {
   Fraction,
   commissionRule,
   heldOffOf,
-  requireType,
+  requireBet,
   type BetId,
   type BetInstance,
   type Cents,
@@ -85,13 +85,18 @@ export function analyzeExisting(
   }
 }
 
-/** Where a bet on the table starts: its phase and working inputs as they stand. */
+/**
+ * Where a bet on the table starts: its phase and working inputs as they stand, and, for a side bet
+ * (M11), the progress it has made — a Lucky Roller with three targets rolled is worth more than a
+ * new one, and the chain starts from that mask.
+ */
 export function startOfBet(bet: BetInstance, state: TableState): StartContext {
   return startAt(state.round.phase, {
     carried: bet.placedAtRoll < state.round.rollIndex,
     working: bet.working,
     globalOff: state.globalOff,
     held: heldOffOf(state).includes(bet.id),
+    progress: bet.progress,
   })
 }
 
@@ -100,7 +105,7 @@ export function startOfBet(bet: BetInstance, state: TableState): StartContext {
  * refunds it; nothing for a bet that cannot come down.
  */
 export function takeDownValue(bet: BetInstance, state: TableState, cfg: MachineConfig): Fraction {
-  const { family, type } = requireType(cfg, bet.typeId)
+  const { family, type } = requireBet(cfg, bet.typeId)
   if (!family.mutability(bet, state, type, cfg).remove) return Fraction.ZERO
   const rule = type.family === 'numberVsSeven' ? commissionRule(type, bet.number) : null
   const refund = rule?.refundOnTakeDown === true ? bet.vigHeld : 0

@@ -32,7 +32,7 @@ export function NoticeBanner() {
   const notice = useGameState((state) => state.notice)
   if (notice === null) return null
   return (
-    <div className="session-notice" role="alert" data-testid="session-notice">
+    <div className="tip session-notice" role="alert" data-testid="session-notice" data-sev="alert">
       <p>{noticeText(notice)}</p>
       <button type="button" onClick={() => stores.game.getState().dismissNotice()}>
         Dismiss

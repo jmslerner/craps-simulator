@@ -1,6 +1,6 @@
 import {
   Fraction,
-  resolveType,
+  resolveBet,
   type MachineConfig,
   type Phase,
   type PointNumber,
@@ -8,6 +8,7 @@ import {
 import {
   COME_OUT,
   ExactError,
+  followsRound,
   type BetSpec,
   type StartContext,
   type WeightedPhase,
@@ -26,20 +27,29 @@ import { roundStats } from './roundStats.ts'
  *   which is the come-out when the travelling roll made the point (point n), else the same point;
  * - pass and don't pass odds on n: point n;
  * - number bets and hardways: any roll, so the long-run share π of every phase;
- * - one-roll bets and composites: no phase at all (`projection: none`).
+ * - one-roll bets and composites: no phase at all (`projection: none`);
+ * - side bets (M11): the come-out, which is the phase their windows open in — after any 7 or at
+ *   the cycle's start (Interblock's Lucky Roller), before a new hand's first roll (the Fire Bet, the
+ *   Hot Shooter), before a point (the Lucky Shooter) — except Shoot To Win's Lucky Roller, taken
+ *   before any roll while none of its type is active (`noneOfTypeActive`), so any phase by π.
+ *   `start.test.ts` checks each window is open in its start phase, by the family's own `locate`.
  */
 
 /** A start in one phase: a new bet, no toggles unless given. */
 export function startAt(
   phase: Phase,
-  options: Partial<Pick<StartContext, 'carried' | 'working' | 'globalOff' | 'held'>> = {},
+  options: Partial<
+    Pick<StartContext, 'carried' | 'working' | 'globalOff' | 'held' | 'progress'>
+  > = {},
 ): StartContext {
+  const progress = options.progress ?? 0
   return {
     phases: [{ phase, weight: Fraction.ONE }],
     carried: options.carried ?? false,
     working: options.working ?? null,
     globalOff: options.globalOff ?? null,
     held: options.held ?? false,
+    ...(progress === 0 ? {} : { progress }),
   }
 }
 
@@ -58,7 +68,7 @@ export function typicalStart(
 }
 
 function typicalPhases(spec: BetSpec, cfg: MachineConfig): readonly WeightedPhase[] {
-  const resolved = resolveType(cfg, spec.typeId)
+  const resolved = resolveBet(cfg, spec.typeId)
   if (resolved === null) {
     throw new ExactError('NOT_OFFERED', `${cfg.id} does not offer "${spec.typeId}"`)
   }
@@ -80,19 +90,30 @@ function typicalPhases(spec: BetSpec, cfg: MachineConfig): readonly WeightedPhas
     case 'oneRoll':
     case 'composite':
       return family.projection === 'round' ? everyPhase(cfg) : only(COME_OUT)
+    case 'collectSet':
+      // After any 7 the next roll is a come-out (a come-out 7 is a natural, a point-phase 7 a
+      // seven-out), and so is a hand's first roll; only Shoot To Win's window is any roll.
+      return type.placement === 'noneOfTypeActive' ? everyPhase(cfg) : only(COME_OUT)
+    case 'uniquePointsMade':
+    case 'handLength':
+    case 'pointRun':
+      return only(COME_OUT)
   }
 }
 
 /**
  * Whether `spec`'s typical placement is weighted by the round's long-run shares (π from
  * `roundStats`): number bets and hardways that follow the round (`everyPhase`), come-type line
- * bets (`pointPhases`) and the odds behind them (`afterTravel`). Those weights, and so every
- * number derived from them, depend on `/variant` and the `/rules` lists that drive the round;
+ * bets (`pointPhases`) and the odds behind them (`afterTravel`), and a Lucky Roller taken before
+ * any roll (`noneOfTypeActive`) whose chain follows the round. Those weights, and so every number
+ * derived from them, depend on `/variant` and the `/rules` lists that drive the round;
  * `configPathsOf` adds those pointers for such bets (M5/M6 audit). A pass-type bet or its odds
- * starts in one fixed phase, so it is not π-weighted.
+ * starts in one fixed phase, so it is not π-weighted; nor is a side bet made at the come-out, or a
+ * Lucky Roller whose chain reads nothing of the round (`followsRound`), where the phase weights
+ * collapse into one state.
  */
 export function roundWeightedStart(spec: BetSpec, cfg: MachineConfig): boolean {
-  const resolved = resolveType(cfg, spec.typeId)
+  const resolved = resolveBet(cfg, spec.typeId)
   if (resolved === null) return false
   const { type, family } = resolved
   switch (type.family) {
@@ -107,6 +128,12 @@ export function roundWeightedStart(spec: BetSpec, cfg: MachineConfig): boolean {
     case 'oneRoll':
     case 'composite':
       return family.projection === 'round'
+    case 'collectSet':
+      return type.placement === 'noneOfTypeActive' && followsRound(resolved)
+    case 'uniquePointsMade':
+    case 'handLength':
+    case 'pointRun':
+      return false
   }
 }
 
@@ -156,7 +183,8 @@ export function startKey(start: StartContext): string {
     })
     .join(',')
   const inputs = [start.carried, start.working, start.globalOff].map(String).join('|')
-  return `${phases}|${inputs}${start.held === true ? '|held' : ''}`
+  const progress = start.progress ?? 0
+  return `${phases}|${inputs}${start.held === true ? '|held' : ''}${progress === 0 ? '' : `|g${progress}`}`
 }
 
 function only(phase: Phase): readonly WeightedPhase[] {

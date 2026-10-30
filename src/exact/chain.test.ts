@@ -6,8 +6,8 @@ import type { MachineConfigInput } from '../engine/config/schema.ts'
 import { DICE_CLASSES, isDoubles, totalOf } from '../engine/core/dice.ts'
 import { Fraction } from '../engine/core/rational.ts'
 import { advanceRound } from '../engine/round/round.ts'
-import { decideBet, requireType } from '../engine/bets/registry.ts'
-import { betId } from '../engine/bets/types.ts'
+import { decideBet, requireBet, requireType } from '../engine/bets/registry.ts'
+import { betId, type BetInstance } from '../engine/bets/types.ts'
 import { cents } from '../engine/core/money.ts'
 import {
   COME_OUT,
@@ -297,5 +297,188 @@ describe('buildChain', () => {
         ),
       ),
     ).toBe('MAX_STATES')
+  })
+})
+
+describe('side-bet chains (M11)', () => {
+  const crapless = cfgOf('craplessBubble')
+  const traditional = cfgOf('traditionalBubble')
+  const strict = cfgOf('strictBubble')
+  const live = cfgOf('traditionalLive345')
+  const side = (typeId: string): BetSpec => ({ typeId, number: null })
+  const code = (run: () => unknown) => {
+    try {
+      run()
+    } catch (error) {
+      return error instanceof ExactError ? error.code : 'other'
+    }
+    return 'none'
+  }
+  const progressOf = (chain: BetChain) =>
+    chain.nodes.map((node) => node.table.bets[chain.group.subject]?.progress ?? -1)
+
+  it('resolves each side-bet family on no number, and refuses one the machine lacks', () => {
+    const offered: readonly [MachineConfig, string][] = [
+      [crapless, 'luckyRollerLow'],
+      [traditional, 'hotShooter'],
+      [strict, 'luckyShooter'],
+      [live, 'fire'],
+    ]
+    for (const [cfg, typeId] of offered) {
+      const chain = chainOf(cfg, side(typeId), 'decision')
+      expect(chain.group.slots, typeId).toHaveLength(1)
+      expect(chain.nodes.length, typeId).toBeGreaterThan(1)
+    }
+    expect(code(() => chainOf(crapless, { typeId: 'luckyRollerLow', number: 6 }, 'decision'))).toBe(
+      'BAD_SPEC',
+    )
+    expect(code(() => chainOf(crapless, side('fire'), 'decision'))).toBe('NOT_OFFERED')
+    expect(code(() => chainOf(crapless, side('hotShooter'), 'decision'))).toBe('NOT_OFFERED')
+  })
+
+  it('keys a Lucky Roller that any 7 ends on its mask alone: 2^targets states, no phase', () => {
+    // Low Rolls: 32 masks less the full set (paid at once), plus the fresh bet before its first
+    // roll (a non-target roll carries it with nothing collected): 32 states, none with a phase.
+    const low = chainOf(crapless, side('luckyRollerLow'), 'decision')
+    expect(low.group.tracksRound).toBe(false)
+    expect(low.nodes).toHaveLength(32)
+    expect(low.nodes.every((node) => node.key.startsWith('-|'))).toBe(true)
+    expect(labelKeys(low)).toEqual(['lose:-:lost', 'win:set:returned'])
+    // Roll 'Em All: every total but 7 is a target, so a carried bet always has progress: 1,023.
+    const all = chainOf(crapless, side('luckyRollerAll'), 'decision')
+    expect(all.nodes).toHaveLength(1023)
+    expect(new Set(progressOf(all)).size).toBe(1023)
+    // Its first state: the 7 loses 6 ways, every other roll (30 ways) progresses, nothing wins.
+    const start = all.nodes[all.starts[0]?.node ?? -1]
+    const ways = (kind: string) =>
+      start?.steps.filter((s) => s.decision.kind === kind).reduce((n, s) => n + s.weight, 0)
+    expect([ways('lose'), ways('progress'), ways('win')]).toEqual([6, 30, 0])
+  })
+
+  it('reads a Lucky Roller that ends on any 7 the same way in every phase, as `followsRound` says', () => {
+    // The projection `followsRound` makes for collectSet/anySeven rests on this: decide() must not
+    // read the round's phase or transition. Checked on every such type of every preset, for the
+    // masks that matter and every dice class.
+    let checked = 0
+    for (const id of PRESET_IDS) {
+      const cfg = cfgOf(id)
+      for (const type of cfg.sideBets.values()) {
+        if (type.family !== 'collectSet' || type.endsOn !== 'anySeven') continue
+        const resolved = requireBet(cfg, type.typeId)
+        const full = type.targets.reduce((mask, total) => mask | (1 << total), 0)
+        const masks = [0, 1 << (type.targets[0] ?? 2), full & ~(1 << (type.targets.at(-1) ?? 12))]
+        for (const progress of masks) {
+          const bet: BetInstance = {
+            id: betId(1),
+            typeId: type.typeId,
+            number: null,
+            parentId: null,
+            amount: cents(100),
+            vigHeld: cents(0),
+            working: null,
+            progress,
+            placedAtRoll: 0,
+          }
+          for (const dice of DICE_CLASSES) {
+            const decisions = [
+              COME_OUT,
+              ...cfg.ruleset.points.map((point) => ({ kind: 'point' as const, point })),
+            ].map((phase) => {
+              const before = roundAt(phase)
+              return decideBet(
+                bet,
+                {
+                  dice,
+                  total: totalOf(dice),
+                  isPair: isDoubles(dice),
+                  before,
+                  transition: advanceRound(before, dice, cfg.ruleset).transition,
+                  rules: cfg.ruleset,
+                  cfg,
+                  working: true,
+                  parentDecision: null,
+                },
+                resolved,
+              )
+            })
+            for (const decision of decisions) expect(decision).toEqual(decisions[0])
+            checked++
+          }
+        }
+      }
+    }
+    expect(checked).toBeGreaterThan(500)
+  })
+
+  it('lumps the Hot Shooter count at its top tier, so the chain is finite: 351 states', () => {
+    const chain = chainOf(traditional, side('hotShooter'), 'decision')
+    expect(chain.group.tracksRound).toBe(true)
+    const top = Math.max(...progressOf(chain))
+    expect(top).toBe(50)
+    // Counts 1–50 in each of the 7 phases, plus the fresh bet on its first come-out.
+    expect(chain.nodes).toHaveLength(351)
+    // From the lumped count a seven-out pays the top tier, exactly as a count of 50 does.
+    const settles = (progress: number) =>
+      chain.nodes
+        .filter((node) => node.table.bets[0]?.progress === progress)
+        .filter((node) => node.table.phase.kind === 'point')
+        .flatMap((node) => node.steps.filter((step) => step.decision.kind === 'win'))
+        .map((step) => (step.decision.kind === 'win' ? step.decision.payKey : ''))
+    expect(new Set(settles(50))).toEqual(new Set(['50']))
+    expect(labelKeys(chain)).toEqual(
+      [
+        'lose:-:lost',
+        'push:zeroNet:returned',
+        'win:16:returned',
+        'win:24:returned',
+        'win:32:returned',
+        'win:40:returned',
+        'win:45:returned',
+        'win:50:returned',
+      ].sort(),
+    )
+  })
+
+  it('follows the Lucky Shooter through its come-out pushes and the Fire Bet through the hand', () => {
+    const shooter = chainOf(strict, side('luckyShooter'), 'lifetime')
+    expect(shooter.group.tracksRound).toBe(true)
+    // Before the point: new or carried, nothing hit; then 6 points × 32 hit masks.
+    expect(shooter.nodes).toHaveLength(194)
+    const start = shooter.nodes[shooter.starts[0]?.node ?? -1]
+    const ways = (kind: string) =>
+      start?.steps.filter((s) => s.decision.kind === kind).reduce((n, s) => n + s.weight, 0)
+    // 2, 3 and 12 lose (4 ways), 7 and 11 push and stay up (8 ways), a box number sets the point.
+    expect([ways('lose'), ways('push'), ways('progress')]).toEqual([4, 8, 24])
+    const pushes = start?.steps.filter((s) => s.decision.kind === 'push') ?? []
+    expect(pushes.every((step) => step.to !== -1)).toBe(true)
+    // At the decision horizon the same push ends the decision (ties counted, like a barred 12).
+    const once = chainOf(strict, side('luckyShooter'), 'decision')
+    const first = once.nodes[once.starts[0]?.node ?? -1]
+    expect(first?.steps.filter((s) => s.decision.kind === 'push').every((s) => s.to === -1)).toBe(
+      true,
+    )
+    const fire = chainOf(live, side('fire'), 'decision')
+    // 64 masks of points made in each of the 7 phases, plus the fresh bet.
+    expect(fire.nodes).toHaveLength(449)
+  })
+
+  it('starts a side bet from its progress when it is carried, and refuses progress on a new bet', () => {
+    const carried: StartContext = {
+      ...startIn(COME_OUT),
+      carried: true,
+      progress: (1 << 2) | (1 << 3) | (1 << 4) | (1 << 5),
+    }
+    const chain = buildChain(side('luckyRollerLow'), carried, 'decision', crapless)
+    const start = chain.nodes[chain.starts[0]?.node ?? -1]
+    expect(start?.table.bets[0]?.progress).toBe(carried.progress)
+    // One target left (the 6, 5 ways) against the 7 (6 ways); every other roll changes nothing.
+    const ways = (kind: string) =>
+      start?.steps.filter((s) => s.decision.kind === kind).reduce((n, s) => n + s.weight, 0)
+    expect([ways('win'), ways('lose'), ways('none')]).toEqual([5, 6, 25])
+    expect(
+      code(() =>
+        buildChain(side('luckyRollerLow'), { ...carried, carried: false }, 'decision', crapless),
+      ),
+    ).toBe('BAD_START')
   })
 })

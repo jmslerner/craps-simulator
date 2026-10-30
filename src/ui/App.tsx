@@ -1,16 +1,22 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useStore } from 'zustand'
 import type { Dice } from '../engine/index.ts'
+import { DiceDome } from '../dome/DiceDome.tsx'
+import { DiceModeToggle } from '../dome/DiceModeToggle.tsx'
+import { createDiceDome } from '../dome/domeController.ts'
+import { QualityControl } from '../dome/QualityControl.tsx'
 import { DiceView2D } from './dice2d/DiceView2D.tsx'
 import { TUMBLE, TUMBLE_FAST, createDice2D } from './dice2d/diceController.ts'
 import { bootGame, wireAutosave } from './services/bootstrap.ts'
-import { runRoll, type RollRun } from './services/rollFlow.ts'
+import { runRoll, selectNextPhysicsSeed, type DiceView, type RollRun } from './services/rollFlow.ts'
 import { selectMacros, selectWorkingToggle } from './state/gameStore.ts'
 import { cachedNextStep } from './components/nextStepCache.ts'
 import { ActionBar } from './components/ActionBar.tsx'
 import { AddCreditDialog } from './components/AddCreditDialog.tsx'
 import { BetInspector } from './components/BetInspector.tsx'
+import { CheatSheet } from './components/CheatSheet.tsx'
 import { ChipRail } from './components/ChipRail.tsx'
+import { CoachPanel } from './components/CoachPanel.tsx'
 import {
   DEFAULT_STORES,
   StoresProvider,
@@ -22,7 +28,10 @@ import {
   type UiState,
 } from './components/context.tsx'
 import { rollAnnouncement } from './components/copy.ts'
+import { DomeOverlay } from './components/DomeOverlay.tsx'
+import { LayoutMeter } from './components/LayoutMeter.tsx'
 import { NewGameDialog } from './components/NewGameDialog.tsx'
+import { NextRollPanel } from './components/NextRollPanel.tsx'
 import { NextStepBar } from './components/NextStepBar.tsx'
 import { NoticeBanner } from './components/NoticeBanner.tsx'
 import { ReasonStrip } from './components/ReasonStrip.tsx'
@@ -32,12 +41,25 @@ import { Topbar } from './components/Topbar.tsx'
 import { TableGrid } from './components/TableGrid.tsx'
 
 /**
- * The trainer's shell (plan §6): topbar, the dome slot (the 2D dice until M10), the table, the
- * next-step bar, the action bar and chip rail, the roll history and the session strip, plus the
- * dialogs, the inspector and one aria-live region that announces rolls, guide actions and mode
- * changes. The App owns the per-render UI state (tap mode, open dialog, inspector, announcements)
- * and the roll controller; the game itself lives in the stores, which tests replace through
- * `stores`.
+ * The trainer's shell (plan §6), laid out like the machine screen of the hand-built demo: the
+ * topbar, then the machine grid — the dice dome, the roll history and the coach panel on the left,
+ * the felt (with the next-step bar docked at its top) in the centre and the "Next roll" panel on
+ * the right from 1300 px, two columns from 1000 px, stacked on phones — and the chip tray with
+ * the ROLL button docked at the bottom. Plus the dialogs, the inspector and one aria-live region
+ * that announces rolls, guide actions and mode changes. The App owns the per-render UI state (tap
+ * mode, open dialog, inspector, announcements) and the roll controller; the game itself lives in
+ * the stores, which tests replace through `stores`.
+ *
+ * **The dome slot (M10a):** `.dome-slot` is the box the dice view fills — `position: absolute;
+ * inset: 0` inside `.dome`, a `position: relative` 16:10 box with rounded, clipped corners. Behind
+ * `settingsStore.diceMode` it holds either `DiceView2D` or the 3D `DiceDome`, whose lazy chunk
+ * (three, R3F, the scene) loads only in 3D mode and only when WebGL is available; until its
+ * renderer is live, and whenever WebGL fails, the same 2D controller shows the dice, so the roll
+ * flow always has a `DiceView` (`dome.view()` reads `'3d'` only while live). The overlays
+ * (`DomeOverlay`: the ON/OFF puck, the recent-rolls strip and the callout) sit above the slot on
+ * their own z-index, ignore pointer events and are `aria-hidden`; the 2D/3D switch sits in the
+ * corner above them; `data-testid="dice-view"` with `data-dice` stays the e2e contract for the
+ * rest pose.
  */
 
 export interface AppProps {
@@ -49,6 +71,7 @@ export interface AppProps {
 
 export function App({ stores = DEFAULT_STORES, boot = true }: AppProps) {
   const dice = useMemo(() => createDice2D(), [])
+  const dome = useMemo(() => createDiceDome({ fallback: dice }), [dice])
   const runRef = useRef<RollRun | null>(null)
   const [mode, setMode] = useState<TapMode>('bet')
   const [dialog, setDialog] = useState<DialogKind>(null)
@@ -68,9 +91,16 @@ export function App({ stores = DEFAULT_STORES, boot = true }: AppProps) {
   const chips = useStore(stores.settings, (state) => state.chips)
   const cfg = useStore(stores.game, (state) => state.cfg)
   const step = useStore(stores.game, (state) => cachedNextStep(state, { selectedChip, chips }))
+  const nextPhysicsSeed = useStore(stores.game, selectNextPhysicsSeed)
 
-  // The 3D dome is M10; its setting plays as 2D until then.
-  const viewMode = diceMode === 'instant' ? 'instant' : '2d'
+  // The dice view behind the setting: the dome plays 3D while its renderer is live, 2D otherwise.
+  const diceView = useCallback(
+    (): DiceView =>
+      diceMode === '3d'
+        ? dome.view(speed === 'fast' ? 'fast' : 'normal')
+        : dice.view(diceMode, speed === 'fast' ? TUMBLE_FAST : TUMBLE),
+    [diceMode, dome, dice, speed],
+  )
 
   const roll = useCallback(
     (scripted?: Dice): void => {
@@ -83,7 +113,7 @@ export function App({ stores = DEFAULT_STORES, boot = true }: AppProps) {
         {
           store: stores.game,
           repo: stores.repo,
-          diceView: dice.view(viewMode, speed === 'fast' ? TUMBLE_FAST : TUMBLE),
+          diceView: diceView(),
           reducedMotion: prefersReducedMotion(reducedSetting),
         },
         scripted,
@@ -91,7 +121,7 @@ export function App({ stores = DEFAULT_STORES, boot = true }: AppProps) {
       runRef.current = run
       void run.settled
     },
-    [stores, dice, viewMode, speed, reducedSetting],
+    [stores, diceView, reducedSetting],
   )
 
   const ui: UiState = useMemo(
@@ -129,15 +159,14 @@ export function App({ stores = DEFAULT_STORES, boot = true }: AppProps) {
       if (stopped) return
       autosave = wireAutosave({ store: stores.game, repo: stores.repo })
       const last = stores.game.getState().session?.state.lastRoll ?? null
-      if (last !== null) dice.view(viewMode).showRest(last.dice)
+      // The dome's showRest also sets the 2D dice, so either view shows the last roll at rest.
+      if (last !== null) dome.view().showRest(last.dice)
     })
     return () => {
       stopped = true
       autosave?.stop()
     }
-    // Boot runs once per mount; the dice mode only picks the first rest pose.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [boot, stores, dice])
+  }, [boot, stores, dome])
 
   // Announce each revealed roll: total, round event and the player's net, in words (plan §6).
   useEffect(() => {
@@ -222,40 +251,57 @@ export function App({ stores = DEFAULT_STORES, boot = true }: AppProps) {
   return (
     <StoresProvider value={stores}>
       <UiProvider value={ui}>
-        <div className="app-shell">
-          <h1 className="app-brand">Bubble Craps Trainer</h1>
+        <div className="app">
           <Topbar />
-          <ReasonStrip />
           <NoticeBanner />
-          {approxNote && cfg !== null && (
-            <div className="approx-note" role="note">
-              <p>
-                This machine sets options the trainer approximates ({cfg.notModelled.join(', ')}).
-                Everything else plays exactly.
-              </p>
-              <button
-                type="button"
-                onClick={() => setApproxDismissed((done) => [...done, cfg.configHash])}
-              >
-                Got it
-              </button>
-            </div>
-          )}
-          <main className="app-main">
-            <div className="app-side">
-              <div className="dome-slot">
-                <DiceView2D controller={dice} mode={viewMode} />
+          <main className="machine">
+            <section className="dome-panel" aria-label="Dice dome">
+              <div className="dome">
+                <div className="dome-slot">
+                  {diceMode === '3d' ? (
+                    <DiceDome controller={dome} nextSeed={nextPhysicsSeed} />
+                  ) : (
+                    <DiceView2D controller={dice} mode={diceMode} />
+                  )}
+                </div>
+                <DomeOverlay />
+                {diceMode === '3d' && <QualityControl controller={dome} />}
+                <DiceModeToggle settings={stores.settings} />
               </div>
-              <SessionStrip />
-              <RollHistoryPanel />
-            </div>
-            <div className="app-center">
-              <TableGrid />
+            </section>
+            <div className="layout">
               <NextStepBar />
-              <ActionBar />
-              <ChipRail />
+              <ReasonStrip />
+              <TableGrid />
             </div>
+            <RollHistoryPanel />
+            <NextRollPanel />
+            <CoachPanel>
+              {approxNote && cfg !== null && (
+                <div className="tip approx-note" role="note" data-sev="note">
+                  <p>
+                    This machine sets options the trainer approximates ({cfg.notModelled.join(', ')}
+                    ). Everything else plays exactly.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setApproxDismissed((done) => [...done, cfg.configHash])}
+                  >
+                    Got it
+                  </button>
+                </div>
+              )}
+              <LayoutMeter />
+              <SessionStrip />
+              <CheatSheet />
+            </CoachPanel>
           </main>
+          <footer className="rack" aria-label="Chips and controls">
+            <div className="rack-inner">
+              <ChipRail />
+              <ActionBar />
+            </div>
+          </footer>
           {dialog === 'newGame' && <NewGameDialog />}
           {dialog === 'addCredit' && <AddCreditDialog />}
           {inspector !== null && <BetInspector spot={inspector} />}

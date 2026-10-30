@@ -4,7 +4,7 @@ import { cents } from '../../src/engine/core/money.ts'
 import { nextUint32, seedRng } from '../../src/engine/core/rng.ts'
 import { legalBets, type LegalBet } from '../../src/engine/bets/legal.ts'
 import { typeLimits } from '../../src/engine/bets/limits.ts'
-import { resolveType } from '../../src/engine/bets/registry.ts'
+import { resolveBet } from '../../src/engine/bets/registry.ts'
 import type { BetType } from '../../src/engine/bets/types.ts'
 import type { Action } from '../../src/engine/table/actions.ts'
 import type { GameEvent } from '../../src/engine/table/events.ts'
@@ -28,10 +28,11 @@ import { addTo, lineFor, topUp } from './bets.ts'
  * The player behind the pinned replay fixture, tests/replay/fixtures/crapless-200.json (plan §10
  * M5): 200 rolls on the default machine, craplessBubble, with dice drawn from the session seed.
  * Before every roll the player makes at least one bet: line bets and odds (often the maximum),
- * place and buy bets in the usual units, hardways, props and composites, presses of the last roll's
- * winners, Double, Repeat, take-downs and the Set bets Off/On button. Credit is added whenever it
- * runs low, and now and then besides, so the log carries deposits. When the round's minimum
- * refuses a roll, the player adds the line bet it lacks and rolls again.
+ * place and buy bets in the usual units, hardways, props and composites, the Lucky Roller side bets
+ * whenever their window is open (M11), presses of the last roll's winners, Double, Repeat,
+ * take-downs and the Set bets Off/On button. Credit is added whenever it runs low, and now and then
+ * besides, so the log carries deposits. When the round's minimum refuses a roll, the player adds
+ * the line bet it lacks and rolls again.
  *
  * Its choices come from their own seeded stream, so `recordCrapless200()` plays the same session
  * every time on a given engine. Run `node tests/replay/record.ts` to write the fixture; only do so
@@ -48,6 +49,7 @@ type Choice =
   | 'number'
   | 'hard'
   | 'prop'
+  | 'side'
   | 'press'
   | 'double'
   | 'repeat'
@@ -62,6 +64,7 @@ const CHOICES: readonly (readonly [Choice, number])[] = [
   ['number', 24],
   ['hard', 8],
   ['prop', 12],
+  ['side', 4],
   ['press', 8],
   ['double', 3],
   ['repeat', 5],
@@ -142,7 +145,7 @@ function movesFor(
   const open = legalBets(state, cfg).filter((spot) => spot.canAdd === null)
   const ofFamily = (...families: BetType['family'][]) =>
     open.filter((spot) => {
-      const family = resolveType(cfg, spot.typeId)?.type.family
+      const family = resolveBet(cfg, spot.typeId)?.type.family
       return family !== undefined && families.includes(family)
     })
   const pickFrom = <T>(list: readonly T[]): T | undefined =>
@@ -180,6 +183,13 @@ function movesFor(
     case 'prop': {
       const spot = pickFrom(ofFamily('oneRoll', 'composite'))
       return sized(spot, spot?.minAdd ?? 0, 1 + choose(3))
+    }
+    case 'side': {
+      // Lucky Roller: Interblock takes it only right after a 7 or at the start of the cycle.
+      const spots = legalBets(state, cfg, { sideBets: true }).filter(
+        (spot) => cfg.sideBets.has(spot.typeId) && spot.canAdd === null,
+      )
+      return sized(pickFrom(spots), 100, 1 + choose(3))
     }
     case 'press': {
       const up = new Set(state.bets.map((b) => b.id))

@@ -3,12 +3,11 @@
  *
  * Fails when the production build contains the e2e test hooks — the `__CRAPS_TEST__` window hook
  * or any trace of the testHooks module, which may exist only in `vite build --mode e2e` builds —
- * or when the JavaScript loaded by index.html is over its gzip budget.
- *
- * TODO(M10a): enforce the rest of the §10 M10a budgets once those chunks exist:
- *   - the initial JS contains no three or Rapier code
- *   - the lazy dome chunk is at most 350 KB gzip
- *   - the physics worker is at most 900 KB
+ * or when a chunk breaks the §10 M10a budgets:
+ *   - the JavaScript loaded by index.html is at most 250 KB gzip and contains no three or Rapier
+ *   - the lazy dome chunks (every non-initial, non-worker JS chunk) total at most 350 KB gzip, and
+ *     one of them carries three, so the dome really is split off
+ *   - the physics worker is at most 900 KB gzip and is the only chunk carrying Rapier
  */
 import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { basename, join, relative, sep } from 'node:path'
@@ -27,8 +26,30 @@ const TEST_HOOK = '__CRAPS_TEST__'
 const TEST_HOOK_MARKERS: readonly string[] = [TEST_HOOK, 'e2e test preset:']
 /** A chunk split from the testHooks module keeps its name: `assets/testHooks-<hash>.js`. */
 const TEST_HOOK_FILE = /testhooks/i
-/** §10 M10a: initial JS at most 250 KB gzip. Checkable from M0, so enforced from M0. */
-const INITIAL_JS_BUDGET = 250_000
+
+/** §10 M10a budgets, gzip bytes. */
+export const BUDGETS = {
+  initialJs: 250_000,
+  domeChunks: 350_000,
+  physicsWorker: 900_000,
+} as const
+
+export type Budgets = { readonly [K in keyof typeof BUDGETS]: number }
+
+/**
+ * three's own error prefixes (`THREE.WebGLRenderer: ...`) are string literals, so they survive
+ * minification; no other module writes `THREE.` followed by a capitalised name.
+ */
+const THREE_MARKER = /THREE\.[A-Z][A-Za-z]+/
+/**
+ * Rapier's compat build is wasm-bindgen glue around an inlined base64 WebAssembly module: the glue
+ * exports `__wbindgen_*` names, and base64 of the `\0asm` header is `AGFzbQ`.
+ */
+const RAPIER_MARKERS: readonly string[] = ['__wbindgen', 'AGFzbQ']
+/** Vite names a worker chunk after its source file: `assets/physics.worker-<hash>.js`. */
+const PHYSICS_WORKER_FILE = /^physics\.worker[-.]/i
+const WORKER_FILE = /\.worker[-.][^/]*\.js$/i
+const JS_FILE = /\.m?js$/i
 
 /**
  * The test-hook failures one bundle file contributes (plan §10 M8: the production bundle contains
@@ -50,9 +71,132 @@ export function testHookOffences(file: string, content: string | Buffer): string
   return offences
 }
 
+export interface BundleFile {
+  /** Relative to the build directory, with forward slashes. */
+  readonly path: string
+  readonly content: string | Buffer
+}
+
+export interface ChunkGroup {
+  readonly files: readonly string[]
+  readonly gzipBytes: number
+}
+
+export interface BundleReport {
+  readonly failures: readonly string[]
+  /** The scripts index.html loads before first paint. */
+  readonly initial: ChunkGroup
+  /** Every other JS chunk that is not a worker: the lazy dome and whatever else splits. */
+  readonly dome: ChunkGroup
+  readonly physicsWorker: { readonly file: string; readonly gzipBytes: number } | null
+}
+
+const hasThree = (content: string | Buffer): boolean => THREE_MARKER.test(content.toString())
+const hasRapier = (content: string | Buffer): boolean =>
+  RAPIER_MARKERS.some((marker) => content.includes(marker))
+const gzipBytes = (content: string | Buffer): number => gzipSync(content).length
+
+/**
+ * The §10 M10a chunk budgets over a build: pure over index.html and the files, so the unit test
+ * feeds it fixtures. Workers are told by name; the physics worker must be exactly one file.
+ */
+export function bundleReport(
+  html: string,
+  files: readonly BundleFile[],
+  budgets: Budgets = BUDGETS,
+): BundleReport {
+  const failures: string[] = []
+  const byPath = new Map(files.map((file) => [file.path, file] as const))
+  const initialPaths = initialScripts(html)
+  const initialFiles: BundleFile[] = []
+  for (const path of initialPaths) {
+    const file = byPath.get(path)
+    if (file === undefined) failures.push(`index.html loads ${path}, which is not in the build`)
+    else initialFiles.push(file)
+  }
+  const sum = (group: readonly BundleFile[]) =>
+    group.reduce((total, file) => total + gzipBytes(file.content), 0)
+
+  const initialBytes = sum(initialFiles)
+  if (initialBytes > budgets.initialJs) {
+    failures.push(
+      `initial JS is ${kb(initialBytes)} gzip, over the ${kb(budgets.initialJs)} budget`,
+    )
+  }
+  for (const file of initialFiles) {
+    if (hasThree(file.content)) {
+      failures.push(`initial JS ${file.path} contains three; the dome must be a lazy chunk`)
+    }
+    if (hasRapier(file.content)) {
+      failures.push(`initial JS ${file.path} contains Rapier; physics belongs in its worker`)
+    }
+  }
+
+  const initialSet = new Set(initialPaths)
+  const scripts = files.filter((file) => JS_FILE.test(file.path) && !initialSet.has(file.path))
+  const workers = scripts.filter((file) => WORKER_FILE.test(basename(file.path)))
+  const physicsWorkers = workers.filter((file) => PHYSICS_WORKER_FILE.test(basename(file.path)))
+  const domeFiles = scripts.filter((file) => !WORKER_FILE.test(basename(file.path)))
+
+  let physicsWorker: BundleReport['physicsWorker'] = null
+  if (physicsWorkers.length === 0) {
+    failures.push('no physics worker chunk (assets/physics.worker-*.js) is in the build')
+  } else if (physicsWorkers.length > 1) {
+    failures.push(
+      `more than one physics worker chunk: ${physicsWorkers.map((f) => f.path).join(', ')}`,
+    )
+  } else {
+    const [file] = physicsWorkers
+    if (file !== undefined) {
+      const bytes = gzipBytes(file.content)
+      physicsWorker = { file: file.path, gzipBytes: bytes }
+      if (bytes > budgets.physicsWorker) {
+        failures.push(
+          `physics worker ${file.path} is ${kb(bytes)} gzip, over the ` +
+            `${kb(budgets.physicsWorker)} budget`,
+        )
+      }
+      if (!hasRapier(file.content)) {
+        failures.push(
+          `physics worker ${file.path} does not contain Rapier: is it still the physics worker?`,
+        )
+      }
+    }
+  }
+  for (const file of workers) {
+    if (!PHYSICS_WORKER_FILE.test(basename(file.path)) && hasRapier(file.content)) {
+      failures.push(`worker ${file.path} contains Rapier; only the physics worker may`)
+    }
+    if (hasThree(file.content)) failures.push(`worker ${file.path} contains three`)
+  }
+
+  const domeBytes = sum(domeFiles)
+  if (domeBytes > budgets.domeChunks) {
+    failures.push(
+      `the lazy chunks total ${kb(domeBytes)} gzip, over the ${kb(budgets.domeChunks)} dome budget`,
+    )
+  }
+  if (!domeFiles.some((file) => hasThree(file.content))) {
+    failures.push('no lazy chunk contains three: the dome is missing or was not split off')
+  }
+  for (const file of domeFiles) {
+    if (hasRapier(file.content)) {
+      failures.push(`lazy chunk ${file.path} contains Rapier; only the physics worker may`)
+    }
+  }
+
+  return {
+    failures,
+    initial: { files: initialFiles.map((file) => file.path), gzipBytes: initialBytes },
+    dome: { files: domeFiles.map((file) => file.path), gzipBytes: domeBytes },
+    physicsWorker,
+  }
+}
+
 const USAGE = `Usage: node scripts/check-bundle.ts [--dir <build dir>]
 
-Checks a production build (default: dist) for leaked e2e test hooks and the initial JS budget.`
+Checks a production build (default: dist) for leaked e2e test hooks and the §10 M10a chunk
+budgets: initial JS (no three, no Rapier), the lazy dome chunks and the physics worker.`
 
 const OPTIONS = {
   dir: { type: 'string', default: 'dist' },
@@ -80,30 +224,26 @@ function main(args: string[]): number {
   }
 
   const failures: string[] = []
-  const files = listFiles(dir)
-  for (const file of files) {
-    failures.push(...testHookOffences(file, readFileSync(join(dir, file))))
-  }
+  const files: BundleFile[] = listFiles(dir).map((path) => ({
+    path,
+    content: readFileSync(join(dir, path)),
+  }))
+  for (const file of files) failures.push(...testHookOffences(file.path, file.content))
 
-  const initial = initialScripts(readFileSync(join(dir, 'index.html'), 'utf8'))
-  const missing = initial.filter((file) => !existsSync(join(dir, file)))
-  for (const file of missing) failures.push(`index.html loads ${file}, which is not in ${dir}`)
-  const initialBytes = initial
-    .filter((file) => !missing.includes(file))
-    .reduce((sum, file) => sum + gzipSync(readFileSync(join(dir, file))).length, 0)
-  if (initialBytes > INITIAL_JS_BUDGET) {
-    failures.push(
-      `initial JS is ${kb(initialBytes)} gzip, over the ${kb(INITIAL_JS_BUDGET)} budget`,
-    )
-  }
+  const report = bundleReport(readFileSync(join(dir, 'index.html'), 'utf8'), files)
+  failures.push(...report.failures)
 
   if (failures.length > 0) {
     for (const failure of failures) console.error(`check-bundle: ${failure}`)
     return 1
   }
+  const worker = report.physicsWorker
   console.log(
-    `check-bundle: ${dir} OK. No test hooks in ${files.length} files; initial JS is ` +
-      `${kb(initialBytes)} gzip of a ${kb(INITIAL_JS_BUDGET)} budget.`,
+    `check-bundle: ${dir} OK. No test hooks in ${files.length} files; initial JS ` +
+      `${kb(report.initial.gzipBytes)} gzip of ${kb(BUDGETS.initialJs)} (no three, no Rapier); ` +
+      `dome chunks ${kb(report.dome.gzipBytes)} of ${kb(BUDGETS.domeChunks)} ` +
+      `(${report.dome.files.length} files); physics worker ` +
+      `${worker === null ? 'missing' : `${kb(worker.gzipBytes)} of ${kb(BUDGETS.physicsWorker)}`}.`,
   )
   return 0
 }
@@ -117,7 +257,7 @@ function listFiles(dir: string): string[] {
 }
 
 /** Module scripts and modulepreload links in index.html: the JS fetched before first paint. */
-function initialScripts(html: string): string[] {
+export function initialScripts(html: string): string[] {
   const urls = [...html.matchAll(/<(script|link)\b[^>]*>/g)].flatMap(([tag, name]) => {
     if (name === 'link' && !/\brel="modulepreload"/.test(tag)) return []
     const url = /\b(?:src|href)="([^"]+)"/.exec(tag)?.[1]

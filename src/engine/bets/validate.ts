@@ -22,7 +22,7 @@ import {
   typeLimits,
 } from './limits.ts'
 import { EXCLUSIONS, ROLL_CHECKS, startsOff } from './policies.ts'
-import { resolveType, type ResolvedType } from './registry.ts'
+import { resolveBet, type ResolvedBet } from './registry.ts'
 import {
   betId,
   isRejection,
@@ -52,8 +52,9 @@ import { canToggle, effectiveWorking } from './working.ts'
  *    Point"), though it may be cut or taken down. A `place` on a bet already up needs no
  *    mutability check: `locate` lands it only on a bet that may grow. A pass bet on its point is
  *    out of its window (`WRONG_PHASE`) unless put bets are allowed, when it may grow; every other
- *    bet a `place` reaches (a line bet before its first roll, odds, number bets, hardways, one-roll
- *    bets and composites) may always grow. M11's locked side bets will need the check back.
+ *    main-game bet a `place` reaches (a line bet before its first roll, odds, number bets,
+ *    hardways, one-roll bets and composites) may always grow; a side bet's `locate` answers
+ *    `CONTRACT_BET` for a bet of its type that is locked (M11, `families/sideBet.ts`).
  *
  * A `setAmount` checks the bet's mutability right after its parameters, so a contract bet answers
  * `CONTRACT_BET` to every change, whatever the amount (plan §9 item 6); then the re-bet window (an
@@ -71,7 +72,7 @@ import { canToggle, effectiveWorking } from './working.ts'
 
 /** A valid change to one bet: the reducer applies exactly this. */
 export interface BetChange {
-  readonly resolved: ResolvedType
+  readonly resolved: ResolvedBet
   /** The bet before the change; null for a new bet. */
   readonly before: BetInstance | null
   /** The bet after it; an amount of 0 takes it down. */
@@ -97,7 +98,7 @@ export function validatePlace(
   cfg: MachineConfig,
 ): BetChange | Rejection {
   // 1. Offered, and the parameters are valid.
-  const resolved = resolveType(cfg, action.typeId)
+  const resolved = resolveBet(cfg, action.typeId)
   if (resolved === null) return reject('NOT_OFFERED', { typeId: String(action.typeId) })
   const { family, type } = resolved
   const at = { typeId: type.typeId }
@@ -173,7 +174,7 @@ export function validateSetAmount(
   if (bet === undefined) return reject('BET_NOT_FOUND', { betId: String(action.betId) })
   const at = { typeId: bet.typeId, betId: bet.id }
   if (!isWholeCents(action.amount, 0)) return reject('BAD_PARAMS', { ...at, field: 'amount' })
-  const resolved = resolveType(cfg, bet.typeId)
+  const resolved = resolveBet(cfg, bet.typeId)
   if (resolved === null) return reject('NOT_OFFERED', at)
   const { family, type } = resolved
   const to = action.amount

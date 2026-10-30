@@ -88,7 +88,7 @@ describe('the roll history (plan §0 #20)', () => {
     expect(history).toHaveTextContent('Place 6 won $7.00')
     expect(history).toHaveTextContent('the point is 6')
     const math = screen.getByTestId('roll-math')
-    expect(math).toHaveTextContent('$6.00 × 7:6 = $7.00')
+    expect(math).toHaveTextContent('$6 × 7/6 = $7.00 → paid $7.00')
     expect(history).toHaveTextContent('Pass Line moved to 6')
   })
 

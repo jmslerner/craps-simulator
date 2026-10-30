@@ -7,6 +7,7 @@ import {
   ExactError,
   analyzeBet,
   catalogSpecs,
+  clearAnalysisCache,
   configPathsOf,
   renewalCost,
   standingCost,
@@ -89,11 +90,17 @@ describe('standing-cost identity (full)', () => {
   it.each([...PRESET_CONFIGS, ...VARIANTS].map((cfg) => [cfg.id, cfg] as const))(
     'holds on %s for every bet, its first stakes and every toggle',
     (_, cfg) => {
+      // Each machine's chains are its own; dropping the last machine's keeps the worker small
+      // (a side bet's chain has up to a thousand states, M11).
+      clearAnalysisCache()
       let checked = 0
       for (const spec of catalogSpecs(cfg)) {
         if (!hasStandingCost(spec, cfg)) continue
-        for (const amount of firstAmounts(spec, cfg, 4)) {
-          for (const toggles of TOGGLES) {
+        // A side bet is never toggleable and pays whole numbers at every stake, so neither the
+        // toggles nor the stake can change its re-bet cycle: one stake, the default toggles.
+        const side = cfg.sideBets.has(spec.typeId)
+        for (const amount of firstAmounts(spec, cfg, side ? 1 : 4)) {
+          for (const toggles of side ? [{}] : TOGGLES) {
             const cost = standingCost(spec, amount, cfg, toggles)
             if (cost.rate.isZero()) {
               expect(cost.perRoll.isZero()).toBe(true)

@@ -1,11 +1,14 @@
 import {
   Fraction,
   cents,
-  requireType,
+  requireBet,
+  totalOf,
   type Cents,
+  type FamilyKey,
   type MachineConfig,
   type Phase,
   type PointNumber,
+  type RoundState,
 } from '../engine/index.ts'
 import {
   ExactError,
@@ -19,6 +22,7 @@ import {
   type BetSpec,
   type ChainLabel,
   type Group,
+  type RollOutcome,
   type StartContext,
   type TableNode,
 } from './chain.ts'
@@ -37,9 +41,14 @@ import { startAt, typicalStart } from './start.ts'
  * | pass, don't pass | loss per decision × π(comeOut): one starts on each come-out roll |
  * | come, don't come | loss per decision × π(point): one starts in the box on each point roll |
  * | odds | loss per decision × the rate the parent arrives on the number |
+ * | side bets (M11) | loss per roll it is up × the share of rolls it is up, over the re-bet cycle |
  *
  * π and the arrival rates come from the round's own chain (`roundStats`) and the parent's chain;
- * the losses from the bet's chain, priced at the stake as the machine pays.
+ * the losses from the bet's chain, priced at the stake as the machine pays. A side bet is placed
+ * again as soon as its window reopens — at once after Interblock's Lucky Roller loses to a 7, only
+ * after the next 7 when it has won; at the seven-out for the Fire Bet and the Hot Shooter; at the
+ * next come-out for the Lucky Shooter — so its cost comes straight from that cycle (`rebetCycle`),
+ * whose window checks read the roll just made (a 7, a seven-out) as the families' windows do.
  *
  * `renewalCost` computes the same thing a second way, as the plan's identity check asks (§9 item
  * 6): lifecycle loss ÷ lifecycle rolls of a renewal cycle. For a bet that is up alone, the cycle is
@@ -78,10 +87,22 @@ export function standingCost(
   cfg: MachineConfig,
   toggles: Toggles = {},
 ): StandingCost {
-  const { type } = requireType(cfg, spec.typeId)
+  const { type } = requireBet(cfg, spec.typeId)
   const stats = roundStats(cfg)
   const start = typicalStart(spec, cfg, toggles)
   switch (type.family) {
+    case 'collectSet':
+    case 'uniquePointsMade':
+    case 'handLength':
+    case 'pointRun': {
+      const cycle = rebetCycle(spec, amount, cfg, toggles)
+      const rate = cycle.workingRolls.div(cycle.rolls)
+      if (rate.isZero()) {
+        return { perRoll: Fraction.ZERO, policy: 'workingRolls', rate, lossPerUnit: Fraction.ZERO }
+      }
+      const loss = cycle.loss.div(cycle.workingRolls)
+      return { perRoll: loss.mul(rate), policy: 'workingRolls', rate, lossPerUnit: loss }
+    }
     case 'line': {
       if (spec.number !== null) {
         // A put bet is one decision, not a stream (rules spec §3.1): it has no standing policy.
@@ -123,12 +144,18 @@ export function standingCost(
  * cycle instead: working rolls ÷ rolls per cycle.
  *
  * Only for bets that can stand in every phase (number bets, hardways, one-roll bets and
- * composites): a line bet or odds is tied to the round, and is priced per decision instead.
+ * composites): a line bet or odds is tied to the round, and is priced per decision instead. A side
+ * bet always works while it is up, but is up only while its window and its own run allow, so its
+ * share is the re-bet cycle's: rolls it is up ÷ rolls per cycle.
  */
 export function workingShare(spec: BetSpec, cfg: MachineConfig, toggles: Toggles = {}): Fraction {
-  const family = requireType(cfg, spec.typeId).type.family
+  const family = requireBet(cfg, spec.typeId).type.family
   if (family === 'line' || family === 'odds') {
     throw new ExactError('BAD_SPEC', `${spec.typeId} is priced per decision, not per working roll`)
+  }
+  if (isSideFamily(family)) {
+    const cycle = rebetCycle(spec, cents(100), cfg, toggles)
+    return cycle.workingRolls.div(cycle.rolls)
   }
   const group = groupFor(spec, cfg)
   const working = toggles.working ?? null
@@ -213,7 +240,7 @@ export function renewalCost(
   cfg: MachineConfig,
   toggles: Toggles = {},
 ): Fraction {
-  const { type } = requireType(cfg, spec.typeId)
+  const { type } = requireBet(cfg, spec.typeId)
   const stats = roundStats(cfg)
   const points = stats.phases.filter(
     (entry): entry is typeof entry & { phase: Extract<Phase, { kind: 'point' }> } =>
@@ -324,7 +351,7 @@ function rebetCycle(spec: BetSpec, amount: Cents, cfg: MachineConfig, toggles: T
         }
         let next = outcome.next
         let placesAgain = false
-        if (at(next.bets, group.subject) === null && canPlace(group, spec, next, cfg)) {
+        if (at(next.bets, group.subject) === null && canPlace(group, spec, outcome, cfg)) {
           next = fresh(next.phase, next.globalOff)
           placesAgain = true
           loss = loss.add(placeCost)
@@ -360,17 +387,48 @@ function rebetCycle(spec: BetSpec, amount: Cents, cfg: MachineConfig, toggles: T
   throw new ExactError('NEVER_RESOLVES', `${spec.typeId} is never placed again`)
 }
 
-/** Whether `spec` can be placed on `table` now: its family's window (`locate`). */
-function canPlace(group: Group, spec: BetSpec, table: TableNode, cfg: MachineConfig): boolean {
+/**
+ * Whether `spec` can be placed on the table `outcome` leaves: its family's window (`locate`), read
+ * on the round as that roll leaves it. The projected round carries no counters, so the two the
+ * side-bet windows read are set from the roll itself: no roll since a 7 when it was a 7 of any
+ * kind (`sinceSeven.rolls`: Interblock's Lucky Roller), a new hand when it was a seven-out
+ * (`hand.rolls`: the Fire Bet, the Hot Shooter); the phase is the table's. The Hot Shooter's
+ * qualifying main-game stake (its `canPlace`) is the player's to keep up and is not checked here.
+ */
+function canPlace(group: Group, spec: BetSpec, outcome: RollOutcome, cfg: MachineConfig): boolean {
   const { family, type } = at(group.slots, group.subject)
+  const state = tableState(cfg, outcome.next)
   const located = family.locate({
-    state: tableState(cfg, { ...table, bets: table.bets.filter((bet) => bet !== null) }),
+    state: { ...state, round: roundAfter(state.round, outcome) },
     cfg,
     type,
     number: spec.number,
     parentId: null,
   })
   return !('code' in located)
+}
+
+/** `round` as the roll `outcome` leaves its counters: the ones the side-bet windows read. */
+function roundAfter(round: RoundState, outcome: RollOutcome): RoundState {
+  const seven = totalOf(outcome.dice) === 7
+  const sevenOut = outcome.transition.kind === 'sevenOut'
+  return {
+    ...round,
+    hand: { ...round.hand, rolls: sevenOut ? 0 : round.hand.rolls },
+    sinceSeven: {
+      rolls: seven ? 0 : round.sinceSeven.rolls,
+      totalsMask: round.sinceSeven.totalsMask,
+    },
+  }
+}
+
+function isSideFamily(family: FamilyKey): boolean {
+  return (
+    family === 'collectSet' ||
+    family === 'uniquePointsMade' ||
+    family === 'handLength' ||
+    family === 'pointRun'
+  )
 }
 
 /** E[loss of one decision] of `spec` at `amount` from `start`, as paid, in cents. */

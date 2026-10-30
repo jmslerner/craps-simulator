@@ -82,16 +82,17 @@ export const craplessBubbleHighLimit: MachineConfigInput = deepFreeze({
     },
     '/limits/max': {
       status: 'assumed',
-      note: 'The $5,000 maximum reported for the Venetian’s live craps, mapped onto one machine wager; no machine source (research high-limit-machines.md §1).',
+      source: 'CH-VEGAS; OTS-CRAPS',
+      note: 'The $5,000 maximum two sources report for the Venetian’s live craps, mapped onto one machine wager; no machine source, so the mapping stays assumed (research high-limit-machines.md §1).',
     },
     '/limits/tableMax': {
       status: 'reported',
-      source: 'WOV-35576',
+      source: 'WOV-35576; YT-DICEY',
       note: 'A Las Vegas high-limit crapless machine takes a maximum bet of $20,000 (the 2025-04-16 video the thread retells), read as the most the layout holds for one roll.',
     },
     '/limits/minTotal/amount': {
       status: 'assumed',
-      source: 'VA (Venetian page)',
+      source: 'VA-VEN',
       note: '$25 total to roll: the Venetian’s table minimums "usually start at $25", mapped onto Interblock’s minimum-total check (research high-limit-machines.md §1).',
     },
     '/limits/perType': PER_TYPE_LIMITS,

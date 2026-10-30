@@ -691,6 +691,7 @@ const FIXTURES: readonly Fixture[] = [
     edit: (cfg) => (at(cfg, 'sideBets', 'luckyShooter').points = [4]),
     paths: [
       ['sideBets', 'luckyShooter', 'points'],
+      ['sideBets', 'luckyShooter', 'payTable', '2'],
       ['sideBets', 'luckyShooter', 'payTable', '3'],
       ['sideBets', 'luckyShooter', 'payTable', '4'],
       ['sideBets', 'luckyShooter', 'payTable', '5'],

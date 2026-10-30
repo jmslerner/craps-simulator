@@ -1,10 +1,13 @@
 /**
  * Playback plans (§7 Face remap). The physics never knows the outcome; a plan says which cube
- * rotation to draw on each body at each frame, so the dice land showing the engine's dice.
- * Only snap mode exists so far; the smooth handoff arrives in M10b.
+ * rotation to draw on each body at each frame, so the dice land showing the engine's dice. Two
+ * modes: `snap` switches the drawn rotation in one airborne, fast-turning frame (M10a); `handoff`
+ * blends it over a 100–250 ms window where the die is airborne, clear and spinning (handoff.ts,
+ * M10b), and falls back to the snap for a die whose throw has no such window.
  */
-import { IDENTITY_OFFSET, rotationAngleDeg, rotationAt, type DieFace } from './cube.ts'
+import { IDENTITY_OFFSET, rotationAngleDeg, type DieFace } from './cube.ts'
 import { diceGap, domeGap, floorGap } from './gap.ts'
+import { drawnRotation, handoffWindow, slowestTurn, type HandoffWindow } from './handoff.ts'
 import { DEFAULT_PARAMS, paramsFingerprint, type PhysicsParams } from './params.ts'
 import { createPrng, inDisc, onCircle } from './prng.ts'
 import { angleBetween, multiply, normalize, yawFromHalfAngle, type Quat } from './quat.ts'
@@ -20,7 +23,7 @@ import {
   type RestState,
 } from './restPose.ts'
 
-export type PlaybackMode = 'snap'
+export type PlaybackMode = 'snap' | 'handoff'
 
 /** The engine's dice. Structural, so engine/core/dice.ts's DiceRoll fits without an import. */
 export interface DicePair {
@@ -35,14 +38,25 @@ export interface DieTrack {
   readonly startOffset: number
   /** Drawn from `switchFrame` on. */
   readonly endOffset: number
-  /** Snap mode: the frame the drawn face switches on; see snapFrame. */
+  /**
+   * The frame from which the end offset is drawn whole: a snap's switch frame (see snapFrame), or
+   * the last frame of the handoff window.
+   */
   readonly switchFrame: number
   /**
-   * Whether the switch is hidden: the drawn face does not change at all, or it changes on a
-   * frame where the die is airborne and turning at least `snap.minTurnRate`. When false the
-   * change may be visible, so the dome may want to cover it some other way.
+   * Whether the change of drawn face is hidden: there is none, it is blended over a handoff
+   * window, or it snaps on a frame where the die is airborne and turning at least
+   * `snap.minTurnRate`. When false the change may be visible, so the dome covers it with a short
+   * blend around the switch frame (handoff.ts's soft cut).
    */
   readonly hidden: boolean
+  /**
+   * Handoff mode, when the throw gave this die a usable window: the frames the drawn rotation
+   * blends over (handoff.ts). Null in snap mode, or when no window was found and the snap stands
+   * in. Between `from` and `to` the drawn face is neither offset's; `offsetAt` reports the start
+   * offset there.
+   */
+  readonly handoff: HandoffWindow | null
 }
 
 export interface PlaybackPlan {
@@ -102,13 +116,16 @@ export function buildPlaybackPlan(
   const { faces, ends } = swapped ? crossed : straight
 
   const track = (die: DieIndex): DieTrack => {
-    const snap = switchFrame(rec, die, mode, params)
+    const unchanged = starts[die] === ends[die]
+    const choice = remapChoice(rec, die, mode, params)
     return {
       face: faces[die],
       startOffset: starts[die],
       endOffset: ends[die],
-      switchFrame: snap.frame,
-      hidden: snap.hidden || starts[die] === ends[die],
+      switchFrame: choice.frame,
+      hidden: choice.hidden || unchanged,
+      // A die that keeps its drawn face has nothing to blend, whatever window the throw offers.
+      handoff: unchanged ? null : choice.handoff,
     }
   }
   return {
@@ -128,10 +145,13 @@ export function offsetAt(track: DieTrack, frame: number): number {
   return frame < track.switchFrame ? track.startOffset : track.endOffset
 }
 
-/** The rotation to draw for body `die` at `frame`: q_vis = q_body · R[offset]. */
+/**
+ * The rotation to draw for body `die` at `frame`: q_vis = q_body · R, where R is the cube rotation
+ * drawn there (an offset's, or the blend between the two across a handoff or soft cut).
+ */
 export function visualRotation(plan: PlaybackPlan, die: DieIndex, frame: number): Quat {
   const q = normalize(framePose(plan.recording, frame, die).q)
-  return multiply(q, rotationAt(offsetAt(plan.tracks[die], frame)).quat)
+  return multiply(q, drawnRotation(plan.tracks[die], frame))
 }
 
 /** The face drawn on top of body `die` at `frame`. */
@@ -159,16 +179,27 @@ function startsAt(recorded: Pose, pose: Pose): boolean {
   )
 }
 
-function switchFrame(
+interface RemapChoice extends SnapChoice {
+  readonly handoff: HandoffWindow | null
+}
+
+/**
+ * How die `die`'s drawn rotation changes: in handoff mode the blend over its window, when the
+ * throw has one, else — and always in snap mode — the snap frame.
+ */
+function remapChoice(
   rec: Recording,
   die: DieIndex,
   mode: PlaybackMode,
   params: PhysicsParams,
-): SnapChoice {
-  switch (mode) {
-    case 'snap':
-      return snapFrame(rec, die, params)
+): RemapChoice {
+  if (mode === 'handoff') {
+    const span = handoffWindow(rec, die, params)
+    if (span !== null) {
+      return { frame: span.to, turnRate: slowestTurn(rec, die, span), hidden: true, handoff: span }
+    }
   }
+  return { ...snapFrame(rec, die, params), handoff: null }
 }
 
 export interface SnapChoice {

@@ -29,7 +29,7 @@ export interface Settings {
   readonly machineId: string | null
   /** The next-step guide bar (plan §0 #18). */
   readonly guideEnabled: boolean
-  /** Placeholder until M9 defines the coach's modes; stored so M9 keeps the player's choice. */
+  /** The coach's mode (plan §5.6): 'off' | 'hints' (quiet) | 'full' (coach, the default). */
   readonly coachMode: CoachMode
 }
 
@@ -43,7 +43,7 @@ export const DEFAULT_SETTINGS: Settings = Object.freeze({
   startingBankroll: null,
   machineId: null,
   guideEnabled: true,
-  coachMode: 'hints',
+  coachMode: 'full',
 })
 
 // Each field falls back to its own default, so one bad field never discards the rest.

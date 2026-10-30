@@ -1,16 +1,18 @@
 import { z } from 'zod'
-import { ENGINE_VERSION, dispatchBetting, hashJson } from '../engine/index.ts'
+import { ENGINE_VERSION, clearWindow, dispatchBetting, hashJson } from '../engine/index.ts'
 import type { Action, MachineConfig, WindowedSession } from '../engine/index.ts'
 import type { SessionMeta } from './sessionRepo.ts'
 
 /**
  * The synchronous mirror of the open betting window (plan §8). The autosave's IndexedDB write is
- * debounced and asynchronous, so a bet placed in the last ~250 ms before an instant reload would
- * die with the page: the browser abandons the transaction at teardown. `localStorage` writes are
- * synchronous, so `wireAutosave` mirrors the open window's pending actions here on every betting
- * change, and the next boot restores the tail — but ONLY when it cleanly extends the stored head:
- * same session, same engine version, same config, same committed-window count, the stored pending
- * a prefix of the mirrored pending, every extra action re-played through `dispatchBetting`, and
+ * debounced and asynchronous, so a betting change in the last ~250 ms before an instant reload
+ * would die with the page: the browser abandons the transaction at teardown. `localStorage` writes
+ * are synchronous, so `wireAutosave` mirrors the whole open window here on every betting change —
+ * a bet placed, and just as much an undo or a clear — and the next boot restores THAT window over
+ * the stored one, but ONLY when the hash chain validates: same session, same engine version, same
+ * config, same committed-window count, the mirrored actions re-played through `dispatchBetting`
+ * from the stored window (a tail that extends it) or from the window's start (a shorter or
+ * different pending: an undo or clear inside the debounce after a flush, M9 audit MINOR-4), and
  * the resulting state hash equal to the one the mirror recorded. Anything else is discarded (junk
  * is quarantined aside), and nothing in here ever throws: the mirror is a safety net, never a
  * second source of truth. Committed rolls never need it — `commitRoll` is awaited before any
@@ -29,7 +31,7 @@ export interface PendingMirror {
   readonly configHash: string
   /** Committed windows at mirror time; a roll in between makes the mirror stale. */
   readonly windowCount: number
-  /** The whole open window, not a diff: the stored head's pending must be a prefix of it. */
+  /** The whole open window as it is now, not a diff: it may extend, shorten or replace the stored one. */
   readonly pending: readonly Action[]
   /** `hashJson` of the table the window left: the restore must reproduce it exactly. */
   readonly stateHash: string
@@ -92,10 +94,14 @@ export function clearPendingMirror(storage: MirrorStorage | null = defaultStorag
 }
 
 /**
- * Consumes the mirror (one shot: it is removed as it is read) and returns the resumed session
- * extended with the mirrored tail, or null when there is nothing safe to restore. Junk under the
- * key is quarantined to `PENDING_MIRROR_CORRUPT_KEY`; a stale or non-extending mirror is simply
- * dropped. Never throws.
+ * Consumes the mirror (one shot: it is removed as it is read) and returns the window it describes,
+ * rebuilt onto the stored session, or null when there is nothing safe to restore. A mirror that
+ * extends the stored pending replays only the tail; one that shortens or differs from it (an undo
+ * or clear inside the debounce after a flush) replays its whole pending from the window's start.
+ * Either way the result must hash to what the mirror recorded, so a stale or tampered mirror can
+ * neither resurrect an undone bet nor invent one. The caller saves the returned window over the
+ * stored head (replacing its tail). Junk under the key is quarantined to
+ * `PENDING_MIRROR_CORRUPT_KEY`; a mirror equal to the stored window is simply dropped. Never throws.
  */
 export function restorePendingMirror(
   meta: SessionMeta,
@@ -128,24 +134,30 @@ export function restorePendingMirror(
       mirror.id !== meta.id ||
       mirror.engineVersion !== ENGINE_VERSION ||
       mirror.configHash !== session.header.configHash ||
-      mirror.windowCount !== session.committed.length ||
-      mirror.pending.length <= session.pending.length
+      mirror.windowCount !== session.committed.length
     ) {
       return null
     }
-    // The stored pending must be a prefix of the mirrored window: the mirror only ever extends.
-    const prefix = mirror.pending.slice(0, session.pending.length)
-    if (hashJson(prefix) !== hashJson(session.pending)) return null
-
-    // Replay the tail through the engine; any refusal means it does not cleanly extend.
-    let extended = session
-    for (const action of mirror.pending.slice(session.pending.length)) {
-      const result = dispatchBetting(extended, action, cfg)
-      if (!result.ok) return null
-      extended = result.session
+    const stored = hashJson(session.pending)
+    // The stored window already is the mirrored one: nothing to restore.
+    if (mirror.pending.length === session.pending.length && hashJson(mirror.pending) === stored) {
+      return null
     }
-    if (hashJson(extended.state) !== mirror.stateHash) return null
-    return extended
+
+    // A tail that extends the stored pending replays from the stored table; anything else (an
+    // undo, a clear, a cleared-and-rebet window) replays the mirrored window from its start.
+    const extends_ =
+      mirror.pending.length > session.pending.length &&
+      hashJson(mirror.pending.slice(0, session.pending.length)) === stored
+    let rebuilt = extends_ ? session : clearWindow(session, cfg)
+    const replay = extends_ ? mirror.pending.slice(session.pending.length) : mirror.pending
+    for (const action of replay) {
+      const result = dispatchBetting(rebuilt, action, cfg)
+      if (!result.ok) return null
+      rebuilt = result.session
+    }
+    if (hashJson(rebuilt.state) !== mirror.stateHash) return null
+    return rebuilt
   } catch {
     return null
   }

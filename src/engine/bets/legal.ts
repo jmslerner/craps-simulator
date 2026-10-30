@@ -4,7 +4,7 @@ import { cents, type Cents } from '../core/money.ts'
 import type { PlaceAction } from '../table/actions.ts'
 import type { TableState } from '../table/state.ts'
 import { availableCredit, smallestBet, typeLimits } from './limits.ts'
-import { resolveType, type ResolvedType } from './registry.ts'
+import { resolveBet, type ResolvedBet } from './registry.ts'
 import {
   isRejection,
   reject,
@@ -28,7 +28,10 @@ import { validatePlace, validateSetAmount, type BetChange } from './validate.ts'
  * - odds: one spot behind each bet of the parent type, or one with no parent when there is none
  *   (`NO_PARENT`);
  * - number bets and hardways: one per number the type offers;
- * - one-roll bets and composites: one each.
+ * - one-roll bets and composites: one each;
+ * - side bets (M11): one each, listed after the main game and only with `{ sideBets: true }`. The
+ *   layout asks for them; the coach's surfaces and the random drivers price and play the main game
+ *   until the exact solver prices side bets too, so the default leaves them out.
  *
  * Every bet on the table is on exactly one spot. Adding to a spot presses its bet when it has one
  * (`setAmount`, which a `place` on the spot also does) and places a new bet when it is empty.
@@ -60,10 +63,24 @@ export interface LegalBet {
   readonly canRemove: Rejection | null
 }
 
-export function legalBets(state: TableState, cfg: MachineConfig): LegalBet[] {
+export interface LegalBetsOptions {
+  /** Also list the side bets' spots, after the main game's (default false). */
+  readonly sideBets?: boolean
+}
+
+export function legalBets(
+  state: TableState,
+  cfg: MachineConfig,
+  options: LegalBetsOptions = {},
+): LegalBet[] {
   const legal: LegalBet[] = []
-  for (const typeId of [...cfg.catalog.keys(), ...cfg.composites.keys()]) {
-    const resolved = resolveType(cfg, typeId)
+  const typeIds = [
+    ...cfg.catalog.keys(),
+    ...cfg.composites.keys(),
+    ...(options.sideBets === true ? cfg.sideBets.keys() : []),
+  ]
+  for (const typeId of typeIds) {
+    const resolved = resolveBet(cfg, typeId)
     if (resolved === null) continue
     for (const spot of spotsOf(state, resolved.type)) {
       legal.push(legalAt(state, cfg, resolved, spot))
@@ -108,6 +125,10 @@ function spotsOf(state: TableState, type: BetType): Spot[] {
     }
     case 'oneRoll':
     case 'composite':
+    case 'collectSet':
+    case 'uniquePointsMade':
+    case 'handLength':
+    case 'pointRun':
       return [one(null, mine[0])]
   }
 }
@@ -115,7 +136,7 @@ function spotsOf(state: TableState, type: BetType): Spot[] {
 function legalAt(
   state: TableState,
   cfg: MachineConfig,
-  { type }: ResolvedType,
+  { type }: ResolvedBet,
   spot: Spot,
 ): LegalBet {
   const { bet } = spot

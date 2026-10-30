@@ -25,9 +25,12 @@ export { canonicalJson, hashJson } from './core/hash.ts'
 // Machine configs.
 export { ConfigError, compileConfig, configHashOf, validateConfig } from './config/compile.ts'
 export type {
+  CollectSetBetType,
   CommissionRule,
   CompiledBetType,
+  CompiledSideBet,
   CompositeBet,
+  HandLengthBetType,
   HardwayBetType,
   LineBetType,
   MachineConfig,
@@ -35,7 +38,9 @@ export type {
   NumberBetType,
   OddsBetType,
   OneRollBetType,
+  PointRunBetType,
   TypeLimits,
+  UniquePointsBetType,
 } from './config/compile.ts'
 export type { MachineConfigInput } from './config/schema.ts'
 export { DEFAULT_PRESET_ID, PRESETS, PRESET_IDS, isPresetId } from './config/presets/index.ts'
@@ -46,7 +51,7 @@ export { POINT_NUMBERS, isPointNumber } from './config/rulesets.ts'
 export type { PointNumber, Ruleset, Variant } from './config/rulesets.ts'
 
 // The round.
-export { advanceRound, initialRound } from './round/round.ts'
+export { advanceRound, initialRound, totalBit, totalsInMask } from './round/round.ts'
 export type { Hand, Phase, RoundState, RoundStep, RoundTransition } from './round/round.ts'
 
 // Bets.
@@ -57,18 +62,38 @@ export type {
   BetInstance,
   BetType,
   Decision,
+  FamilyKey,
+  MainBetType,
   PushReason,
   Rejection,
   RejectionCode,
   RollContext,
 } from './bets/types.ts'
-export { FAMILY_ORDER, decideBet, requireType, resolveType } from './bets/registry.ts'
-export type { ResolvedType } from './bets/registry.ts'
+export {
+  FAMILY_ORDER,
+  decideBet,
+  requireBet,
+  requireType,
+  resolveBet,
+  resolveType,
+} from './bets/registry.ts'
+export type { ResolvedBet, ResolvedType } from './bets/registry.ts'
 export { canToggle, effectiveWorking, workingStatus } from './bets/working.ts'
 export type { WorkingSource, WorkingStatus } from './bets/working.ts'
 export { maxOdds, smallestBet, typeLimits } from './bets/limits.ts'
 export { legalBets } from './bets/legal.ts'
-export type { LegalBet } from './bets/legal.ts'
+export type { LegalBet, LegalBetsOptions } from './bets/legal.ts'
+
+// Side bets (M11): how each family encodes `BetInstance.progress`, for the solver and the layout.
+export { bitCount } from './bets/families/sideBet.ts'
+export {
+  collectSetMask,
+  collectSetRemaining,
+  collectSetRolled,
+} from './bets/families/collectSet.ts'
+export { uniquePointsCount, uniquePointsMade } from './bets/families/uniquePointsMade.ts'
+export { handLengthTier } from './bets/families/handLength.ts'
+export { pointRunHits, pointRunProgress, pointRunState } from './bets/families/pointRun.ts'
 
 // Settlement.
 export { settle } from './settle/settle.ts'

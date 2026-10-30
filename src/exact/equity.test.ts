@@ -5,11 +5,14 @@ import { pruneProvenance } from '../engine/config/provenance.ts'
 import type { MachineConfigInput } from '../engine/config/schema.ts'
 import { cents } from '../engine/core/money.ts'
 import { makeRoll } from '../engine/core/dice.ts'
+import { Fraction } from '../engine/core/rational.ts'
 import { betId, type BetInstance } from '../engine/bets/types.ts'
 import type { Action } from '../engine/table/actions.ts'
 import { applyAction } from '../engine/table/reducer.ts'
 import { heldOffOf, newTable, type TableState } from '../engine/table/state.ts'
+import { pointRunProgress } from '../engine/bets/families/pointRun.ts'
 import { analyzeExisting, startOfBet, takeDownValue } from './equity.ts'
+import { distribution } from './price.ts'
 
 /** Plays `actions` from a new table, failing on any refusal. */
 function play(cfg: MachineConfig, actions: readonly Action[]): TableState {
@@ -142,5 +145,104 @@ describe('takeDownValue', () => {
     const noRefund = ib.bets[0]
     if (noRefund === undefined) throw new Error('no buy')
     expect(takeDownValue(noRefund, ib, crapless).toString()).toBe('2000')
+  })
+})
+
+describe('side bets on the table (M11)', () => {
+  /** A bet of `typeId` with `progress`, alone on a hand-built table in `phase`. */
+  function tableWith(
+    cfg: MachineConfig,
+    typeId: string,
+    progress: number,
+    phase: TableState['round']['phase'],
+    pointsMadeMask = 0,
+  ): TableState {
+    return {
+      ...newTable(cfg, 'side'),
+      round: {
+        phase,
+        rollIndex: 30,
+        hand: { index: 0, rolls: 30, pointsMadeMask },
+        sinceSeven: { rolls: 30, totalsMask: 0 },
+      },
+      bets: [
+        {
+          id: betId(1),
+          typeId,
+          number: null,
+          parentId: null,
+          amount: cents(100),
+          vigHeld: cents(0),
+          working: null,
+          progress,
+          placedAtRoll: 0,
+        },
+      ],
+      nextBetSeq: 2,
+    }
+  }
+
+  it('values a Lucky Roller from the targets it has rolled: one left, 31 for 1 × 5/11', () => {
+    // $5 pass for the round minimum, $1 Low Rolls at the start of the cycle; then 2, 3, 4 and 5.
+    const state = play(crapless, [
+      { type: 'place', typeId: 'pass', amount: cents(500) },
+      { type: 'place', typeId: 'luckyRollerLow', amount: cents(100) },
+      { type: 'roll', dice: { d1: 1, d2: 1 } },
+      { type: 'roll', dice: { d1: 1, d2: 2 } },
+      { type: 'roll', dice: { d1: 2, d2: 2 } },
+      { type: 'roll', dice: { d1: 2, d2: 3 } },
+    ])
+    const low = state.bets.find((bet) => bet.typeId === 'luckyRollerLow')
+    if (low === undefined) throw new Error('no Lucky Roller')
+    expect(low.progress).toBe((1 << 2) | (1 << 3) | (1 << 4) | (1 << 5))
+    expect(startOfBet(low, state).progress).toBe(low.progress)
+    const ex = analyzeExisting(low.id, state, crapless)
+    // The 6 (5 ways) before a 7 (6 ways) returns 31 × $1; the bet is worth more than its stake now.
+    expect(ex.equity.toString()).toBe('15500/11')
+    expect(ex.expectedLossFromNow.toString()).toBe('-14400/11')
+    expect(ex.resolves).toBe(true)
+    // A fresh Low Rolls is worth far less: the progress is what the chain starts from.
+    const fresh = analyzeExisting(
+      betId(1),
+      tableWith(crapless, 'luckyRollerLow', 0, { kind: 'comeOut' }),
+      crapless,
+    )
+    expect(fresh.equity.compare(ex.equity)).toBe(-1)
+  })
+
+  it('values a Lucky Shooter with every other box number hit: the point pays the top award', () => {
+    const strict = compileConfig(PRESETS.strictBubble)
+    const hits = (1 << 4) | (1 << 5) | (1 << 8) | (1 << 9) | (1 << 10)
+    const state = tableWith(strict, 'luckyShooter', pointRunProgress(6, hits), {
+      kind: 'point',
+      point: 6,
+    })
+    const ex = analyzeExisting(betId(1), state, strict)
+    // The next roll settles: 5 ways of 36 pay 500 for 1 ($500 back), 31 pay 100 for 1 ($100).
+    expect(ex.equity.toString()).toBe('140000/9')
+    expect(ex.expectedLossFromNow.toString()).toBe('-139100/9')
+  })
+
+  it('cannot lose a Fire Bet with four points made, nor a Hot Shooter past its first paying tier', () => {
+    const live = compileConfig(PRESETS.traditionalLive345)
+    const made = (1 << 4) | (1 << 5) | (1 << 8) | (1 << 9)
+    const fire = tableWith(live, 'fire', made, { kind: 'point', point: 6 }, made)
+    const fireNow = distribution(
+      { typeId: 'fire', number: null },
+      startOfBet(fire.bets[0]!, fire),
+      'decision',
+      live,
+    )
+    const lose = fireNow.labels.findIndex((label) => label.key === 'lose:-:lost')
+    expect(lose === -1 || fireNow.counts[lose]?.isZero() === true).toBe(true)
+    // At least the 24 to 1 pay plus the stake comes back.
+    expect(analyzeExisting(betId(1), fire, live).equity.compare(Fraction.of(2_500))).not.toBe(-1)
+
+    const stw = compileConfig(PRESETS.traditionalBubble)
+    const hot = tableWith(stw, 'hotShooter', 20, { kind: 'point', point: 8 })
+    const ex = analyzeExisting(betId(1), hot, stw)
+    // 20 rolls counted: the 3 for 1 tier is assured, so $3 at least; the loss from now is negative.
+    expect(ex.equity.compare(Fraction.of(300))).not.toBe(-1)
+    expect(ex.expectedLossFromNow.isNegative()).toBe(true)
   })
 })

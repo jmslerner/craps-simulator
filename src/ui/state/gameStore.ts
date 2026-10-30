@@ -286,7 +286,7 @@ export function createGameStore(): StoreApi<GameState> {
           lastRollEvents: result.events,
           rejection: null,
           scriptQueue: queued === undefined ? scriptQueue : scriptQueue.slice(1),
-          pendingEntry: rollEntryOf(prev, result.events, next),
+          pendingEntry: rollEntryOf(prev, result.events, next, cfg),
         })
         return {
           ok: true,

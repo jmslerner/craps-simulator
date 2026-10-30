@@ -510,10 +510,16 @@ describe('the other presets', () => {
       onNumber: 'reduceRemove',
       rebetAfterRemove: 'nextCycle',
     })
+    // Lucky Shooter pay table D, Interblock's own screen (plan §0 #11; rules spec §6.3) [R].
     const shooter = cfg.sideBets.get('luckyShooter')
     expect(
       shooter?.family === 'pointRun' && `${shooter.topAward.num}:${shooter.topAward.den}`,
-    ).toBe('999:1')
+    ).toBe('499:1')
+    expect(
+      shooter?.family === 'pointRun' && [...shooter.payTable].map(([k, r]) => `${k}=${r.num}`),
+    ).toEqual(['2=1', '3=4', '4=9', '5=99'])
+    expect(status('/sideBets/luckyShooter/payTable')).toBe('reported')
+    expect(status('/sideBets/luckyShooter/topAward')).toBe('reported')
   })
 
   it('models every value but Shoot To Win’s OFF chips that use no credit (plan §0 #23)', () => {

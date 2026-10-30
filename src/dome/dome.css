@@ -1,0 +1,109 @@
+/* The 3D dome's own styles: the canvas box and the dice-mode toggle. Everything else about the
+   dome box (.dome, .dome-slot, the overlays) lives in index.css. */
+
+.dice-view-3d {
+  position: absolute;
+  inset: 0;
+  display: block;
+}
+
+.dice-view-3d .dome-canvas {
+  position: absolute;
+  inset: 0;
+}
+
+/* The 2D ↔ 3D switch sits in the dome's bottom-right corner, above the overlays, and takes taps. */
+.dome-mode {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  z-index: 3;
+  min-height: 32px;
+  padding: 4px 12px;
+  border-radius: 99px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--chalk-dim);
+  font-family: var(--font-layout);
+  font-weight: 800;
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.dome-mode[aria-pressed='true'] {
+  color: var(--chalk);
+  border-color: var(--brass);
+  box-shadow: inset 0 0 0 1px var(--brass);
+}
+
+.dome-mode:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+}
+
+/* The quality pin sits in the bottom-left corner, mirroring the 3D toggle. */
+.dome-quality {
+  position: absolute;
+  left: 10px;
+  bottom: 10px;
+  z-index: 3;
+  min-height: 32px;
+  padding: 4px 10px;
+  border-radius: 99px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--chalk-dim);
+  font-family: var(--font-layout);
+  font-weight: 800;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.dome-quality:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+}
+
+/* After a lost WebGL context: the 2D dice show, and this toast offers the way back to 3D. */
+.dome-toast {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: calc(100% - 20px);
+  padding: 6px 8px 6px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--chalk);
+  font-size: 13px;
+}
+
+.dome-retry {
+  min-height: 32px;
+  padding: 4px 12px;
+  border-radius: 99px;
+  border: 1px solid var(--brass);
+  background: transparent;
+  color: var(--chalk);
+  font-family: var(--font-layout);
+  font-weight: 800;
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.dome-retry:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+}

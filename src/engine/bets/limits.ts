@@ -4,7 +4,7 @@ import { cents, roundCents, type Cents } from '../core/money.ts'
 import { Fraction } from '../core/rational.ts'
 import { onTable } from '../table/ledger.ts'
 import type { TableState } from '../table/state.ts'
-import { reject, type BetInstance, type Rejection } from './types.ts'
+import { reject, type BetInstance, type BetType, type Rejection } from './types.ts'
 
 /**
  * Money limits (plan §4.6 steps 3–5): per-type minimums, maximums and increments, the table
@@ -222,18 +222,39 @@ function staked(state: TableState): bigint {
 
 /**
  * The most `bet` can win on one roll, in whole cents: its stake at its type's largest pay, rounded
- * up, plus the largest rounding step its type pays in. A type the config does not offer (a side bet
- * before M11) wins nothing.
+ * up, plus the largest rounding step its type pays in. A type the config does not offer wins
+ * nothing.
  */
 function mostWon(bet: BetInstance, cfg: MachineConfig): bigint {
-  const type = cfg.catalog.get(bet.typeId) ?? cfg.composites.get(bet.typeId)
+  const type =
+    cfg.catalog.get(bet.typeId) ?? cfg.composites.get(bet.typeId) ?? cfg.sideBets.get(bet.typeId)
   if (type === undefined) return 0n
-  const pays = type.family === 'line' ? [type.pays] : [...type.pays.values()]
   const steps = [
     type.payoutRounding,
     ...(type.family === 'numberVsSeven' ? type.payoutRoundingByNumber.values() : []),
   ].map((rounding) => BigInt(rounding.increment))
   const amount = BigInt(bet.amount)
-  const won = pays.map(({ num, den }) => (amount * num + den - 1n) / den)
+  const won = largestPays(type).map(({ num, den }) => (amount * num + den - 1n) / den)
   return [...won, 0n].reduce((a, b) => (a > b ? a : b)) + steps.reduce((a, b) => (a > b ? a : b))
+}
+
+/** Every pay a type can make, so the largest can be found. */
+function largestPays(type: BetType): readonly { readonly num: bigint; readonly den: bigint }[] {
+  switch (type.family) {
+    case 'line':
+    case 'collectSet':
+      return [type.pays]
+    case 'uniquePointsMade':
+      return [...type.payTable.values()]
+    case 'pointRun':
+      return [type.topAward, ...type.payTable.values()]
+    case 'handLength':
+      return type.tiers.flatMap((tier) => (tier.pays === 'push' ? [] : [tier.pays]))
+    case 'odds':
+    case 'numberVsSeven':
+    case 'hardway':
+    case 'oneRoll':
+    case 'composite':
+      return [...type.pays.values()]
+  }
 }

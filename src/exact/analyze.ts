@@ -3,7 +3,7 @@ import {
   betId,
   cents,
   maxOdds,
-  requireType,
+  requireBet,
   settle,
   statusAt,
   typeLimits,
@@ -227,7 +227,7 @@ const ROUND_POINTERS: readonly string[] = [
  * put, whose lifecycle ends at its first decision).
  */
 export function configPathsOf(spec: BetSpec, cfg: MachineConfig): readonly string[] {
-  const { family, type } = requireType(cfg, spec.typeId)
+  const { family, type } = requireBet(cfg, spec.typeId)
   const own = family.configPaths(type, spec.number, cfg)
   const extra: string[] = []
   if (roundWeightedStart(spec, cfg)) extra.push(...ROUND_POINTERS)

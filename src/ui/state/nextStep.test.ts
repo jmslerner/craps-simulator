@@ -4,7 +4,13 @@ import { cents, legalBets, validateAction } from '../../engine/index.ts'
 import type { Action, MachineConfig, TableState, WindowedSession } from '../../engine/index.ts'
 import { CRAPLESS, bet, placePass, roll, testSession } from '../test/game.ts'
 import { COMPILED_PRESETS } from './machineStore.ts'
-import { GUIDE_CYCLE, nextStep, type NextStep, type NextStepSettings } from './nextStep.ts'
+import {
+  GUIDE_CYCLE,
+  createCoachMemoryStore,
+  nextStep,
+  type NextStep,
+  type NextStepSettings,
+} from './nextStep.ts'
 
 const NO_CHIP: NextStepSettings = { selectedChip: null, chips: null }
 
@@ -199,4 +205,41 @@ describe('property: every suggested action passes validateAction (plan §0 #18)'
       )
     })
   }
+})
+
+describe('the coach memory store (plan §10 M9c): per-idea dismissals and gate memory', () => {
+  it('remembers dismissed ideas once each, and the provider then drops that idea', () => {
+    const store = createCoachMemoryStore()
+    expect(store.getState().dismissedIdeas).toStrictEqual([])
+    store.getState().dismissIdea('skip-odds')
+    store.getState().dismissIdea('skip-odds')
+    expect(store.getState().dismissedIdeas).toStrictEqual(['skip-odds'])
+
+    const opened = placePass(testSession('guide-dismiss'))
+    const pointSet = roll(opened, [1, 1]).session
+    const withIdea = stepFor(pointSet.state)
+    expect(withIdea?.alt?.ideaId).toBe('skip-odds')
+    const without = stepFor(pointSet.state, {
+      selectedChip: null,
+      chips: null,
+      dismissedIdeas: store.getState().dismissedIdeas,
+    })
+    expect(without?.alt).toBeUndefined()
+  })
+
+  it('tracks advice dismissals, for-fun types and the toast budget through the pure helpers', () => {
+    const store = createCoachMemoryStore()
+    store.getState().dismissAdvice('same-event|place|4|')
+    store.getState().dismissAdvice('same-event|place|4|')
+    store.getState().markForFun('hard')
+    store.getState().noteToast('edge-warning|any7||', 12)
+    const memory = store.getState().memory
+    expect(memory.dismissed['same-event|place|4|']).toBe(2)
+    expect(memory.forFun).toStrictEqual(['hard'])
+    expect(memory.shownAt['edge-warning|any7||']).toBe(12)
+    expect(memory.lastToastRoll).toBe(12)
+    store.getState().reset()
+    expect(store.getState().memory.lastToastRoll).toBeNull()
+    expect(store.getState().dismissedIdeas).toStrictEqual([])
+  })
 })

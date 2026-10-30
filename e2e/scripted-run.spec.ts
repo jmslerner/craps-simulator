@@ -46,7 +46,9 @@ test('the scripted crapless run banks exactly $631.00 with Place 6 still up', as
   const newest = page.locator('.history-newest')
   await expect(newest).toContainText('Place 6 won $7.00')
   await expect(newest).toContainText('+$7.00')
-  await expect(newest.getByTestId('roll-math')).toHaveText('($6.00 × 7:6 = $7.00)')
+  await expect(newest.getByTestId('roll-math')).toHaveText(
+    '($6 × 7/6 = $7.00 → paid $7.00, +$7.00 to credit, stake stays up)',
+  )
 
   // 1-1 again: point 2 made. Pass pays 1:1 and returns; odds pay 6:1 and return.
   await rollAndSettle(page)
@@ -75,6 +77,6 @@ test('the scripted crapless run banks exactly $631.00 with Place 6 still up', as
   await expect(rolls.nth(0)).toContainText('+$130.00')
   await expect(rolls.nth(0)).toContainText('credit $631.00')
   const math = rolls.nth(0).getByTestId('roll-math')
-  await expect(math.filter({ hasText: '$10.00 × 1:1 = $10.00' })).toHaveCount(1)
-  await expect(math.filter({ hasText: '$20.00 × 6:1 = $120.00' })).toHaveCount(1)
+  await expect(math.filter({ hasText: '$10 × 1 = $10.00 → paid $10.00' })).toHaveCount(1)
+  await expect(math.filter({ hasText: '$20 × 6 = $120.00 → paid $120.00' })).toHaveCount(1)
 })

@@ -56,36 +56,50 @@ export interface BetInstance {
   /** Commission paid up front and still held, for a refund on take-down (M4b). */
   readonly vigHeld: Cents
   readonly working: boolean | null
-  /** Side-bet progress, a mask or a count (M11); 0 for every other bet. */
+  /**
+   * A side bet's progress (M11), in its family's own encoding: Lucky Roller's mask of target
+   * totals rolled and the Fire Bet's mask of points made (`totalBit`), the Hot Shooter's rolls
+   * counted, the Lucky Shooter's point and hits (`pointRunProgress`). 0 for every other bet.
+   */
   readonly progress: number
   readonly placedAtRoll: number
 }
 
 /**
- * Every bet type a family can handle: the catalog's types, and the composites (C&E, horn, world,
- * horn high), each one bet whose type id is the composite's id (plan §0 #15). M11 adds the side
- * bets, each resolved in `registry.ts`.
+ * The main game's bet types: the catalog's types, and the composites (C&E, horn, world, horn high),
+ * each one bet whose type id is the composite's id (plan §0 #15). These are the types the exact
+ * solver prices (`resolveType` in `registry.ts`).
  */
-export type BetType = CompiledBetType | CompositeBet
-
-/** The family names, in roll and settlement order (plan §4.8 step 3; `registry.ts`). */
-export type FamilyKey = BetType['family'] | 'composite' | CompiledSideBet['family']
+export type MainBetType = CompiledBetType | CompositeBet
 
 /**
- * Why a bet pushed: a don't bet's barred come-out total, odds that were OFF when their parent was
- * decided, or a composite whose parts net exactly 0 (the world bet on a 7).
+ * Every bet type a family can handle: the main game's types and the side bets (M11), each resolved
+ * in `registry.ts` (`resolveBet`).
+ */
+export type BetType = MainBetType | CompiledSideBet
+
+/** The family names, in roll and settlement order (plan §4.8 step 3; `registry.ts`). */
+export type FamilyKey = BetType['family']
+
+/**
+ * Why a bet pushed: a push that leaves the bet up (`bar`: a don't bet's barred come-out total, or
+ * the Lucky Shooter's come-out 7 or 11), odds that were OFF when their parent was decided
+ * (`offReturned`), or a settlement that nets exactly 0 (`zeroNet`: a composite whose parts net 0,
+ * the world bet on a 7, or a side-bet tier that pays "1 for 1", the Hot Shooter at 8 to 15 rolls).
  */
 export type PushReason = 'bar' | 'offReturned' | 'zeroNet'
 
 /**
  * What one roll does to one bet (plan §4.5). A decision never depends on the bet's amount.
  *
+ * - `progress`: a side bet moved on without being decided; `progress` replaces the bet's own.
  * - `travel`: a come or don't come bet in its box (or a line bet before the come-out) moves to N.
  * - `win`: `payKey` names the pay the bet wins at (`payout()` turns it into a ratio); `stake` says
  *   whether the stake comes back (`return`) or stays up for the next decision (`stay`).
  * - `push`: no money changes hands. A `bar` push leaves the bet where it is; an `offReturned` push
- *   gives the stake back and takes the bet down. A `zeroNet` push (a composite that nets 0) does
- *   with its stake what a win would: `stake` says whether it comes back or stays up.
+ *   gives the stake back and takes the bet down. A `zeroNet` push (a composite that nets 0, a side
+ *   bet's 1-for-1 tier) does with its stake what a win would: `stake` says whether it comes back or
+ *   stays up.
  */
 export type Decision =
   | { readonly kind: 'none' }

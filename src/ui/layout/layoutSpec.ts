@@ -1,12 +1,16 @@
+import { formatCents } from '../../engine/index.ts'
 import type {
   CommissionRule,
+  CompiledSideBet,
   LineBetType,
   MachineConfig,
   NumberBetType,
   OddsBetType,
   OneRollBetType,
   PointNumber,
+  Total,
 } from '../../engine/index.ts'
+import { topPayLabel, trackOf } from './sideBetProgress.ts'
 
 /**
  * The table layout as data (plan §6): pure over the compiled config, so the machine decides what
@@ -14,10 +18,12 @@ import type {
  * (BUY strip when buy is offered, badged from its commission; the PLACE cell with the machine's
  * payout wording; a come strip per line type that travels), the line bars with their odds, the
  * come box, the field with its multiplier wording, hardways, the props panel (composites as
- * buttons) and the side-bet panel. Nothing the config knows is hard-coded here: pays come from the
- * catalog's `Ratio.label`s as the machine writes them (`payLabelStyle: asWritten`), commission
- * badges from the commission rules, odds badges from the odds caps. The Table component joins
- * these zones with the live `legalBets` spots by (typeId, number, parentId).
+ * buttons) and the side-bet panel (M11: one zone per side bet, with the numbers it collects as a
+ * `track` the zone lights from the bet's progress). Nothing the config knows is hard-coded here:
+ * pays come from the catalog's `Ratio.label`s as the machine writes them (`payLabelStyle:
+ * asWritten`), commission badges from the commission rules, odds badges from the odds caps. The
+ * Table component joins these zones with the live `legalBets` spots by (typeId, number, parentId);
+ * side-bet zones join the side-bet spots (`selectSideBetSpots`).
  */
 
 export type ZoneKind =
@@ -53,7 +59,17 @@ export interface ZoneSpec {
   readonly detail: string | null
   /** The odds type a bet on this zone can carry (line and come-spot zones). */
   readonly oddsTypeId: string | null
-  /** False for zones the engine does not take yet (side bets before M11). */
+  /**
+   * The numbers a side-bet zone draws as pips (M11): a collect set's targets, the Fire Bet's
+   * counted points, the Lucky Shooter's box numbers; the zone lights the ones the bet has collected
+   * (`progressOf`). Null for every other zone, and for the Hot Shooter, which counts rolls.
+   */
+  readonly track: readonly Total[] | null
+  /**
+   * False for a zone the engine does not take. Every zone is modelled since M11 brought the side
+   * bets in; the flag stays so a machine value the trainer lists but does not model can be shown
+   * as such.
+   */
   readonly modelled: boolean
 }
 
@@ -168,12 +184,7 @@ function build(cfg: MachineConfig): LayoutSpec {
     })
   }
 
-  const sideBets: ZoneSpec[] = [...cfg.sideBets.values()].map((side) => ({
-    ...zoneBase(side.typeId, 'sideBet', null),
-    label: side.label,
-    modelled: false,
-    detail: 'In a later update',
-  }))
+  const sideBets: ZoneSpec[] = [...cfg.sideBets.values()].map((side) => sideBetZone(side))
 
   // The columns in the order the ruleset lists the points, each buy/lay/place then come strips.
   const numbers: NumberColumn[] = cfg.ruleset.points.map((n) => ({
@@ -198,7 +209,43 @@ function zoneBase(typeId: string, kind: ZoneKind, number: PointNumber | null) {
     badge: null,
     detail: null,
     oddsTypeId: null,
+    track: null,
     modelled: true,
+  }
+}
+
+/**
+ * A side bet's spot (M11): the machine's label, the numbers it collects as the zone's track, its
+ * pay as written where there is one pay (a collect set's "31 for 1") or the top of its table where
+ * the pays vary ("up to 999 to 1"), with the full table in the inspector. The Hot Shooter's
+ * qualifier (`/sideBets/<t>/qualifyingBet`) is its badge; a collect set's detail says which 7
+ * loses it (`/sideBets/<t>/endsOn`).
+ */
+function sideBetZone(side: CompiledSideBet): ZoneSpec {
+  const base = {
+    ...zoneBase(side.typeId, 'sideBet', null),
+    label: side.label,
+    track: trackOf(side),
+  }
+  switch (side.family) {
+    case 'collectSet':
+      return {
+        ...base,
+        payLabel: side.pays.label,
+        detail: side.endsOn === 'anySeven' ? 'any 7 loses' : 'seven-out loses',
+      }
+    case 'handLength':
+      return {
+        ...base,
+        badge:
+          side.qualifyingBet > 0
+            ? `needs ${formatCents(side.qualifyingBet, { trimWholeDollars: true })} in play`
+            : null,
+        detail: `up to ${topPayLabel(side)}`,
+      }
+    case 'uniquePointsMade':
+    case 'pointRun':
+      return { ...base, detail: `up to ${topPayLabel(side)}` }
   }
 }
 

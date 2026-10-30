@@ -218,7 +218,12 @@ export function NewGameDialog() {
         </p>
       )}
       <div className="dialog-buttons">
-        <button type="button" disabled={starting} onClick={() => void start()}>
+        <button
+          type="button"
+          className="btn-primary"
+          disabled={starting}
+          onClick={() => void start()}
+        >
           Start
         </button>
         <button type="button" onClick={ui.closeDialog}>

@@ -231,6 +231,41 @@ describe('wireAutosave', () => {
     expect(stored.kind === 'active' && hashJson(stored.session.state)).toBe(liveHash)
   })
 
+  it('an undo inside the debounce after a flush is honoured on an instant reload (M9 audit MINOR-4)', async () => {
+    const deps = freshDeps()
+    const mirror = mirrorStorage()
+    await bootGame({ ...deps, mirror })
+    const handle = wireAutosave({
+      store: deps.store,
+      repo,
+      debounceMs: 60_000,
+      pageEvents: null,
+      documentLike: null,
+      mirror,
+    })
+    deps.store
+      .getState()
+      .dispatch({ type: 'place', typeId: 'place', number: 6, amount: cents(500) })
+    await handle.flush() // the place bet reached IndexedDB
+    const bankBefore = deps.store.getState().session!.state.ledger.bankroll
+    deps.store.getState().undoLast() // inside the new debounce: only the mirror has it
+    const liveHash = hashJson(deps.store.getState().session!.state)
+    expect(deps.store.getState().session!.pending).toHaveLength(0)
+    handle.stop() // the reload
+
+    const next = { ...freshDeps(), settings: deps.settings, mirror }
+    const result = await bootGame(next)
+    expect(result.started).toBe('resumed')
+    const resumed = next.store.getState()
+    expect(hashJson(resumed.session!.state)).toBe(liveHash)
+    expect(resumed.session!.state.bets.some((b) => b.typeId === 'place')).toBe(false)
+    expect(resumed.session!.state.ledger.bankroll).toBe(bankBefore + 500)
+    // The stored head now holds the undone window: a second reload needs no mirror.
+    expect(mirror.map.has(PENDING_MIRROR_KEY)).toBe(false)
+    const stored = await repo.loadActive()
+    expect(stored.kind === 'active' && hashJson(stored.session.state)).toBe(liveHash)
+  })
+
   it('boots clean past a junk mirror: quarantined, never a throw, nothing restored', async () => {
     const deps = freshDeps()
     const mirror = mirrorStorage()
