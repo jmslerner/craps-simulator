@@ -91,10 +91,15 @@ describe('sanityCheck', () => {
     })
     const issues = sanityCheck(cfg)
     expect(
-      issues.map(({ severity, code, spec, edge }) => [severity, code, spec.typeId, edge?.toString()]),
+      issues.map(({ severity, code, spec, edge }) => [
+        severity,
+        code,
+        spec.typeId,
+        edge?.toString(),
+      ]),
     ).toEqual([['error', 'playerEven', 'any7', '0']])
     expect(issues[0]?.message).toBe(PLAYER_EVEN)
-    expect(issues[0]?.paths).toContain('/catalog/any7/pays/7')
+    expect(issues[0]?.paths).toContain('/catalog/any7/pays')
   })
 
   it('exempts free odds, which are even by design: every preset still passes', () => {

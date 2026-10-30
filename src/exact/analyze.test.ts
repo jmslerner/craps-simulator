@@ -174,7 +174,9 @@ describe('combinedEdge', () => {
     expect(flat500.edge.toString()).toBe(Fraction.of(373, 12705).toString())
     expect(flat500.edge.formatPercent(4)).toBe('2.9359')
     // The flat's own dollar loss never changes with the odds.
-    expect(flat500.flatLoss.toString()).toBe(Fraction.of(50_000).mul(Fraction.of(373, 6930)).toString())
+    expect(flat500.flatLoss.toString()).toBe(
+      Fraction.of(50_000).mul(Fraction.of(373, 6930)).toString(),
+    )
   })
 
   it('counts the loss of short-paid odds: Shoot To Win lay odds floored to the cent', () => {
@@ -233,7 +235,13 @@ describe('combinedEdge', () => {
             (bet) => bet.typeId === oddsId && bet.parentId === parent.id,
           )
           if (spot === undefined) throw new Error(`no ${oddsId} spot on ${n}`)
-          const attainable = attainableOdds({ typeId: 'pass', number: null }, cents(flat), oddsId, n, cfg)
+          const attainable = attainableOdds(
+            { typeId: 'pass', number: null },
+            cents(flat),
+            oddsId,
+            n,
+            cfg,
+          )
           expect(attainable, `${id} $${flat / 100} flat on ${n}`).toBe(
             spot.canAdd === null ? spot.maxAdd : 0,
           )

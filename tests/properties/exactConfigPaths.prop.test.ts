@@ -109,16 +109,17 @@ describe('config-path invariance (quick subset)', () => {
         dontBar: 12,
         allowPutBets: false,
       }
+      const dropped = ['2', '3', '11', '12'] as const
       for (const id of ['place', 'buy'] as const) {
         const type = copy.catalog[id]
         if (type?.family !== 'numberVsSeven') throw new Error(`no ${id}`)
         type.numbers = [4, 5, 6, 8, 9, 10]
-        for (const key of ['2', '3', '11', '12']) delete type.pays[key]
+        for (const key of dropped) delete type.pays[key]
       }
       for (const id of ['passOdds', 'comeOdds'] as const) {
         const odds = copy.catalog[id]
         if (odds?.family !== 'odds') throw new Error(`no ${id}`)
-        for (const key of ['2', '3', '11', '12']) {
+        for (const key of dropped) {
           delete odds.pays[key]
           delete odds.limit.multiple[key]
         }

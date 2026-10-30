@@ -68,9 +68,9 @@ describe('catalogTable', () => {
     ])
     // No puts on a machine that refuses them.
     const crapless = compileConfig(PRESETS.craplessBubble)
-    expect(catalogSpecs(crapless).every((spec) => spec.typeId !== 'pass' || spec.number === null)).toBe(
-      true,
-    )
+    expect(
+      catalogSpecs(crapless).every((spec) => spec.typeId !== 'pass' || spec.number === null),
+    ).toBe(true)
   })
 
   it('serves fresh assumed chips after a provenance-only edit (same config hash)', () => {

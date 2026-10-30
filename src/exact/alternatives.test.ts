@@ -76,10 +76,12 @@ describe('suggestAlternatives', () => {
     expect(buy.edge.compare(place.edge)).toBe(-1)
     expect(buy.lossPerDecision.toString()).toBe('100')
     expect(place.lossPerDecision.toString()).toBe('100')
+    // At $16 the switch saves real money (the $16 place even pays $28, floored from $28.80, so
+    // the buy saves 400/3 − 100 = 100/3¢ a decision) and is offered again.
     const at16 = suggestAlternatives(state, place4, cents(1_600), cfg)
     const offered = at16.find(({ spec }) => spec.typeId === 'buy')
     expect(offered?.comparability).toBe('sameEvent')
-    expect(offered?.savingPerDecision?.toString()).toBe(Fraction.of(20, 3).toString())
+    expect(offered?.savingPerDecision?.toString()).toBe(Fraction.of(100, 3).toString())
   })
 
   it('offers nothing cheaper with the same events for place 6, which beats buying it', () => {

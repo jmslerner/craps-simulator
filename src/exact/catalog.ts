@@ -103,13 +103,13 @@ export function catalogTable(cfg: MachineConfig): readonly CatalogRow[] {
 }
 
 /**
- * The provenance a row's `assumedPaths` depend on: the pointers whose entries are `assumed`
- * (`statusAt` and the below-the-path check read nothing else), sorted so the key is canonical.
+ * The provenance a row's `assumedPaths` depend on: every entry's pointer and whether it is
+ * `assumed` — a deeper verified entry shadows an assumed parent, so the non-assumed entries
+ * matter too — sorted so the key is canonical.
  */
 function assumedKey(cfg: MachineConfig): string {
   return Object.entries(cfg.provenance)
-    .filter(([, entry]) => entry.status === 'assumed')
-    .map(([pointer]) => pointer)
+    .map(([pointer, entry]) => `${pointer}=${entry.status === 'assumed' ? 'a' : 'n'}`)
     .sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))
     .join(',')
 }

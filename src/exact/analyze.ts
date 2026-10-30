@@ -149,11 +149,7 @@ export function analyzeBet(
  * for a put placement, whose lifecycle ends at its first decision — a winner that stays goes back
  * to the line as a new line bet, not a put (rules spec §3.1: put 4 costs 33.33% per decision).
  */
-export function lifecycleHorizon(
-  spec: BetSpec,
-  start: StartContext,
-  cfg: MachineConfig,
-): Horizon {
+export function lifecycleHorizon(spec: BetSpec, start: StartContext, cfg: MachineConfig): Horizon {
   return isPutStart(spec, start, cfg) ? 'decision' : 'lifetime'
 }
 
