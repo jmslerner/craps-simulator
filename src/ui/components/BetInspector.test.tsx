@@ -1,6 +1,8 @@
 import { fireEvent, screen, within } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { cents } from '../../engine/index.ts'
+import { handleAnalysisRequest } from '../../workers/analysisHandler.ts'
+import { setAnalysisTransportForTests } from '../services/analysisClient.ts'
 import { dice } from '../test/game.ts'
 import { renderApp } from '../test/renderApp.tsx'
 
@@ -99,5 +101,70 @@ describe('the bet inspector', () => {
     fireEvent.keyDown(dialog, { key: 'Escape' })
     expect(screen.queryByRole('dialog')).toBeNull()
     expect(document.activeElement).toBe(zone)
+  })
+})
+
+describe('InspectorExtras (plan §10 M9a: the coach analysis in the inspector)', () => {
+  beforeEach(() => {
+    setAnalysisTransportForTests((request) => handleAnalysisRequest(request))
+  })
+
+  afterEach(() => {
+    setAnalysisTransportForTests(null)
+  })
+
+  it('the Place 6 $5 inspector shows "$5.83" and "1.55%" (the §10 M9a acceptance)', async () => {
+    const app = renderApp()
+    app.run((state) => {
+      state.dispatch({ type: 'place', typeId: 'place', number: 6, amount: cents(500) })
+    })
+    const dialog = openOn(/^Place 6/)
+    expect(await within(dialog).findByText('$5.00 × 7:6 = $5.83')).toBeInTheDocument()
+    expect(within(dialog).getByText('House edge 1.55%')).toBeInTheDocument()
+    expect(within(dialog).getByText('Wins 45.5% of decisions')).toBeInTheDocument()
+  })
+
+  it('Show math lists the derivation steps from the worker', async () => {
+    const app = renderApp()
+    app.run((state) => {
+      state.dispatch({ type: 'place', typeId: 'place', number: 6, amount: cents(500) })
+    })
+    const dialog = openOn(/^Place 6/)
+    await within(dialog).findByText('Show math')
+    expect(
+      within(dialog).getByText('Of 36 rolls: 5 win, 6 lose, 25 change nothing.'),
+    ).toBeInTheDocument()
+    expect(within(dialog).getByText('$5.00 × 7:6 = $5.833… → pays $5.83.')).toBeInTheDocument()
+  })
+
+  it('shows equity for a bet on the table, and no take-down line for a contract bet', async () => {
+    const app = renderApp()
+    app.run((state) => {
+      state.dispatch({ type: 'place', typeId: 'pass', amount: cents(1_000) })
+    })
+    app.roll(dice(1, 1)) // the point is 2: the crapless pass equity drops to 2000/7 cents
+    const dialog = openOn(/^Pass Line/)
+    expect(await within(dialog).findByText('Worth from now: ≈ $2.86')).toBeInTheDocument()
+    expect(within(dialog).getByText('Expected loss from here: ≈ $7.14')).toBeInTheDocument()
+    expect(within(dialog).queryByText(/Taking it down returns/)).toBeNull()
+  })
+
+  it('offers the take-down value for a bet the machine lets down', async () => {
+    const app = renderApp()
+    app.run((state) => {
+      state.dispatch({ type: 'place', typeId: 'place', number: 6, amount: cents(600) })
+    })
+    const dialog = openOn(/^Place 6/)
+    expect(await within(dialog).findByText('Taking it down returns $6.00')).toBeInTheDocument()
+  })
+
+  it('renders nothing coach-y while the analysis has not arrived', () => {
+    setAnalysisTransportForTests(() => new Promise(() => undefined))
+    const app = renderApp()
+    app.run((state) => {
+      state.dispatch({ type: 'place', typeId: 'place', number: 6, amount: cents(600) })
+    })
+    const dialog = openOn(/^Place 6/)
+    expect(within(dialog).queryByText(/House edge/)).toBeNull()
   })
 })

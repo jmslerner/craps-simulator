@@ -1,6 +1,10 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { formatCents } from '../../engine/index.ts'
 import type { Cents } from '../../engine/index.ts'
+import { formatCoachNumber } from '../../coach/format.ts'
+import { badgeKey } from '../../coach/types.ts'
+import type { ZoneBadge } from '../../coach/types.ts'
+import { badgeFor, ensureCatalog, subscribeAnalysis } from '../services/analysisClient.ts'
 import type { ZoneSpec } from '../layout/layoutSpec.ts'
 import { useGameState, useUi } from './context.tsx'
 import { useLongPress } from './useLongPress.ts'
@@ -12,6 +16,13 @@ import { useLongPress } from './useLongPress.ts'
  * the zone into view, and a long-press or right-click opens the inspector. The zone stays tappable
  * when it cannot take a bet (`aria-disabled`, never `disabled`), so a tap can show the machine's
  * own refusal in the reason strip.
+ *
+ * **Coach badge (plan §10 M9a, §13 M8 → M9 hand-off):** next to the machine's own badge
+ * (`ZoneSpec.badge`, machine text like vig timing and odds caps) the zone carries a second,
+ * coach-owned slot — the bet's house edge at its exact unit, computed by the analysis worker and
+ * rendered from a `CoachNumber`. The e2e badge check reads `data-coach-badge` and compares the
+ * text against `__CRAPS_TEST__.analyze`. Machine text and coach numbers never share a slot, so a
+ * machine with its own badge wording keeps it verbatim.
  */
 
 export interface ZoneView {
@@ -44,6 +55,7 @@ export function ZoneButton({
   const ui = useUi()
   const press = useLongPress(onTap, onInspect)
   const shake = useShake(zone.key)
+  const coach = useCoachBadge(zone)
   const highlighted = ui.highlight === zone.target
   const ref = useRef<HTMLButtonElement>(null)
 
@@ -78,6 +90,14 @@ export function ZoneButton({
       <span className="zone-label">{zone.label}</span>
       {zone.payLabel !== null && <span className="zone-pay">{zone.payLabel}</span>}
       {zone.badge !== null && <span className="zone-badge">{zone.badge}</span>}
+      {coach !== null && (
+        <span
+          className={`zone-coach grade-${coach.grade}`}
+          data-coach-badge={badgeKey(zone.typeId, zone.number)}
+        >
+          {formatCoachNumber(coach.edge)}
+        </span>
+      )}
       {zone.detail !== null && <span className="zone-detail">{zone.detail}</span>}
       {amount > 0 && (
         <span className="zone-amount" data-denom={denomOf(amount)}>
@@ -96,6 +116,21 @@ export function ZoneButton({
         </span>
       )}
     </button>
+  )
+}
+
+/**
+ * The zone's coach badge from the analysis worker: null until the catalog arrives (or where the
+ * bet has no catalog row — unmodelled side bets, per-number odds bars). The snapshot is the
+ * stored badge object, so `useSyncExternalStore` sees a stable reference between arrivals.
+ */
+function useCoachBadge(zone: ZoneSpec): ZoneBadge | null {
+  const cfg = useGameState((state) => state.cfg)
+  useEffect(() => {
+    if (cfg !== null) ensureCatalog(cfg)
+  }, [cfg])
+  return useSyncExternalStore(subscribeAnalysis, () =>
+    cfg === null ? null : badgeFor(cfg.configHash, zone.typeId, zone.number),
   )
 }
 

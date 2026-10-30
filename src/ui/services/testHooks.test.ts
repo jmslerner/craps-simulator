@@ -3,6 +3,7 @@ import { cents, hashJson } from '../../engine/index.ts'
 import { CRAPLESS, dice } from '../test/game.ts'
 import { createGameStore } from '../state/gameStore.ts'
 import {
+  analyzeZone,
   installTestHooks,
   isE2EMode,
   parseDiceScript,
@@ -94,5 +95,23 @@ describe('installTestHooks', () => {
     expect(rolled.ok && rolled.dice).toStrictEqual(dice(1, 1))
     expect(api.getState().phase).toBe('rolling')
     expect(api.getState().committedRolls).toBe(1)
+
+    // analyze (plan §10 M9a): the badge-equality hook answers from the live session's config.
+    expect(api.analyze('place', 6)).toEqual(analyzeZone(CRAPLESS, 'place', 6))
+    expect(api.analyze('no-such-zone')).toBeNull()
+  })
+})
+
+describe('analyzeZone', () => {
+  it('recomputes a zone badge through the coach pipeline: place 6 reads "1.52%", graded good', () => {
+    const probe = analyzeZone(CRAPLESS, 'place', 6)
+    expect(probe?.badge).toBe('1.52%')
+    expect(probe?.grade).toBe('good')
+    expect(probe !== null && probe !== undefined && probe.amount > 0).toBe(true)
+  })
+
+  it('answers null for a spot with no catalog row', () => {
+    expect(analyzeZone(CRAPLESS, 'passOdds', null)).toBeNull()
+    expect(analyzeZone(CRAPLESS, 'nope', 4)).toBeNull()
   })
 })

@@ -29,11 +29,19 @@ export interface StoredHead {
   readonly stateHash: string
 }
 
+/** `analyze`'s answer (plan §10 M9a): the badge text a zone must render, character for character. */
+export interface ZoneBadgeProbe {
+  readonly badge: string
+  readonly grade: string
+  readonly amount: number
+}
+
 interface CrapsTestHook {
   getState(): HookState
   sessionHash(): string | null
   queueDice(dice: string): boolean
   storedHead(): Promise<StoredHead | null>
+  analyze(typeId: string, number?: number | null): ZoneBadgeProbe | null
 }
 
 declare global {

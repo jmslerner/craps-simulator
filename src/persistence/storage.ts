@@ -124,7 +124,12 @@ export async function safeDelMany(targets: readonly string[]): Promise<StorageRe
  */
 export async function requestPersistence(): Promise<boolean> {
   try {
-    return (await navigator.storage?.persist?.()) ?? false
+    // Read structurally through globalThis: since the M9a analysis cache this module is compiled
+    // in the worker and Node test programs too, whose `navigator` types lack a window's `persist`.
+    const host = globalThis as {
+      navigator?: { storage?: { persist?: () => Promise<boolean> } }
+    }
+    return (await host.navigator?.storage?.persist?.()) ?? false
   } catch {
     return false
   }

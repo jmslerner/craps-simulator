@@ -15,6 +15,9 @@ import type {
   PresetId,
   TableState,
 } from '../../engine/index.ts'
+import { zoneBadges } from '../../coach/badges.ts'
+import { formatCoachNumber } from '../../coach/format.ts'
+import type { Grade } from '../../coach/types.ts'
 import type { GameState, ViewPhase } from '../state/gameStore.ts'
 import type { SessionHead } from '../../persistence/sessionRepo.ts'
 import { KEYS, safeGet } from '../../persistence/storage.ts'
@@ -48,6 +51,15 @@ export interface StoredHeadProbe {
   readonly stateHash: string
 }
 
+/** What `analyze` answers for one zone: the badge text the coach must show, and its grade. */
+export interface ZoneBadgeProbe {
+  /** The formatted edge, exactly as the zone badge renders it. */
+  readonly badge: string
+  readonly grade: Grade
+  /** The exact-unit stake, in cents, the badge's edge is priced at. */
+  readonly amount: number
+}
+
 export interface CrapsTestApi {
   getState(): CrapsTestState
   /** `hashJson` of the session's table: what a reload must restore identically (plan §10 M8). */
@@ -60,6 +72,12 @@ export interface CrapsTestApi {
    * save, without sleeping. Null while nothing is stored.
    */
   storedHead(): Promise<StoredHeadProbe | null>
+  /**
+   * Recomputes a zone's coach badge on the main thread from the live session's config (plan §10
+   * M9a): the e2e badge check reads each rendered `data-coach-badge` and this must equal it,
+   * character for character. Null while no game is running or the spot has no badge.
+   */
+  analyze(typeId: string, number?: number | null): ZoneBadgeProbe | null
 }
 
 declare global {
@@ -164,6 +182,10 @@ export function installTestHooks(
       const { pendingReveal, windowCount, stateHash } = head.value
       return { pendingReveal, windowCount, stateHash }
     },
+    analyze: (typeId, number = null) => {
+      const { cfg } = store.getState()
+      return cfg === null ? null : analyzeZone(cfg, typeId, number)
+    },
   }
   target.__CRAPS_TEST__ = api
   return true
@@ -175,6 +197,22 @@ function parsePairs(pairs: readonly (readonly [number, number])[]): readonly Dic
   } catch {
     return null
   }
+}
+
+/**
+ * One zone's badge, recomputed from the config through the same coach pipeline the worker runs
+ * (`zoneBadges` → `catalogRow`), so the e2e equality check pins the rendered text to the exact
+ * solver's answer for this very config. Exported for its unit test; the api closes over the store.
+ */
+export function analyzeZone(
+  cfg: MachineConfig,
+  typeId: string,
+  number: number | null,
+): ZoneBadgeProbe | null {
+  const badge =
+    zoneBadges(cfg).find((b) => b.typeId === typeId && (b.number ?? null) === number) ?? null
+  if (badge === null) return null
+  return { badge: formatCoachNumber(badge.edge), grade: badge.grade, amount: badge.amount }
 }
 
 /**

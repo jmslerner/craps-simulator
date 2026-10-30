@@ -1,3 +1,4 @@
+import { useEffect, useSyncExternalStore } from 'react'
 import { canToggle, cents, formatCents, workingStatus } from '../../engine/index.ts'
 import type {
   Action,
@@ -6,6 +7,14 @@ import type {
   PointNumber,
   WorkingSource,
 } from '../../engine/index.ts'
+import { formatPart } from '../../coach/format.ts'
+import type { TemplateParts } from '../../coach/types.ts'
+import {
+  inspectFor,
+  inspectKey,
+  requestInspect,
+  subscribeAnalysis,
+} from '../services/analysisClient.ts'
 import {
   maxOddsActionsFor,
   pressActionsFor,
@@ -237,13 +246,82 @@ export function BetInspector({ spot: ref }: { spot: SpotRef }) {
 }
 
 /**
- * M9 EXTENSION POINT (plan §10 M9a, M9c): "Show math" and the cheaper-alternative buttons mount
- * here, fed by the analysis worker's `CoachNumber`s. M8 renders nothing — no number may appear
- * here that `src/exact` did not compute.
+ * The coach's inspector content (plan §10 M9a; M9c adds the alternatives here). Everything shown
+ * comes from the analysis worker's `InspectorMath` — the bet priced at the player's own amount,
+ * the equity of a bet already on the table, and the "Show math" derivation — rendered verbatim
+ * through `formatPart`: no number appears here that `src/exact` did not compute. The props shape
+ * (`{ spot: SpotRef }`) is the M8 contract and stays.
  */
-export function InspectorExtras(props: { spot: SpotRef }) {
-  void props
-  return null
+export function InspectorExtras({ spot: ref }: { spot: SpotRef }) {
+  const cfg = useGameState((state) => state.cfg)
+  const shown = useGameState(selectShown)
+  const legal = useGameState(selectLegalBets)
+
+  const spot =
+    legal?.find(
+      (s) =>
+        s.typeId === ref.typeId &&
+        (ref.number === null ? true : s.number === ref.number) &&
+        (ref.parentId === null ? true : s.parentId === ref.parentId),
+    ) ?? null
+  const bet =
+    spot?.betId == null || shown === null
+      ? null
+      : (shown.bets.find((b) => b.id === spot.betId) ?? null)
+  // The analysis prices the zone's own spec; an odds spot takes its number from the bet behind it.
+  const isOdds = cfg?.catalog.get(ref.typeId)?.family === 'odds'
+  const specNumber = (ref.number ??
+    (isOdds ? (bet?.number ?? spot?.number ?? null) : null)) as PointNumber | null
+  const amount =
+    bet !== null ? bet.amount : spot !== null && spot.canAdd === null ? spot.minAdd : null
+  const betId = bet?.id ?? null
+
+  const ready = cfg !== null && shown !== null && amount !== null && amount > 0
+  const key = ready
+    ? inspectKey(cfg, { typeId: ref.typeId, number: specNumber }, amount, betId, shown)
+    : null
+
+  useEffect(() => {
+    if (cfg === null || shown === null || amount === null || amount <= 0) return
+    requestInspect(cfg, { typeId: ref.typeId, number: specNumber }, amount, shown, betId)
+  }, [cfg, shown, amount, betId, ref.typeId, specNumber])
+
+  const math = useSyncExternalStore(subscribeAnalysis, () =>
+    key === null ? null : inspectFor(key),
+  )
+  if (math === null) return null
+
+  return (
+    <section className="inspector-coach" aria-label="Coach analysis">
+      {math.lines.map((line) => (
+        <p key={line.id} className="coach-line" data-coach-line={line.id}>
+          {renderParts(line.parts)}
+        </p>
+      ))}
+      {math.steps.length > 0 && (
+        <details className="coach-math">
+          <summary>Show math</summary>
+          <ol>
+            {math.steps.map((step) => (
+              <li key={step.id} data-coach-step={step.id}>
+                {renderParts(step.parts)}
+              </li>
+            ))}
+          </ol>
+        </details>
+      )}
+      {math.assumedPaths.length > 0 && (
+        <p className="coach-assumed" title={math.assumedPaths.join(', ')}>
+          Uses assumed machine values
+        </p>
+      )}
+    </section>
+  )
+}
+
+/** Template parts as plain text: words verbatim, every number formatted from its `CoachNumber`. */
+function renderParts(parts: TemplateParts): string {
+  return parts.map((part) => formatPart(part)).join('')
 }
 
 /** The pay the machine shows for this spot, as written; null where it varies or is composite. */
