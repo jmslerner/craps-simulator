@@ -656,32 +656,48 @@ describe('Hot Shooter Jackpot (rules spec §6.2)', () => {
 describe('Lucky Shooter (rules spec §6.3)', () => {
   const strict = () => preset('strictBubble')
 
-  it('per come-out roll: 7/11 push 2/9, 2/3/12 lose 1/9, then each hit count exactly as published', () => {
+  it('per resolved wager: the 7/11 push leaves the bet up and decides nothing; each outcome as published', () => {
+    // Rules spec §6.3: per come-out roll the 7/11 pushes 2/9 and the bet stays; a resolved wager
+    // is one of the other 7/9, so each outcome's chance per resolved wager is its chance per
+    // come-out roll × 9/7 (§0.1: a push that leaves the bet up is no decision of it; M11 audit).
     const chances = firstDecisionChances(strict(), 'luckyShooter')
-    expect(chances.get('push:bar:stays')?.toString()).toBe(exact(2, 9))
+    const perWager = (num: number, den: number) =>
+      Fraction.of(num, den).mul(Fraction.of(9, 7)).toString()
+    expect(chances.has('push:bar:stays')).toBe(false)
     // 2/3/12 (1/9), then a point and no hit (97/324) or one hit (67/324): the losing outcomes.
     expect(chances.get('lose:-:lost')?.toString()).toBe(
-      Fraction.of(1, 9).add(Fraction.of(97, 324)).add(Fraction.of(67, 324)).toString(),
+      Fraction.of(1, 9)
+        .add(Fraction.of(97, 324))
+        .add(Fraction.of(67, 324))
+        .mul(Fraction.of(9, 7))
+        .toString(),
     )
-    expect(chances.get('win:2:returned')?.toString()).toBe(exact(7583, 69984))
-    expect(chances.get('win:3:returned')?.toString()).toBe(exact(8597, 209952))
-    expect(chances.get('win:4:returned')?.toString()).toBe(exact(175, 17496))
-    expect(chances.get('win:5:returned')?.toString()).toBe(exact(125, 118098))
-    expect(chances.get('win:top:returned')?.toString()).toBe(exact(125, 944784))
+    expect(chances.get('win:2:returned')?.toString()).toBe(perWager(7583, 69984))
+    expect(chances.get('win:3:returned')?.toString()).toBe(perWager(8597, 209952))
+    expect(chances.get('win:4:returned')?.toString()).toBe(perWager(175, 17496))
+    expect(chances.get('win:5:returned')?.toString()).toBe(perWager(125, 118098))
+    expect(chances.get('win:top:returned')?.toString()).toBe(perWager(125, 944784))
+    // The research's per-resolved-wager column, to every printed digit.
+    expect(decimal(chances.get('win:2:returned') ?? Fraction.ZERO, 6)).toBe('0.139311')
+    expect(decimal(chances.get('win:3:returned') ?? Fraction.ZERO, 6)).toBe('0.052647')
+    expect(decimal(chances.get('win:4:returned') ?? Fraction.ZERO, 6)).toBe('0.012860')
+    expect(decimal(chances.get('win:5:returned') ?? Fraction.ZERO, 7)).toBe('0.0013609')
+    expect(decimal(chances.get('win:top:returned') ?? Fraction.ZERO, 8)).toBe('0.00017011')
+    expect(Fraction.sum([...chances.values()]).toString()).toBe('1')
   })
 
-  it('table D: 159317/1469664 per resolved wager (10.840%), × 7/9 per come-out roll; 474275/163296 rolls', () => {
+  it("table D: 159317/1469664 per resolved wager (10.840%), the trainer's edge; 474275/163296 rolls", () => {
     const bet = analyzeBet(side('luckyShooter'), cents(100), 'typical', strict())
-    // The trainer counts the 7/11 push as a decision (ties counted, like a barred 12), so its
-    // edge is the research's "per come-out roll" figure; a resolved wager takes 9/7 decisions.
-    expect(bet.edge.toString()).toBe(Fraction.of(159317, 1469664).mul(Fraction.of(7, 9)).toString())
-    expect(bet.edge.formatPercent(4)).toBe('8.4314')
-    expect(bet.lifecycle.decisions.toString()).toBe(exact(9, 7))
+    // One resolved wager is the bet's one decision (EXACT_VERSION 3): the edge is the research's
+    // per-resolved-wager figure, §8.1 rank 24; per come-out roll it would be × 7/9, 8.4314%.
+    expect(bet.edge.toString()).toBe(exact(159317, 1469664))
+    expect(bet.edge.formatPercent(3)).toBe('10.840')
+    expect(bet.edge.mul(Fraction.of(7, 9)).formatPercent(4)).toBe('8.4314')
+    expect(bet.lifecycle.decisions.toString()).toBe('1')
+    expect(bet.pPush.toString()).toBe('0')
+    expect(bet.expectedRolls.toString()).toBe(exact(474275, 163296))
     expect(bet.lifecycle.rolls.toString()).toBe(exact(474275, 163296))
-    // Per resolved wager: the lifecycle loss over the one stake, 10.840%.
-    const perResolved = bet.lifecycle.loss.div(Fraction.of(100))
-    expect(perResolved.toString()).toBe(exact(159317, 1469664))
-    expect(perResolved.formatPercent(3)).toBe('10.840')
+    expect(bet.lifecycle.loss.div(Fraction.of(100)).toString()).toBe(exact(159317, 1469664))
   })
 
   it('tables A, B and C: 249299/1469664, 118345/734832, 154799/1469664 per resolved wager', () => {
@@ -697,8 +713,14 @@ describe('Lucky Shooter (rules spec §6.3)', () => {
           shooter.topAward = topAward
         }),
       )
-    const perResolved = (pays: Record<string, string>, top: string) =>
-      table(pays, top).lifecycle.loss.div(Fraction.of(100))
+    const perResolved = (pays: Record<string, string>, top: string) => {
+      const analysis = table(pays, top)
+      // The trainer's edge is the loss per resolved wager itself (one decision, §0.1).
+      expect(analysis.edge.toString()).toBe(
+        analysis.lifecycle.loss.div(Fraction.of(100)).toString(),
+      )
+      return analysis.lifecycle.loss.div(Fraction.of(100))
+    }
     const a = perResolved({ '3': '5 for 1', '4': '15 for 1', '5': '150 for 1' }, '1000 for 1')
     expect(a.toString()).toBe(exact(249299, 1469664))
     expect(a.mul(Fraction.of(7, 9)).formatPercent(4)).toBe('13.1934')

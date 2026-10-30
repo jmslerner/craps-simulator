@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { appUrl, zone } from './hooks.ts'
+import { appUrl, closeCoachSheet, openCoach, zone } from './hooks.ts'
 
 /**
  * The §10 M9d smoke: the layout meter prices a placed bet per roll with the hourly line over the
@@ -12,11 +12,16 @@ test('the meter prices a place 4 per roll and per hour at 60, the machine pace a
   page,
 }) => {
   await page.goto(appUrl({ seed: 'm9d-meter', dice: 'instant' }))
+  // The meter is in the Coach drawer (plan §0 #28): a phone's opens over the felt, so it closes
+  // for the tap and opens again to read the price.
+  await openCoach(page)
   await expect(page.getByTestId('meter-empty')).toBeVisible()
+  await closeCoachSheet(page)
 
   await zone(page, 'place:place:4').click()
   await expect(zone(page, 'place:place:4').locator('.zone-amount')).toHaveText('$1')
 
+  await openCoach(page)
   const headline = page.getByTestId('meter-per-roll')
   await expect(headline).toBeVisible()
   await expect(headline).toContainText('a roll')
@@ -35,6 +40,7 @@ test('the cheat sheet lists the catalog by edge and each shown edge equals analy
   page,
 }) => {
   await page.goto(appUrl({ seed: 'm9d-sheet', dice: 'instant' }))
+  await openCoach(page)
   await page.getByRole('button', { name: /Cheat sheet/ }).click()
 
   const rows = page.locator('[data-sheet-row]')

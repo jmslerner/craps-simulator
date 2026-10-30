@@ -43,6 +43,7 @@ export type {
   UniquePointsBetType,
 } from './config/compile.ts'
 export type { MachineConfigInput } from './config/schema.ts'
+export type { Ratio } from './config/ratio.ts'
 export { DEFAULT_PRESET_ID, PRESETS, PRESET_IDS, isPresetId } from './config/presets/index.ts'
 export type { PresetId } from './config/presets/index.ts'
 export { listAssumptions, statusAt } from './config/provenance.ts'
@@ -92,7 +93,7 @@ export {
   collectSetRolled,
 } from './bets/families/collectSet.ts'
 export { uniquePointsCount, uniquePointsMade } from './bets/families/uniquePointsMade.ts'
-export { handLengthTier } from './bets/families/handLength.ts'
+export { handLengthCount, handLengthCounted, handLengthTier } from './bets/families/handLength.ts'
 export { pointRunHits, pointRunProgress, pointRunState } from './bets/families/pointRun.ts'
 
 // Settlement.

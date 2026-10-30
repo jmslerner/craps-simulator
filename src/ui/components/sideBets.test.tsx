@@ -61,7 +61,7 @@ describe('the Lucky Roller zones (crapless)', () => {
     expect(bets().find((bet) => bet.typeId === 'luckyRollerLow')?.amount).toBe(100)
     expect(
       screen.getByRole('button', {
-        name: 'Low Rolls, $1.00, pays 31 for 1, none of 2, 3, 4, 5 and 6 rolled yet',
+        name: 'Low Rolls, $1.00, pays 31 for 1, any 7 loses, none of 2, 3, 4, 5 and 6 rolled yet',
       }),
     ).toBeInTheDocument()
 
@@ -69,9 +69,8 @@ describe('the Lucky Roller zones (crapless)', () => {
     const after = sideZone(/^Low Rolls/)
     expect(litPips(after)).toStrictEqual(['2'])
     expect(after.querySelector('.zone-track')).toHaveAttribute('data-lit', '2')
-    expect(after).toHaveAttribute(
-      'aria-label',
-      'Low Rolls, $1.00, pays 31 for 1, 2 rolled, needs 3, 4, 5 and 6',
+    expect(after).toHaveAccessibleName(
+      'Low Rolls, $1.00, pays 31 for 1, any 7 loses, 2 rolled, needs 3, 4, 5 and 6',
     )
 
     app.roll(dice(2, 2))
@@ -267,7 +266,9 @@ describe('the other side-bet families', () => {
       'Hot Shooter Jackpot needs $3.00 on the main game first — the table is $3.00 short.',
     )
     expect(
-      screen.getByRole('button', { name: /^Hot Shooter Jackpot, no bet, needs \$3 in play$/ }),
+      screen.getByRole('button', {
+        name: 'Hot Shooter Jackpot, no bet, needs $3 in play, up to 100 for 1',
+      }),
     ).toBeInTheDocument()
 
     app.run((state) => {
@@ -285,9 +286,8 @@ describe('the other side-bet families', () => {
     expect(sideZone(/^Hot Shooter Jackpot/).querySelector('.zone-count')).toHaveTextContent(
       '2 rolls',
     )
-    expect(sideZone(/^Hot Shooter Jackpot/)).toHaveAttribute(
-      'aria-label',
-      'Hot Shooter Jackpot, $1.00, needs $3 in play, 2 rolls counted',
+    expect(sideZone(/^Hot Shooter Jackpot/)).toHaveAccessibleName(
+      'Hot Shooter Jackpot, $1.00, needs $3 in play, up to 100 for 1, 2 rolls counted',
     )
   })
 
@@ -306,11 +306,11 @@ describe('the other side-bet families', () => {
     const onSix = sideZone(/^Lucky Shooter/)
     expect(onSix.querySelector('.pip-point')).toHaveTextContent('6')
     expect(litPips(onSix)).toStrictEqual([])
-    expect(onSix.getAttribute('aria-label')).toContain('point 6, 0 hits')
+    expect(onSix).toHaveAccessibleName(/point 6, 0 hits/)
     app.roll(dice(2, 2)) // 4 is a hit
     const oneHit = sideZone(/^Lucky Shooter/)
     expect(litPips(oneHit)).toStrictEqual(['4'])
-    expect(oneHit.getAttribute('aria-label')).toContain('point 6, 1 hit (4)')
+    expect(oneHit).toHaveAccessibleName(/point 6, 1 hit \(4\)/)
     const newest = document.querySelector('.history-newest')
     expect(newest).toHaveTextContent('Lucky Shooter: point 6, 1 hit (4)')
   })

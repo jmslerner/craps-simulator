@@ -33,7 +33,8 @@ describe('zoneBadges', () => {
         })
       })
     }
-  })
+    // Every preset's whole catalog, priced cold (about a second alone; slower on a loaded machine).
+  }, 30_000)
 
   it('prices place 6 at its exact unit: the published 1/66, shown "1.52%", graded good', () => {
     const badge = zoneBadges(crapless).find(

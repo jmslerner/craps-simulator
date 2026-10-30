@@ -63,6 +63,8 @@ describe('suggestAlternatives', () => {
         const buy = input.catalog.buy
         if (buy?.family !== 'numberVsSeven') throw new Error('no buy')
         delete buy.commissionByNumber
+        // HAR-PA's $20 minimum buy (M12) would refuse the $15 and $16 buys this tie needs.
+        delete input.limits.perType?.['buy']
         input.provenance = pruneProvenance(input)
         return input
       })(),

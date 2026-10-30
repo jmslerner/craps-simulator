@@ -1,7 +1,16 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { ENGINE_VERSION, hashJson } from '../engine/index.ts'
+import { ENGINE_VERSION, cents, hashJson } from '../engine/index.ts'
 import type { WindowedSession } from '../engine/index.ts'
-import { CRAPLESS, placePass, placeSix, playRolls, roll, testSession } from '../ui/test/game.ts'
+import { metersOfSession } from '../coach/summary/meters.ts'
+import {
+  CRAPLESS,
+  bet,
+  placePass,
+  placeSix,
+  playRolls,
+  roll,
+  testSession,
+} from '../ui/test/game.ts'
 import { createSessionRepo, type SessionMeta } from './sessionRepo.ts'
 import { KEYS, SESSION_CHUNK, safeDelMany, safeGet, safeKeys, safeSet } from './storage.ts'
 
@@ -112,6 +121,36 @@ describe('start, save, resume', () => {
     const current = await safeGet<string>(KEYS.current)
     expect(current.ok && current.value).toBe('new')
   })
+
+  it('archives the session meters, recomputed from the whole multi-chunk log', async () => {
+    // More windows than one chunk holds, and a top-up in the open window.
+    let session = playRolls(testSession('repo-meters'), SESSION_CHUNK + 5)
+    session = bet(session, { type: 'deposit', amount: cents(2_500) })
+    await repo.startSession(meta('old-meters'), session)
+    await repo.saveBetting(meta('old-meters'), session)
+    await repo.startSession(meta('next'), testSession('repo-next'))
+
+    const last = await repo.readLastResult()
+    const expected = metersOfSession(session, CRAPLESS).current
+    expect(last?.meters).toStrictEqual(expected)
+    expect(expected.topUps.at(-1)).toStrictEqual({ amount: 2_500, beforeRoll: SESSION_CHUNK + 5 })
+    // The totals are the archived ledger's: every deposit, and the commission paid.
+    expect(last?.ledger.deposits).toBe(
+      expected.buyIn + expected.topUps.reduce((sum, topUp) => sum + topUp.amount, 0),
+    )
+    expect(expected.wagering?.wagered).toBeGreaterThan(0)
+  })
+
+  it('archives no meters when the log is gone, and still starts the new game', async () => {
+    const session = playedSession('repo-no-log')
+    await repo.startSession(meta('lost'), session)
+    await safeDelMany([KEYS.chunk('lost', 0)])
+    const started = await repo.startSession(meta('after'), testSession('repo-after'))
+    expect(started.ok).toBe(true)
+    const last = await repo.readLastResult()
+    expect(last?.id).toBe('lost')
+    expect(last?.meters).toBeNull()
+  })
 })
 
 describe('junk and versions', () => {
@@ -123,6 +162,25 @@ describe('junk and versions', () => {
     expect(await repo.loadActive()).toStrictEqual({ kind: 'none' })
     const quarantined = await safeGet(KEYS.corrupt(NOW))
     expect(quarantined.ok && quarantined.value !== undefined).toBe(true)
+  })
+
+  it('migrates the head on read: a table from a newer build is moved aside, never misread (M12)', async () => {
+    const session = playedSession('repo-newer')
+    await repo.startSession(meta('s9'), session)
+    const head = await safeGet<Record<string, unknown>>(KEYS.head('s9'))
+    if (!head.ok || head.value === undefined) throw new Error('head missing')
+    // Today's heads hold version-1 tables and load as before.
+    expect((head.value['state'] as { v: number }).v).toBe(1)
+    expect((await repo.loadActive()).kind).toBe('active')
+    // A head written by a later build, whose tables are version 2.
+    const state = { ...(head.value['state'] as object), v: 2 }
+    await safeSet(KEYS.head('s9'), { ...head.value, state })
+    const loaded = await repo.loadActive()
+    expect(loaded).toEqual({
+      kind: 'corrupt',
+      error:
+        'session s9 head: This stored table is version 2, made by a newer trainer (this one reads up to version 1).',
+    })
   })
 
   it('quarantines a junk log chunk', async () => {

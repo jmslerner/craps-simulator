@@ -91,6 +91,12 @@ export interface LimitFacts {
    * the parent's point.
    */
   readonly incrementByNumber: ReadonlyMap<number, number>
+  /**
+   * `/limits/perType/<t>/minByNumber`: the smallest bet on some numbers, replacing `min` there
+   * (rules spec §4.3, LIVE minimums: a lay must win at least $20, so $40 on 4 and $24 on 6). The
+   * number is the bet's own; for odds it is the parent's point.
+   */
+  readonly minByNumber: ReadonlyMap<number, number>
 }
 
 interface TypeFactsBase {
@@ -257,20 +263,25 @@ export function factsFrom(input: MachineConfigInput): MachineFacts {
   const payoutRounding = rounding(input.money.payoutRounding)
   const limitsOf = (id: string): LimitFacts => {
     const perType = input.limits.perType?.[id]
-    const byNumber = new Map<number, number>()
-    const increments = perType === undefined ? undefined : perNumber(perType, 'incrementByNumber')
-    for (const [key, value] of Object.entries(increments ?? {})) {
-      const at = `/limits/perType/${id}/incrementByNumber/${key}`
-      if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 1) {
-        throw new RangeError(`${at} must be whole cents above 0`)
+    /** A per-number amount map on the type's limits, each value whole cents above 0. */
+    const amountsByNumber = (key: 'incrementByNumber' | 'minByNumber'): Map<number, number> => {
+      const byNumber = new Map<number, number>()
+      const amounts = perType === undefined ? undefined : perNumber(perType, key)
+      for (const [number, value] of Object.entries(amounts ?? {})) {
+        const at = `/limits/perType/${id}/${key}/${number}`
+        if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 1) {
+          throw new RangeError(`${at} must be whole cents above 0`)
+        }
+        byNumber.set(numberKey(at, number), value)
       }
-      byNumber.set(numberKey(at, key), value)
+      return byNumber
     }
     return {
       min: perType?.min ?? input.limits.min,
       max: perType?.max ?? input.limits.max,
       increment: perType?.increment ?? input.money.betIncrement,
-      incrementByNumber: byNumber,
+      incrementByNumber: amountsByNumber('incrementByNumber'),
+      minByNumber: amountsByNumber('minByNumber'),
     }
   }
 
@@ -532,6 +543,16 @@ export function incrementOf(type: TypeFacts, number: number | null): number {
   return type.limits.incrementByNumber.get(number) ?? type.limits.increment
 }
 
+/**
+ * The smallest total this type takes on `number`, in cents: `/limits/perType/<t>/minByNumber`
+ * where it names the number, else the type's minimum (rules spec §4.3, LIVE minimums). `number` is
+ * the bet's own number, or the parent's point for odds; null takes the type's minimum.
+ */
+export function minimumOf(type: TypeFacts, number: number | null): number {
+  if (number === null) return type.limits.min
+  return type.limits.minByNumber.get(number) ?? type.limits.min
+}
+
 function rounding(rule: RoundingRule): RefRounding {
   if (!Number.isSafeInteger(rule.increment) || rule.increment < 1) {
     throw new RangeError(`A rounding increment must be whole cents, got ${rule.increment}`)
@@ -556,7 +577,7 @@ function roundingAt(at: string, value: unknown): RefRounding {
 
 /**
  * An optional per-number map on a config object (`payoutRoundingByNumber`,
- * `incrementByNumber`), read structurally so this file works with configs written with or
+ * `incrementByNumber`, `minByNumber`), read structurally so this file works with configs written with or
  * without these newer knobs.
  */
 function perNumber(entry: object, key: string): Readonly<Record<string, unknown>> | undefined {

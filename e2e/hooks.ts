@@ -36,12 +36,34 @@ export interface ZoneBadgeProbe {
   readonly amount: number
 }
 
+/** One die as the 3D readout reads it off its mesh (src/ui/services/testHooks.ts). */
+export interface DieReadout {
+  readonly visible: boolean
+  /** Pips counted on the texture of the face whose normal points most nearly up. */
+  readonly face: number
+  readonly up: number
+  /** That face's corners on the canvas, CSS px from its top-left. */
+  readonly corners: readonly (readonly [number, number])[]
+}
+
+/** `domeReadout()`: the 3D dice as drawn, read independently of the dome's remap tables. */
+export interface DomeReadout {
+  readonly state: 'idle' | 'playing' | 'settled'
+  /** The last frame drawn was at rest (no throw playing, the camera arrived). */
+  readonly still: boolean
+  /** The body drawing the engine's d1. */
+  readonly d1Body: 0 | 1
+  readonly canvas: { readonly width: number; readonly height: number }
+  readonly dice: readonly [DieReadout, DieReadout]
+}
+
 interface CrapsTestHook {
   getState(): HookState
   sessionHash(): string | null
   queueDice(dice: string): boolean
   storedHead(): Promise<StoredHead | null>
   analyze(typeId: string, number?: number | null): ZoneBadgeProbe | null
+  domeReadout(): DomeReadout | null
 }
 
 declare global {
@@ -58,16 +80,34 @@ export function appUrl(params: Readonly<Record<string, string>>): string {
   return `/?${new URLSearchParams(params).toString()}`
 }
 
+/*
+ * The readers below return null, rather than throw a ReferenceError, while the hook is not yet
+ * installed (the boot installs it once the table is in the store), so a poll simply retries.
+ */
+
 export function hookState(page: Page): Promise<HookState | null> {
-  return page.evaluate(() => __CRAPS_TEST__?.getState() ?? null)
+  return page.evaluate(() =>
+    typeof __CRAPS_TEST__ === 'undefined' ? null : __CRAPS_TEST__.getState(),
+  )
 }
 
 export function sessionHash(page: Page): Promise<string | null> {
-  return page.evaluate(() => __CRAPS_TEST__?.sessionHash() ?? null)
+  return page.evaluate(() =>
+    typeof __CRAPS_TEST__ === 'undefined' ? null : __CRAPS_TEST__.sessionHash(),
+  )
+}
+
+/** The 3D dice as drawn; null while no 3D renderer is live. */
+export function domeReadout(page: Page): Promise<DomeReadout | null> {
+  return page.evaluate(() =>
+    typeof __CRAPS_TEST__ === 'undefined' ? null : __CRAPS_TEST__.domeReadout(),
+  )
 }
 
 export function storedHead(page: Page): Promise<StoredHead | null> {
-  return page.evaluate(() => __CRAPS_TEST__?.storedHead() ?? null)
+  return page.evaluate(() =>
+    typeof __CRAPS_TEST__ === 'undefined' ? null : __CRAPS_TEST__.storedHead(),
+  )
 }
 
 /** Waits until the stored head holds exactly the live table, so a reload must restore it. */
@@ -79,6 +119,29 @@ export async function waitForSaved(page: Page): Promise<void> {
       message: 'the stored session head never caught up with the live table',
     })
     .toBe(live)
+}
+
+/**
+ * Opens the Coach drawer (plan §0 #28) where it is collapsed — under 1400 px wide by default, so on
+ * the phone projects, chromium-3d and the 375 px checks — and waits until it shows. A drawer that is
+ * already open (docked from 1400 px) is left as it is.
+ */
+export async function openCoach(page: Page): Promise<void> {
+  const toggle = page.getByTestId('coach-toggle')
+  if ((await toggle.getAttribute('aria-expanded')) !== 'true') await toggle.click()
+  await expect(page.locator('#coach-drawer')).toBeVisible()
+}
+
+/**
+ * Closes the Coach drawer where an open drawer covers the felt: a bottom sheet under 1000 px wide.
+ * From 1000 px an open drawer docks beside the felt and stays open.
+ */
+export async function closeCoachSheet(page: Page): Promise<void> {
+  const width = page.viewportSize()?.width ?? 0
+  const toggle = page.getByTestId('coach-toggle')
+  if (width >= 1000 || (await toggle.getAttribute('aria-expanded')) !== 'true') return
+  await page.getByRole('button', { name: 'Close the coach' }).click()
+  await expect(page.locator('#coach-drawer')).toBeHidden()
 }
 
 /** The ROLL button; `exact` keeps the guide's "Or just roll" out of the match. */

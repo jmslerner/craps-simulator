@@ -5,8 +5,9 @@
  * or any trace of the testHooks module, which may exist only in `vite build --mode e2e` builds —
  * or when a chunk breaks the §10 M10a budgets:
  *   - the JavaScript loaded by index.html is at most 250 KB gzip and contains no three or Rapier
- *   - the lazy dome chunks (every non-initial, non-worker JS chunk) total at most 350 KB gzip, and
- *     one of them carries three, so the dome really is split off
+ *   - the lazy chunks (every non-initial, non-worker JS chunk: the 3D dome, and since M12/M13 the
+ *     machine editor's views, the session summary and the exact-analysis code they share) total at
+ *     most 350 KB gzip, and one of them carries three, so the dome really is split off
  *   - the physics worker is at most 900 KB gzip and is the only chunk carrying Rapier
  */
 import { existsSync, readFileSync, readdirSync } from 'node:fs'
@@ -18,12 +19,14 @@ import { gzipSync } from 'node:zlib'
 const TEST_HOOK = '__CRAPS_TEST__'
 /**
  * Strings that betray `src/ui/services/testHooks.ts` in a bundle: the window hook's property name
- * (minifiers keep property names) and the e2e preset's provenance note, a string literal unique to
- * that module which survives minification even when the hook installer was tree-shaken away. The
- * dice-script regex is NOT a usable marker: the engine's own `compile.ts` carries the same
- * `([1-6])-([1-6])` literal for hop-bet config keys, legitimately, in every build.
+ * (minifiers keep property names), the e2e preset's provenance note, a string literal unique to
+ * that module which survives minification even when the hook installer was tree-shaken away, and
+ * the 3D readout's hook property `domeReadout` (the dome itself only offers a generic `inspect`,
+ * which the App hands to the hooks behind the e2e mode check). The dice-script regex is NOT a
+ * usable marker: the engine's own `compile.ts` carries the same `([1-6])-([1-6])` literal for
+ * hop-bet config keys, legitimately, in every build.
  */
-const TEST_HOOK_MARKERS: readonly string[] = [TEST_HOOK, 'e2e test preset:']
+const TEST_HOOK_MARKERS: readonly string[] = [TEST_HOOK, 'e2e test preset:', 'domeReadout']
 /** A chunk split from the testHooks module keeps its name: `assets/testHooks-<hash>.js`. */
 const TEST_HOOK_FILE = /testhooks/i
 
@@ -196,7 +199,8 @@ export function bundleReport(
 const USAGE = `Usage: node scripts/check-bundle.ts [--dir <build dir>]
 
 Checks a production build (default: dist) for leaked e2e test hooks and the §10 M10a chunk
-budgets: initial JS (no three, no Rapier), the lazy dome chunks and the physics worker.`
+budgets: initial JS (no three, no Rapier), the lazy chunks (the dome and the views loaded on
+demand) and the physics worker.`
 
 const OPTIONS = {
   dir: { type: 'string', default: 'dist' },
@@ -241,8 +245,9 @@ function main(args: string[]): number {
   console.log(
     `check-bundle: ${dir} OK. No test hooks in ${files.length} files; initial JS ` +
       `${kb(report.initial.gzipBytes)} gzip of ${kb(BUDGETS.initialJs)} (no three, no Rapier); ` +
-      `dome chunks ${kb(report.dome.gzipBytes)} of ${kb(BUDGETS.domeChunks)} ` +
-      `(${report.dome.files.length} files); physics worker ` +
+      `lazy chunks ${kb(report.dome.gzipBytes)} of ${kb(BUDGETS.domeChunks)} ` +
+      `(${report.dome.files.length} files: the dome and the views loaded on demand); ` +
+      `physics worker ` +
       `${worker === null ? 'missing' : `${kb(worker.gzipBytes)} of ${kb(BUDGETS.physicsWorker)}`}.`,
   )
   return 0

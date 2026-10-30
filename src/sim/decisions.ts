@@ -55,8 +55,13 @@ import { nextBelow, pickWeighted, prepareWeightedPick } from './uniform.ts'
  *
  * Side bets (M11) walk like any other bet: a `progress` decision moves the bet on and the walk
  * continues, a start may carry the bet's progress so far (`StartContext.progress`: a Lucky Roller
- * with three targets rolled), and nothing is lumped — a Hot Shooter's count grows roll by roll
- * until the seven-out — so the walk cross-checks the solver's lumped chain (`canonicalProgress`).
+ * with three targets rolled, or a Hot Shooter placed on a later come-out with the hand's rolls),
+ * and nothing is lumped — a Hot Shooter's count grows roll by roll until the seven-out — so the
+ * walk cross-checks the solver's lumped chain (`canonicalProgress`). A side bet is one wager
+ * settled once (rules spec §6): a settlement that leaves it up — the Lucky Shooter's come-out 7 or
+ * 11, a push that stays on the field — decides nothing and the walk goes on through it, so a
+ * sampled decision is a resolved wager (rules spec §0.1, §6.3; the M11 audit's reading, stated
+ * here on its own rather than borrowed from the solver).
  *
  * Everything returned is exact: integer decision counts, integer cents. The float statistics
  * (means, sigmas, chi-squared) belong in the test files.
@@ -208,9 +213,6 @@ class Sampler {
    */
   private startTable(phase: Phase, start: StartContext): WalkTable {
     const progress = start.progress ?? 0
-    if (progress !== 0 && !start.carried) {
-      throw new Error(`${this.spec.typeId} has progress, so it has rolled: it is carried`)
-    }
     const bets = this.slots.map((slot, index): BetInstance => {
       const isSubject = index === this.subject
       return {
@@ -294,11 +296,15 @@ class Sampler {
       }
       const decision = decideBet(bet, ctx, resolved)
       decisions.push(decision)
-      if (index === this.subject && isSettled(decision)) {
+      const applied = resolved.family.apply(bet, decision, ctx, resolved.type)
+      // A side bet left up by its settlement (the Lucky Shooter's come-out push) is still the
+      // same wager: no decision yet.
+      const stillWagered = applied !== null && this.cfg.sideBets.has(bet.typeId)
+      if (index === this.subject && isSettled(decision) && !stillWagered) {
         settledSubject = this.settledOutcome(bet, decision)
         break
       }
-      after.push(resolved.family.apply(bet, decision, ctx, resolved.type))
+      after.push(applied)
     }
     const outcome: Outcome =
       settledSubject !== null

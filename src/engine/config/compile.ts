@@ -160,6 +160,9 @@ function checkMoney(cfg: MachineConfigInput, add: Add): void {
     if (own.incrementByNumber !== undefined) {
       checkUnitsByNumber(cfg, typeId, own.incrementByNumber, increment, at, add)
     }
+    if (own.minByNumber !== undefined) {
+      checkMinimumsByNumber(cfg, typeId, own.minByNumber, { increment, max: bounds.max }, at, add)
+    }
   }
   cfg.chips.forEach((chip, index) => {
     multiple(['chips', index], chip, step)
@@ -186,13 +189,7 @@ function checkUnitsByNumber(
   add: Add,
 ): void {
   const at = [...perType, 'incrementByNumber']
-  const type = Object.hasOwn(cfg.catalog, typeId) ? cfg.catalog[typeId] : undefined
-  const numbers: readonly number[] | null =
-    type?.family === 'odds'
-      ? COME_OUT_RULES[cfg.variant].points
-      : type?.family === 'numberVsSeven' || type?.family === 'hardway'
-        ? type.numbers
-        : null
+  const numbers = numbersOf(cfg, typeId)
   if (numbers === null) {
     add(at, 'only odds, number bets and hardways sit on a number; use increment instead')
     return
@@ -207,6 +204,53 @@ function checkUnitsByNumber(
       )
     }
   }
+}
+
+/**
+ * Per-number minimums (`/limits/perType/<t>/minByNumber`, M12): like per-number units, only for a
+ * type whose bets sit on a number and only on those numbers. Each is a multiple of the type's own
+ * increment, as the type's minimum is, and at most its maximum, or nothing could be bet there. It
+ * replaces the type's minimum on its number, up or down: a live lay that must win $20 is $40 on 4
+ * and $24 on 6. Like the type's minimum, it need not fit a coarser per-number unit; the smallest bet
+ * there is the minimum rounded up to that unit.
+ */
+function checkMinimumsByNumber(
+  cfg: MachineConfigInput,
+  typeId: string,
+  minimums: Readonly<Partial<Record<string, number>>>,
+  limits: { readonly increment: number; readonly max: number },
+  perType: Path,
+  add: Add,
+): void {
+  const at = [...perType, 'minByNumber']
+  const numbers = numbersOf(cfg, typeId)
+  if (numbers === null) {
+    add(at, 'only odds, number bets and hardways sit on a number; use min instead')
+    return
+  }
+  for (const [key, min] of Object.entries(minimums)) {
+    if (!numbers.some((n) => String(n) === key)) {
+      add([...at, key], `${typeId} takes no bet on ${key}`)
+    } else if (min !== undefined && min % limits.increment !== 0) {
+      add(
+        [...at, key],
+        `must be a multiple of ${formatCents(cents(limits.increment))}, the type's increment`,
+      )
+    } else if (min !== undefined && min > limits.max) {
+      add([...at, key], `the minimum on ${key} is above the type's maximum`)
+    }
+  }
+}
+
+/**
+ * The numbers a type's bets sit on: odds on their parent's point (any point of the variant),
+ * number bets and hardways on their own numbers; null for a type whose bets sit on none.
+ */
+function numbersOf(cfg: MachineConfigInput, typeId: string): readonly number[] | null {
+  const type = Object.hasOwn(cfg.catalog, typeId) ? cfg.catalog[typeId] : undefined
+  if (type?.family === 'odds') return COME_OUT_RULES[cfg.variant].points
+  if (type?.family === 'numberVsSeven' || type?.family === 'hardway') return type.numbers
+  return null
 }
 
 function checkCatalog(cfg: MachineConfigInput, add: Add): void {
@@ -879,6 +923,11 @@ export interface MachineConfig {
      * for odds, the parent's point). `typeLimits(cfg, typeId, number)` applies them.
      */
     readonly incrementByNumber: ReadonlyMap<string, ReadonlyMap<PointNumber, Cents>>
+    /**
+     * Minimums by number, for the types that set them (`/limits/perType/<t>/minByNumber`; for
+     * odds, the parent's point). `typeLimits(cfg, typeId, number)` applies them.
+     */
+    readonly minByNumber: ReadonlyMap<string, ReadonlyMap<PointNumber, Cents>>
     /** Null when the machine has no minimum for the round. */
     readonly minTotal: MinTotal | null
   }
@@ -904,20 +953,32 @@ export interface MachineConfig {
   readonly provenance: Provenance
   /**
    * JSON pointers of the values this config sets that the engine plays otherwise (plan §0 #23):
-   * the coach shows an "approximation" note on a machine that has any. Today only Shoot To Win's
-   * `/offBets/consumeCredit: false`: every OFF bet keeps its stake on the layout, so it still uses
-   * credit (`availableCredit`, rules spec §4.5).
+   * the coach shows an "approximation" note on a machine that has any (`notModelledPointers`).
    */
   readonly notModelled: readonly string[]
 }
 
 /**
- * The values of `input` the engine does not model (`MachineConfig.notModelled`, plan §0 #23).
- * OFF chips that use no credit are one: nothing documents what happens when such a chip turns ON
- * without the credit to back it, so every OFF bet keeps its stake (M4 integration decision).
+ * The values of `input` the engine does not model (`MachineConfig.notModelled`, plan §0 #23):
+ *
+ * - `/offBets/consumeCredit: false` (Shoot To Win): nothing documents what happens when an OFF chip
+ *   that used no credit turns ON without the credit to back it, so every OFF bet keeps its stake
+ *   and still uses credit (`availableCredit`, rules spec §4.5; M4 integration decision).
+ * - `/flow/shooter/mode: community` on a machine with a round minimum (Shoot To Win's dome): a
+ *   community dome rolls on its own timer whether or not a player has a bet in (rules spec §2.5),
+ *   while the trainer rolls only when the player presses ROLL with bets that meet the round's
+ *   minimum, side bets aside (§9 #11). So with only a side bet up — a Hot Shooter locked after the
+ *   pass lost on the come-out — the trainer asks for a main-game bet where the dome would roll on
+ *   (M11 audit; the refusal says so, `BELOW_MIN_TOTAL` carrying the side bets' stakes as
+ *   `sideBets`). With no round minimum (a live table) nothing gates the roll, so nothing differs.
  */
 export function notModelledPointers(input: MachineConfigInput): string[] {
-  return input.offBets.consumeCredit ? [] : ['/offBets/consumeCredit']
+  const pointers: string[] = []
+  if (!input.offBets.consumeCredit) pointers.push('/offBets/consumeCredit')
+  if (input.flow.shooter.mode === 'community' && input.limits.minTotal !== null) {
+    pointers.push('/flow/shooter/mode')
+  }
+  return pointers
 }
 
 /**
@@ -984,6 +1045,7 @@ function build(input: MachineConfigInput): MachineConfig {
   const { limits, money } = input
   const byType = new Map<string, TypeLimits>()
   const incrementByNumber = new Map<string, ReadonlyMap<PointNumber, Cents>>()
+  const minByNumber = new Map<string, ReadonlyMap<PointNumber, Cents>>()
   for (const typeId of [...catalog.keys(), ...composites.keys(), ...sideBets.keys()]) {
     const own = limits.perType?.[typeId]
     byType.set(
@@ -995,12 +1057,9 @@ function build(input: MachineConfigInput): MachineConfig {
       }),
     )
     if (own?.incrementByNumber !== undefined) {
-      const units = Object.entries(own.incrementByNumber).flatMap(
-        ([n, unit]): [PointNumber, Cents][] =>
-          unit === undefined ? [] : [[Number(n) as PointNumber, cents(unit)]],
-      )
-      incrementByNumber.set(typeId, new Map(units))
+      incrementByNumber.set(typeId, centsByNumber(own.incrementByNumber))
     }
+    if (own?.minByNumber !== undefined) minByNumber.set(typeId, centsByNumber(own.minByNumber))
   }
   return Object.freeze({
     input,
@@ -1017,6 +1076,7 @@ function build(input: MachineConfigInput): MachineConfig {
       tableMax: limits.tableMax === undefined ? null : cents(limits.tableMax),
       byType,
       incrementByNumber,
+      minByNumber,
       minTotal:
         limits.minTotal === null
           ? null
@@ -1047,6 +1107,17 @@ function build(input: MachineConfigInput): MachineConfig {
 
 function rounding(rule: RoundingRule): Rounding {
   return Object.freeze({ mode: rule.mode, increment: cents(rule.increment) })
+}
+
+/** A per-number amount map (`incrementByNumber`, `minByNumber`) keyed by number, in cents. */
+function centsByNumber(
+  amounts: Readonly<Partial<Record<string, number>>>,
+): ReadonlyMap<PointNumber, Cents> {
+  return new Map(
+    Object.entries(amounts).flatMap(([n, amount]): [PointNumber, Cents][] =>
+      amount === undefined ? [] : [[Number(n) as PointNumber, cents(amount)]],
+    ),
+  )
 }
 
 function ratio(text: string): Ratio {

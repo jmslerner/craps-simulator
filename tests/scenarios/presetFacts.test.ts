@@ -1,4 +1,5 @@
 import { describe, it } from 'vitest'
+import { withoutPostedMinimums } from '../properties/machineVariants.ts'
 import { scenario } from './dsl.ts'
 
 // Researched machine facts (rules spec §2.4, §3, §4, §5.2) that the per-family scenario files left
@@ -58,10 +59,11 @@ describe('craplessBubble (Interblock heads-up crapless)', () => {
       .expectBankroll(50_000)
   })
 
-  it('place 4 and 10 pay 9:5, place 5 and 9 pay 7:5 [A CW §17, WOO-B], and stay up', () => {
+  it('place 4 and 10 pay 9:5, place 5 and 9 pay 7:5 [A CW §17, WOO-B; 9 R photo], and stay up', () => {
+    // The player's station prints "PLACE 12 FOR 5" under NINE (photo, plan §0 #28).
     scenario('craplessBubble')
       .expectProvenance('/catalog/place/pays/4', 'assumed')
-      .expectProvenance('/catalog/place/pays/9', 'assumed')
+      .expectProvenance('/catalog/place/pays/9', 'reported')
       .place('pass', 500)
       .roll(4, 4)
       .place('place', 500, { number: 4 })
@@ -279,7 +281,8 @@ describe('traditionalLive345 (a generous live table)', () => {
   })
 
   it('a lay pays 5% of its win up front, in whole dollars, at least $1, refunded when it comes down [V HAR-PA]', () => {
-    scenario('traditionalLive345')
+    // The $20 lay on 10 wins $10, under the posted "lay must win $20" (M12): a copy without it.
+    scenario(withoutPostedMinimums('traditionalLive345', ['lay']))
       .expectProvenance('/catalog/lay/commission', 'verified')
       .place('lay', 4_000, { number: 4 })
       .place('lay', 2_000, { number: 10 })

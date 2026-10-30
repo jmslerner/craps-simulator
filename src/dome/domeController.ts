@@ -5,9 +5,12 @@ import type { PlaybackPlan } from '../physics/core/plan.ts'
 import type { RestState } from '../physics/core/restPose.ts'
 import { TUMBLE, TUMBLE_FAST, type Dice2DController } from '../ui/dice2d/diceController.ts'
 import type { DicePlayRequest, DiceView } from '../ui/services/rollFlow.ts'
+import { readFraming, THROW_SHOT, type CameraPose, type CanvasSize } from './camera.ts'
 import { createPhysicsClient, type PhysicsClient } from './physicsClient.ts'
 import {
+  cameraAt,
   createClock,
+  LEAD_IN_MS,
   playbackMs,
   restPoses,
   sampleAt,
@@ -38,7 +41,16 @@ import { force3d, probeWebGL, webglOptions } from './webgl.ts'
  *   stopped coming. An already-aborted signal snaps to rest at once. Without a live renderer it
  *   rejects, and the roll flow's `showRest` reveals instead.
  * - `showRest` snaps the dice to a rest showing the engine's dice: the rest a finished plan left
- *   when it already shows them, fresh synthesised poses otherwise (restores, instant reveals).
+ *   when it already shows them, fresh synthesised poses otherwise (restores, instant reveals). It
+ *   is the one way every view reveals a roll — the App routes the 2D and instant views' reveals
+ *   here too — so the dome always holds the last roll, whichever mode rolled it, and switching to
+ *   3D shows it (M10 audit CRITICAL-1).
+ * - Before the session's first roll, and after `reset` (a new game), the dome is idle: the dice
+ *   are not drawn (`DomeFrame.visible`), so no stale or made-up result can be read; the first
+ *   throw brings them in as it pops.
+ * - The camera (camera.ts) shows the throw wide and the result up close: the frame carries its
+ *   pose — the throw shot while idle, the read framing of the rest at rest (for the canvas size
+ *   the renderer passes), and during a throw the eased moves between them (playback.ts).
  * - The 2D controller is the fallback: `view().mode` reads `'2d'` until a renderer is attached,
  *   so while the dome chunk loads, after WebGL fails or while its context is lost, the 2D tumble
  *   plays, and `showRest` keeps both views in step so either can be shown.
@@ -50,13 +62,16 @@ import { force3d, probeWebGL, webglOptions } from './webgl.ts'
  *
  * Rests chain roll to roll: the plan's `rest` is the next throw's start, and the prefetch asks the
  * worker for exactly that pair (seed, rest). `data-dice` comes from `faces`: the faces the plan or
- * rest shows, overwritten by what the renderer reads off the meshes once they are drawn.
+ * rest shows, overwritten by what the renderer reads off the meshes once they are drawn, listed
+ * in the engine's order (`d1Body` says which body shows d1).
  */
 
 export interface DomeSnapshot {
   readonly state: 'idle' | 'playing' | 'settled'
-  /** What the dice show now, in body order; null before the first rest. */
+  /** What the dice show now, in body order; null while idle. */
   readonly faces: readonly [DieFace, DieFace] | null
+  /** The body showing the engine's d1 (the other shows d2): the plan may swap them. */
+  readonly d1Body: 0 | 1
   /** How the last rest was reached: a worker plan, the hop fallback, or a snap to rest. */
   readonly shown: ThrowShown | null
   /** How many dice (0–2) blend their face change over a handoff window in the last plan. */
@@ -70,14 +85,34 @@ export interface DomeSnapshot {
 }
 
 export interface DomeFrame {
+  /** The scene this frame draws (`DiceDomeController.version` when it was sampled). */
+  readonly version: number
   readonly poses: readonly [VisualPose, VisualPose]
-  /** True while a throw plays: the renderer must ask for another frame. */
+  /** False while idle (no roll yet): the dice are not drawn. */
+  readonly visible: boolean
+  /** Where the camera is, for the canvas size the renderer passed. */
+  readonly camera: CameraPose
+  /** True while a throw plays or the camera moves: the renderer must ask for another frame. */
   readonly playing: boolean
+}
+
+/**
+ * What the renderer shows the e2e readout (ui/services/testHooks.ts): the drawn die meshes in
+ * body order, three's camera and the canvas, as opaque objects, and whether the last frame drawn
+ * was at rest.
+ */
+export interface DomeInspection {
+  readonly dice: readonly [unknown, unknown]
+  readonly camera: unknown
+  readonly canvas: unknown
+  readonly still: boolean
 }
 
 export interface DomeRenderer {
   /** Asks the renderer for a frame (R3F's `invalidate` under `frameloop="demand"`). */
   invalidate(): void
+  /** The drawn scene, for the e2e readout; renderers that cannot show it leave it out. */
+  inspect?(): DomeInspection | null
 }
 
 export interface DiceDomeController {
@@ -89,15 +124,24 @@ export interface DiceDomeController {
   readonly client: PhysicsClient
   /** The dice at rest now: the next throw starts from these poses. */
   readonly rest: RestState
+  /**
+   * Counts the changes to what the dome shows — a snap, a throw starting or ending, a reset — so
+   * a renderer can tell whether its last frame drew the current scene.
+   */
+  readonly version: number
   /** The `DiceView` the roll flow drives; `mode` reads `'3d'` only while a renderer is live. */
   view(speed?: PlaybackSpeed): DiceView
-  /** The frame loop's read: the poses to draw at `nowMs`, advancing the playback clock. */
-  sample(nowMs: number): DomeFrame
+  /** The frame loop's read: what to draw at `nowMs` on a canvas of `size`, advancing the clock. */
+  sample(nowMs: number, size?: CanvasSize): DomeFrame
+  /** Back to idle for a new game: no dice drawn, no faces, the camera wide. */
+  reset(): void
   /** Registers the renderer; returns the detach. */
   attach(renderer: DomeRenderer): () => void
-  /** What the renderer read off the drawn meshes: the truth `data-dice` shows. */
+  /** The live renderer's scene for the e2e readout; null without one. */
+  inspect(): DomeInspection | null
+  /** What the renderer read off the drawn meshes, in body order: the truth `data-dice` shows. */
   reportFaces(faces: readonly [DieFace, DieFace]): void
-  /** Pre-simulates the next throw for `seed` from the current rest; null clears nothing. */
+  /** Pre-simulates the next throw for `seed` from the current rest; null asks for nothing. */
   prefetch(seed: number | null): void
   /** Decides WebGL availability once (the result is cached). */
   probe(): 'ok' | 'unavailable'
@@ -122,7 +166,7 @@ export interface DiceDomeOptions {
     Document,
     'addEventListener' | 'removeEventListener' | 'visibilityState'
   > | null
-  /** The quality tier's storage, device class and monitor switch (quality.ts). */
+  /** The quality tier's storage, device class, monitor switch and pin (quality.ts). */
   readonly quality?: QualityOptions
 }
 
@@ -131,7 +175,10 @@ export const TAKE_TIMEOUT_MS = 150
 export const WATCHDOG_SLACK_MS = 2000
 export const WATCHDOG_FACTOR = 2.5
 
-/** What the dice rest on before the first roll: an arbitrary, fixed pair. */
+/** The canvas the camera is framed for when the renderer passes no size (tests). */
+export const NOMINAL_CANVAS: CanvasSize = { width: 388, height: 242.5 }
+
+/** Where the hidden dice lie before the first roll: an arbitrary, fixed pair, never drawn. */
 const IDLE_DICE: Dice = { d1: 3, d2: 4 }
 
 interface Playback {
@@ -139,6 +186,10 @@ interface Playback {
   readonly shown: Exclude<ThrowShown, 'rest'>
   readonly handoff: number
   readonly clock: PlaybackClock
+  /** The dice were hidden when the throw began: they appear as it pops, after the lead-in. */
+  readonly fromHidden: boolean
+  /** Where the camera was when the throw began; fixed at the first frame (it needs the size). */
+  from: CameraPose | null
   finish(reason: string): void
 }
 
@@ -158,6 +209,7 @@ export function createDiceDome(options: DiceDomeOptions): DiceDomeController {
   const store = createStore<DomeSnapshot>()(() => ({
     state: 'idle',
     faces: null,
+    d1Body: 0,
     shown: null,
     handoff: 0,
     ready: false,
@@ -166,10 +218,32 @@ export function createDiceDome(options: DiceDomeOptions): DiceDomeController {
   }))
 
   let rest: RestState = restShowing(IDLE_DICE)
+  /** No roll yet (or a new game): the dice are not drawn and the camera stays wide. */
+  let hidden = true
+  let version = 0
   let renderer: DomeRenderer | null = null
   let playback: Playback | null = null
   let nextSeed: number | null = null
   let probed: 'ok' | 'unavailable' | null = null
+  /** The read framing of one rest at one canvas size, kept while both stay the same. */
+  let framed: { rest: RestState; width: number; height: number; pose: CameraPose } | null = null
+
+  const readPose = (of: RestState, size: CanvasSize): CameraPose => {
+    if (
+      framed !== null &&
+      framed.rest === of &&
+      framed.width === size.width &&
+      framed.height === size.height
+    ) {
+      return framed.pose
+    }
+    const pose = readFraming([of[0].pose, of[1].pose], size)
+    framed = { rest: of, width: size.width, height: size.height, pose }
+    return pose
+  }
+  /** The camera while nothing plays: wide while idle, the read framing of the rest otherwise. */
+  const restingCamera = (size: CanvasSize): CameraPose =>
+    hidden ? THROW_SHOT : readPose(rest, size)
 
   const updateReady = (): void => {
     const ready = nextSeed !== null && client.has(nextSeed, rest)
@@ -185,10 +259,17 @@ export function createDiceDome(options: DiceDomeOptions): DiceDomeController {
     updateReady()
   }
 
+  /** Which body shows `dice.d1` when `at` shows the pair (body 0 for a double). */
+  const d1BodyOf = (at: RestState, dice: Dice): 0 | 1 => {
+    const [first] = facesOf(at)
+    return first === dice.d1 ? 0 : 1
+  }
+
   /**
    * The dice at rest showing `dice`: the rest we have if it already does (a finished plan keeps
    * its `shown` and `handoff`), fresh synthesised poses otherwise — and then the next throw is
-   * asked for again, because one simulated from the old rest can no longer be played.
+   * asked for again, because one simulated from the old rest can no longer be played. The camera
+   * goes straight to the read framing: a snap is never animated.
    */
   const snapTo = (dice: Dice): void => {
     playback?.finish('snap')
@@ -200,7 +281,15 @@ export function createDiceDome(options: DiceDomeOptions): DiceDomeController {
       shown = 'rest'
       handoff = 0
     }
-    store.setState({ state: 'settled', faces: facesOf(rest), shown, handoff })
+    hidden = false
+    version++
+    store.setState({
+      state: 'settled',
+      faces: facesOf(rest),
+      d1Body: d1BodyOf(rest, dice),
+      shown,
+      handoff,
+    })
     refetch()
     renderer?.invalidate()
   }
@@ -228,6 +317,8 @@ export function createDiceDome(options: DiceDomeOptions): DiceDomeController {
         shown,
         handoff,
         clock: createClock(rate),
+        fromHidden: hidden,
+        from: null,
         finish: (reason) => {
           void reason
           if (playback !== current) return
@@ -236,13 +327,22 @@ export function createDiceDome(options: DiceDomeOptions): DiceDomeController {
           signal.removeEventListener('abort', onAbort)
           documentLike?.removeEventListener('visibilitychange', onVisibility)
           rest = plan.rest
-          store.setState({ state: 'settled', faces: facesOf(rest), shown, handoff })
+          hidden = false
+          version++
+          store.setState({
+            state: 'settled',
+            faces: facesOf(rest),
+            d1Body: plan.swapped ? 1 : 0,
+            shown,
+            handoff,
+          })
           updateReady()
           renderer?.invalidate()
           resolve()
         },
       }
       playback = current
+      version++
       monitor.reset()
       signal.addEventListener('abort', onAbort)
       documentLike?.addEventListener('visibilitychange', onVisibility)
@@ -277,6 +377,9 @@ export function createDiceDome(options: DiceDomeOptions): DiceDomeController {
     get rest() {
       return rest
     },
+    get version() {
+      return version
+    },
     view: (speed = 'normal') => ({
       get mode() {
         return renderer === null ? ('2d' as const) : ('3d' as const)
@@ -290,16 +393,39 @@ export function createDiceDome(options: DiceDomeOptions): DiceDomeController {
         snapTo(dice)
       },
     }),
-    sample: (nowMs) => {
+    sample: (nowMs, size = NOMINAL_CANVAS) => {
       const current = playback
       if (current !== null) {
         // The monitor sees only frames drawn while a throw plays, and only when it is on.
         if (monitored && monitor.frame(nowMs)) quality.getState().drop()
-        const sample = sampleAt(current.plan, current.clock.advance(nowMs))
-        if (!sample.done) return { poses: sample.poses, playing: true }
+        const time = current.clock.advance(nowMs)
+        const sample = sampleAt(current.plan, time)
+        if (!sample.done) {
+          current.from ??= restingCamera(size)
+          return {
+            version,
+            poses: sample.poses,
+            visible: !(current.fromHidden && time < LEAD_IN_MS),
+            camera: cameraAt(current.plan, time, current.from, readPose(current.plan.rest, size)),
+            playing: true,
+          }
+        }
         current.finish('done')
       }
-      return { poses: restPoses(rest), playing: false }
+      return {
+        version,
+        poses: restPoses(rest),
+        visible: !hidden,
+        camera: restingCamera(size),
+        playing: false,
+      }
+    },
+    reset: () => {
+      playback?.finish('reset')
+      hidden = true
+      version++
+      store.setState({ state: 'idle', faces: null, d1Body: 0, shown: null, handoff: 0 })
+      renderer?.invalidate()
     },
     attach: (next) => {
       renderer = next
@@ -312,6 +438,7 @@ export function createDiceDome(options: DiceDomeOptions): DiceDomeController {
         playback?.finish('detached')
       }
     },
+    inspect: () => renderer?.inspect?.() ?? null,
     reportFaces: (faces) => {
       const { state, faces: known } = store.getState()
       if (state !== 'settled') return

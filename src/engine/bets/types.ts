@@ -250,6 +250,9 @@ export interface VigChange {
  *   charges none.
  * - `blocksRebet`: whether changing `bet` to `to` stops its type being bet again until the next
  *   come-out (`rebetAfterRemove: nextCycle`).
+ * - `initialProgress`: the `progress` a new bet of the type starts with on `state` (0 when the
+ *   family has no such hook). Only the Hot Shooter Jackpot sets it: its count is the hand's, so a
+ *   bet placed on a later come-out carries the hand's earlier rolls (rules spec §2.6).
  * - `invariants`: the family's own checks on a bet in a table state, as messages (none when it is
  *   sound); `table/invariants.ts` adds them to the generic ones.
  */
@@ -274,6 +277,7 @@ export interface BetFamily<T extends BetType> {
     round: RoundFn,
   ): WinCommission
   blocksRebet?(bet: BetInstance, to: Cents, type: T): boolean
+  initialProgress?(state: TableState, type: T): number
   invariants?(bet: BetInstance, state: TableState, type: T, cfg: MachineConfig): string[]
 }
 

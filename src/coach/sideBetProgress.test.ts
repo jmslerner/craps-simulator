@@ -8,9 +8,11 @@ import { Fraction } from '../engine/core/rational.ts'
 import type { Action } from '../engine/table/actions.ts'
 import { applyAction } from '../engine/table/reducer.ts'
 import { newTable, type TableState } from '../engine/table/state.ts'
-import { analyzeExisting, distribution, startOfBet } from '../exact/index.ts'
+import type { MachineConfigInput } from '../engine/config/schema.ts'
+import { analyzeExisting, distribution, payDrops, startOfBet } from '../exact/index.ts'
 import { formatPart } from './format.ts'
 import { sideBetProgress, type SideBetProgress } from './sideBetProgress.ts'
+import { settlesNow } from './sideBetStanding.ts'
 import type { CoachLine } from './types.ts'
 
 /** Plays `actions` from a new table, failing on any refusal. */
@@ -65,6 +67,23 @@ const exact = (n: { exact: Fraction | number }) =>
   typeof n.exact === 'number' ? Fraction.of(n.exact) : n.exact
 
 const crapless = compileConfig(PRESETS.craplessBubble)
+
+/** A roll of `total`, the easy way where there is one. */
+const rollOf = (total: number): Action => {
+  const d1 = Math.max(1, total - 6)
+  return { type: 'roll', dice: { d1, d2: total - d1 } } as Action
+}
+
+/** A preset copy with its side bets edited, provenance left to cover what it still names. */
+function edited(
+  id: keyof typeof PRESETS,
+  edit: (input: MachineConfigInput) => void,
+): MachineConfig {
+  const input = structuredClone(PRESETS[id]) as MachineConfigInput
+  input.id = `${id}-edited`
+  edit(input)
+  return compileConfig(input)
+}
 
 describe('sideBetProgress', () => {
   it('Lucky Roller with four of five targets: the set is the next tier, 5/11 from here', () => {
@@ -233,6 +252,149 @@ describe('sideBetProgress', () => {
     expect(lineOf(progress, 'side-stage')).toBe(
       'Points made this hand: 4, 5, 9 — 3 of the 6 that count. It is paid at the seven-out.',
     )
+  })
+
+  it('settles now from the current progress, even where more progress pays less (M11 audit)', () => {
+    // The audit's repro (audit-m11/fire-nonmono.ts): a crapless Fire Bet counting all ten points
+    // with table A as written (4, 5 and 6 points pay; seven or more pay nothing, rules spec §6.6's
+    // 17.1059% reading). Six points made and the 2 on: a seven-out now pays 999 to 1.
+    const cfg = edited('craplessBubble', (input) => {
+      input.sideBets.fire = {
+        family: 'uniquePointsMade',
+        label: 'Fire Bet',
+        countedPoints: [2, 3, 4, 5, 6, 8, 9, 10, 11, 12],
+        payTable: { '4': '24 to 1', '5': '249 to 1', '6': '999 to 1' },
+        payImmediatelyAt: null,
+        placement: 'newHand',
+      }
+    })
+    const state = play(cfg, [
+      { type: 'place', typeId: 'pass', amount: cents(500) },
+      { type: 'place', typeId: 'fire', amount: cents(100) },
+      ...[4, 4, 5, 5, 6, 6, 8, 8, 9, 9, 10, 10, 2].map(rollOf),
+    ])
+    const fire = state.bets.find((bet) => bet.typeId === 'fire')
+    if (fire === undefined) throw new Error('no Fire Bet')
+    const progress = sideBetProgress(fire.id, state, cfg)
+    if (progress === null) throw new Error('no progress')
+    expect(progress.assured.outcome).toMatchObject({ kind: 'win', key: '6', cash: 100_000 })
+    expect(lineOf(progress, 'side-now')).toBe('Settled now it pays 999 to 1: $1,000.00 back.')
+    // Nothing pays more: a seventh point only loses it.
+    expect(progress.nextTier).toBeNull()
+    expect(lineOf(progress, 'side-next')).toBe('Nothing left to reach: this is the top pay.')
+    // The lowest way down is still a loss, with what it takes: a new point made before the 7.
+    expect(progress.outcomes.map((o) => o.key)).toEqual(['-', '6'])
+    expect(exact(progress.assured.chance).equals(progress.outcomes[1]!.chance)).toBe(true)
+    // The machine editor is warned about the table (`sanityCheck` carries the same warning).
+    expect(
+      payDrops({ typeId: 'fire', number: null }, cfg.sideBets.get('fire')!, []).map(
+        (issue) => issue.code,
+      ),
+    ).toEqual(['payDrops'])
+  }, 60_000)
+
+  it("counts a later come-out Hot Shooter's hand from the hand's first roll (rules spec §2.6)", () => {
+    // The audit's repro (audit-m11/hsj-anycomeout.ts): placed after a made 4, then a 6 and five 5s.
+    const stw = edited('traditionalBubble', (input) => {
+      const hot = input.sideBets.hotShooter
+      if (hot?.family !== 'handLength') throw new Error('no Hot Shooter')
+      hot.placement = 'anyComeOut'
+    })
+    const state = play(stw, [
+      { type: 'place', typeId: 'pass', amount: cents(500) },
+      ...[4, 4].map(rollOf),
+      { type: 'place', typeId: 'hotShooter', amount: cents(100) },
+      ...[6, 5, 5, 5, 5, 5].map(rollOf),
+    ])
+    const hot = state.bets.find((bet) => bet.typeId === 'hotShooter')
+    if (hot === undefined) throw new Error('no Hot Shooter')
+    const progress = sideBetProgress(hot.id, state, stw)
+    if (progress === null) throw new Error('no progress')
+    expect(lineOf(progress, 'side-stage')).toBe(
+      'Rolls counted this hand: 8. The seven-out settles it at the highest tier the count reaches.',
+    )
+    // A seven-out now ends a 9-roll hand: 8 to 15 rolls return the stake.
+    expect(lineOf(progress, 'side-now')).toBe('Settled now it returns the stake: $1.00.')
+  })
+
+  it('reads a Hot Shooter tier where its earliest seven-out lands (M11 audit MINOR-1)', () => {
+    const stw = compileConfig(PRESETS.traditionalBubble)
+    const at = (progress: number, phase: TableState['round']['phase']) => {
+      const state = tableWith(stw, 'hotShooter', progress, phase)
+      const progressed = sideBetProgress(
+        betId(1),
+        {
+          ...state,
+          round: { ...state.round, hand: { ...state.round.hand, rolls: Math.max(progress, 1) } },
+        },
+        stw,
+      )
+      if (progressed === null) throw new Error('no progress')
+      return progressed
+    }
+    // 7 rolls with point 4 on: the next roll may be the seven-out, the hand's 8th: the stake back.
+    const seven = at(7, { kind: 'point', point: 4 })
+    expect(lineOf(seven, 'side-now')).toBe('Settled now it returns the stake: $1.00.')
+    expect(seven.nextTier?.label).toBe('3 for 1')
+    expect(lineOf(seven, 'side-next')).toMatch(/^Next step: 3 for 1 \(\$3\.00 back\) — 28\.1% /)
+    // 49 rolls with point 10 on: the next seven-out is the 50th roll, the top tier.
+    const top = at(49, { kind: 'point', point: 10 })
+    expect(lineOf(top, 'side-now')).toBe('Settled now it pays 100 for 1: $100.00 back.')
+    expect(lineOf(top, 'side-next')).toBe('Nothing left to reach: this is the top pay.')
+    // 43 rolls on a come-out: two more rolls at least, so 45, 30 for 1, not the 40-roll tier.
+    const comeOut = at(43, { kind: 'comeOut' })
+    expect(lineOf(comeOut, 'side-now')).toBe('Settled now it pays 30 for 1: $30.00 back.')
+    expect(comeOut.nextTier?.label).toBe('100 for 1')
+    expect(settlesNow(stw.sideBets.get('hotShooter')!, 43, { kind: 'comeOut' }).row).toBe('45')
+  })
+
+  it('words each bet from its config: a seven-out-only Lucky Roller, a Fire Bet paid at once', () => {
+    const sevenOut = edited('craplessBubble', (input) => {
+      const low = input.sideBets.luckyRollerLow
+      if (low?.family !== 'collectSet') throw new Error('no Low Rolls')
+      low.endsOn = 'sevenOut'
+    })
+    const fresh = sideBetProgress(
+      betId(1),
+      tableWith(sevenOut, 'luckyRollerLow', 0, { kind: 'comeOut' }),
+      sevenOut,
+    )
+    expect(lineOf(fresh!, 'side-stage')).toBe(
+      'Nothing collected yet: it needs 2, 3, 4, 5, 6 before a seven-out.',
+    )
+    const payAtSix = edited('traditionalLive345', (input) => {
+      const fire = input.sideBets.fire
+      if (fire?.family !== 'uniquePointsMade') throw new Error('no Fire Bet')
+      fire.payImmediatelyAt = 6
+    })
+    const made = (1 << 4) | (1 << 5)
+    const fire = sideBetProgress(
+      betId(1),
+      tableWith(payAtSix, 'fire', made, { kind: 'point', point: 6 }, made),
+      payAtSix,
+    )
+    expect(lineOf(fire!, 'side-stage')).toBe(
+      'Points made this hand: 4, 5 — 2 of the 6 that count. It is paid at the seven-out, or at once on reaching 6 points.',
+    )
+    expect(
+      fire?.lines[0]?.parts.some(
+        (part) =>
+          typeof part !== 'string' &&
+          'source' in part &&
+          part.source.args !== null &&
+          (part.source.args as { field?: string }).field === 'payAt',
+      ),
+    ).toBe(true)
+  })
+
+  it('says "1 hit", not "1 hits" (M11 audit MINOR)', () => {
+    const strict = compileConfig(PRESETS.strictBubble)
+    const state = tableWith(strict, 'luckyShooter', pointRunProgress(4, 1 << 10), {
+      kind: 'point',
+      point: 4,
+    })
+    const progress = sideBetProgress(betId(1), state, strict)
+    expect(lineOf(progress!, 'side-stage')).toBe('Point 4 with 1 hit so far: 10.')
   })
 
   it('is null for a bet that is not a side bet, or not on the table', () => {

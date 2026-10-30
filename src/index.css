@@ -1,13 +1,30 @@
-/* Bubble Craps Trainer — the machine screen (plan §6), in the design language of the hand-built
-   demo the player prefers: a cabinet-black screen, the dice dome above a brass-trimmed felt, the
-   coach and the roll history beside it, and a brass chip tray docked at the bottom.
+/* Bubble Craps Trainer — the machine screen (plan §6), drawn as the player's own Interblock
+   crapless station (plan §0 #28; the photo in docs/rules/research/interblock-station-photo-2026-10-30.md):
+   one bright green felt that fills the screen, thin light-green zone outlines, white bold labels,
+   darker green number boxes and bands, the HARDWAYS / HOP BETS tabs down the left with
+   dice-picture hop buttons in the station's columns, the Lucky Roller box sitting on the number
+   row, the C, C&E and E circles, the COME (red), FIELD and PASS LINE (cyan italic) bands, the
+   history strip and the chip rail with its chrome pills. The dice dome is a compact panel at the
+   felt's top right, beside the Lucky Roller, standing in for the bubble above the real screen.
+   The trainer's own additions look secondary: the status banner carries its one-liners, the
+   coach's edge tags are small corner tags, and everything else lives in the Coach drawer, docked
+   from 1400 px and collapsed below.
 
-   Type: Limelight for the brand and panel titles, Big Shoulders Display for layout numerals and
-   labels, Barlow for body text — all self-hosted under /fonts (OFL), with real fallback stacks.
-   Grid: dome / rolls / coach on the left, the felt in the centre and "Next roll" on the right from
-   1300 px; two columns from 1000 px; stacked on phones (375 px: no horizontal scroll, 44 px zones,
-   the props / hardways / side bets behind tabs in a bottom sheet under 600 px). Motion honours
-   prefers-reduced-motion; the player's own setting is handled by the roll flow. */
+   Contrast (WCAG AA, M14): no small text sits on the bright felt itself. Zones with small text
+   are filled --felt-zone (white 4.8:1), the number boxes, bands and circles --felt-box (white
+   9.7:1; the COME red 3.2:1 and the PASS LINE cyan 4.8:1 at large sizes, on a solid fill), and
+   headings and the round chip sit on dark strips. The bright gradient shows only between zones,
+   under the Lucky Roller's number circles (dark numerals on white or gold) and the strip's arrow.
+
+   Type: Barlow (self-hosted, OFL) for the machine's labels and numerals — a bold grotesque like
+   the station's — and the body text; Limelight for the brand and the drawer's panel titles; Big
+   Shoulders Display for small stencil labels. No runtime font fetches.
+
+   Layout: the felt is a container (`felt`), so its grid follows its own width whether or not the
+   drawer is docked beside it: the station's four-column layout from 860 px, two columns from
+   620 px, stacked below (phones: the 2×5 number grid, the prop tabs and side bets as bottom sheets,
+   no horizontal scroll, 44 px touch targets). Motion honours prefers-reduced-motion; the player's
+   own setting is handled by the roll flow. */
 
 @font-face {
   font-family: 'Limelight';
@@ -59,28 +76,63 @@
 
 :root {
   color-scheme: dark;
-  --cabinet: #0b1517;
-  --panel: #132322;
-  --panel-2: #1a2d2b;
-  --felt: #0e5a40;
-  --felt-deep: #093b2a;
-  --chalk: #f2ead2;
-  --chalk-dim: #b5c4ba;
-  --line: rgba(242, 234, 210, 0.36);
-  --line-soft: rgba(242, 234, 210, 0.16);
-  --brass: #d8b25c;
-  --brass-deep: #8d6d2a;
-  --ink-on-brass: #1d1606;
+  /* The cabinet and the trainer's own panels (drawer, dialogs): graphite, secondary to the felt. */
+  --cabinet: #060b08;
+  --bezel: #0e1612;
+  --panel: #151d19;
+  --panel-2: #1f2a24;
+  --chalk: #f4f7f2;
+  --chalk-dim: #b8c6bc;
+  --line: rgba(226, 240, 228, 0.34);
+  --line-soft: rgba(226, 240, 228, 0.14);
+  /* The felt: the photo's saturated yellow-green (its buy tabs and band interiors sample about
+     #2bb716 to #339e15), lit at the top left. Text never sits on these three. */
+  --felt-glow: #5acb3c;
+  --felt: #36a826;
+  --felt-deep: #25891c;
+  /* Filled zones: white small text at 4.8:1 on --felt-zone, 9.9:1 on --felt-box (the photo's
+     number boxes sample about #1d690e to #275621; darker here so the COME red and the PASS LINE
+     cyan keep 3:1 and more as large text). */
+  --felt-zone: #2a8420;
+  --felt-box: #144f10;
+  --felt-strip: #0c3a0b;
+  --felt-rim: rgba(196, 255, 170, 0.7);
+  --felt-rim-soft: rgba(196, 255, 170, 0.38);
+  --felt-ink: #ffffff;
+  /* The station's own colours. */
+  --come-red: #ff5c5c;
+  --pass-cyan: #2ec4f2;
+  --gold: #f5c518;
+  --gold-deep: #a9820f;
+  --ink-on-gold: #1d1606;
+  --chrome-hi: #f6f7f5;
+  --chrome-lo: #c3c9c4;
+  --chrome-ink: #1a1f1c;
+  --win-blue: #1f63c4;
+  --lose-red: #c62a33;
+  --banner: #121513;
+  /* The demo's names for the accent, kept so the drawer, dialogs and editor follow the machine. */
+  --brass: var(--gold);
+  --brass-deep: var(--gold-deep);
+  --ink-on-brass: var(--ink-on-gold);
+  --focus: #ffd84d;
+  /* Grades (the coach's tags and the cheat sheet), on dark grounds only. */
   --good: #72d6a0;
   --fair: #ead06a;
   --poor: #f39a62;
-  --awful: #ff6f7b;
+  --awful: #ff7b85;
   --seven: #e2384c;
   --seven-chip: #c8303f;
+  /* Chips: the station's rack ($1 white, $2 blue, $3 yellow, $5 red, $10 orange, $25 green, $50
+     blue, $100 black), then the high-limit chips. Each ink reaches 4.5:1 on its chip. */
   --chip-1: #f1ede2;
-  --chip-5: #c4303d;
-  --chip-25: #1f8a4f;
-  --chip-100: #202020;
+  --chip-2: #1f5fc0;
+  --chip-3: #f3c623;
+  --chip-5: #c8303f;
+  --chip-10: #f07f1c;
+  --chip-25: #1b7f48;
+  --chip-50: #1c3a9c;
+  --chip-100: #1c1c1c;
   --chip-500: #7b3fa8;
   --chip-1000: #e0a71c;
   --chip-ink-dark: #161616;
@@ -88,6 +140,7 @@
   --shadow: rgba(0, 0, 0, 0.45);
   --font-display: 'Limelight', Georgia, 'Times New Roman', serif;
   --font-layout: 'Big Shoulders Display', 'Arial Narrow', 'Roboto Condensed', sans-serif;
+  --font-machine: 'Barlow', 'Arial', 'Helvetica Neue', system-ui, sans-serif;
   --font-body: 'Barlow', 'Segoe UI', system-ui, -apple-system, sans-serif;
   font-family: var(--font-body);
   font-size: 15px;
@@ -100,8 +153,13 @@
   box-sizing: border-box;
 }
 
+/* Author display rules must not undo the `hidden` attribute (the collapsed drawer). */
+[hidden] {
+  display: none !important;
+}
+
 html {
-  /* Room for the docked chip tray when a zone scrolls into view (the guide's highlight). */
+  /* Room for the docked chip rail when a zone scrolls into view (the guide's highlight). */
   scroll-padding-bottom: 130px;
 }
 
@@ -132,18 +190,26 @@ button:disabled {
   cursor: default;
 }
 
+.chrome-pill:disabled,
+.add-credit:disabled {
+  opacity: 0.62;
+}
+
 button[aria-pressed='true']:not(.chip) {
   background: var(--brass);
   color: var(--ink-on-brass);
   border-color: var(--brass);
 }
 
+/* A gold ring with a dark halo, so it reads on the bright felt and on the dark cabinet alike. */
 button:focus-visible,
 [tabindex]:focus-visible,
 input:focus-visible,
+select:focus-visible,
 summary:focus-visible {
-  outline: 3px solid var(--brass);
+  outline: 3px solid var(--focus);
   outline-offset: 2px;
+  box-shadow: 0 0 0 6px rgba(0, 0, 0, 0.55);
 }
 
 h1,
@@ -172,7 +238,7 @@ h3 {
   color: var(--awful);
 }
 
-/* Section labels: condensed, letter-spaced, dim — the felt's stencil lettering. */
+/* Section labels: condensed, letter-spaced, dim — the drawer's stencil lettering. */
 .section-label,
 .panel-title,
 .meter-title,
@@ -187,62 +253,79 @@ h3 {
   color: var(--chalk-dim);
 }
 
-/* Panel titles: the brand face. */
+/* Panel titles in the drawer and the dialogs: the brand face, in the machine's gold. */
 .history-title,
 .next-roll-title,
 .coach-title,
 .dialog-title {
   font-family: var(--font-display);
   font-weight: 400;
-  font-size: 24px;
-  color: var(--brass);
+  font-size: 22px;
+  color: var(--gold);
   line-height: 1.15;
 }
 
 /* ---- shell ---------------------------------------------------------------------------- */
 
 .app {
-  max-width: 1480px;
   min-height: 100dvh;
-  margin: 0 auto;
-  padding: 12px max(16px, env(safe-area-inset-right, 0px)) 0
-    max(16px, env(safe-area-inset-left, 0px));
   display: flex;
   flex-direction: column;
-  gap: 12px;
 }
 
-/* ---- topbar --------------------------------------------------------------------------- */
+/* The felt and, when it is open on a wide screen, the Coach drawer docked beside it. */
+.stage {
+  flex: 1 0 auto;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+  padding: 10px max(16px, env(safe-area-inset-right, 0px)) 12px
+    max(16px, env(safe-area-inset-left, 0px));
+}
+
+@media (min-width: 1000px) {
+  .app[data-drawer='open'] .stage {
+    grid-template-columns: minmax(0, 1fr) minmax(300px, 340px);
+  }
+}
+
+/* ---- the cabinet's top bar ------------------------------------------------------------ */
 
 .topbar {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
-  gap: 8px 16px;
+  gap: 8px 14px;
+  padding: 8px max(16px, env(safe-area-inset-right, 0px)) 8px
+    max(16px, env(safe-area-inset-left, 0px));
+  background: linear-gradient(180deg, #17221c, var(--bezel));
+  border-bottom: 1px solid #000;
+  box-shadow: 0 2px 10px var(--shadow);
 }
 
 .brand {
   display: flex;
   align-items: baseline;
-  gap: 10px;
+  gap: 4px 10px;
   flex-wrap: wrap;
   min-width: 0;
+  margin-right: auto;
 }
 
 .brand-name {
   font-family: var(--font-display);
   font-weight: 400;
-  font-size: 26px;
+  font-size: 22px;
   line-height: 1.1;
-  color: var(--brass);
+  color: var(--gold);
   letter-spacing: 0.02em;
 }
 
 .brand-tag {
   font-family: var(--font-layout);
   font-weight: 700;
-  font-size: 14px;
+  font-size: 13px;
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--chalk-dim);
@@ -260,44 +343,79 @@ h3 {
   content: '· ';
 }
 
-.topbar-right {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
+/* Below 1500 px the brand stacks: the name over the machine, to keep the bar on one line. */
+@media (max-width: 1499px) {
+  .brand {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0;
+  }
+  .machine-name {
+    font-size: 11px;
+  }
+  .machine-name::before {
+    content: none;
+  }
 }
 
-.meters {
+/* The station's meters: a small caps name over a bold amount, in recessed boxes. */
+.meters,
+.session-meters-list {
   display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
+  gap: 4px;
+  margin: 0;
 }
 
-.meter {
+.meter,
+.session-meter {
   margin: 0;
   display: flex;
   flex-direction: column;
-  min-width: 96px;
-  padding: 4px 10px;
-  background: var(--panel);
-  border: 1px solid var(--line-soft);
-  border-radius: 10px;
+  min-width: 92px;
+  padding: 3px 10px 4px;
+  background: #050806;
+  border: 1px solid #2b3630;
+  border-radius: 6px;
+  box-shadow: inset 0 1px 4px rgba(0, 0, 0, 0.8);
 }
 
-.meter-name {
-  font-family: var(--font-layout);
+.meter-name,
+.session-meter dt {
+  font-family: var(--font-machine);
   font-weight: 700;
-  font-size: 11px;
-  letter-spacing: 0.14em;
+  font-size: 10.5px;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--chalk-dim);
 }
 
-.meter-amount {
+.meter-amount,
+.session-meter dd {
+  margin: 0;
+  font-family: var(--font-machine);
   font-weight: 700;
-  font-size: 18px;
+  font-size: 17px;
   line-height: 1.2;
+  color: var(--chalk);
   font-variant-numeric: tabular-nums;
+}
+
+.session-meters {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-left: 10px;
+  border-left: 1px solid var(--line-soft);
+}
+
+.session-meter dd.amount-up,
+.session-money-value.amount-up {
+  color: var(--good);
+}
+
+.session-meter dd.amount-down,
+.session-money-value.amount-down {
+  color: var(--awful);
 }
 
 .bank {
@@ -310,49 +428,235 @@ h3 {
   min-height: 38px;
 }
 
-.add-credit {
-  background: var(--brass);
-  color: var(--ink-on-brass);
-  border-color: var(--brass);
+/* The station's chrome: light metal pills with dark ink. */
+.add-credit,
+.new-game,
+.coach-toggle,
+.chrome-pill {
+  border: 1px solid #8e9690;
+  background: linear-gradient(180deg, var(--chrome-hi), var(--chrome-lo));
+  color: var(--chrome-ink);
   font-weight: 700;
+  box-shadow:
+    inset 0 1px 0 #fff,
+    0 2px 4px var(--shadow);
 }
 
-/* ---- notes and strips ----------------------------------------------------------------- */
+.add-credit {
+  background: linear-gradient(180deg, #ffe27a, var(--gold));
+  border-color: var(--gold-deep);
+  color: var(--ink-on-gold);
+}
 
-/* The reason strip is always in the tree (aria-live), so an empty one folds away. */
+.coach-toggle {
+  position: relative;
+  padding-right: 30px;
+}
+
+.coach-toggle::after {
+  content: '';
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  width: 7px;
+  height: 7px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: translateY(-70%) rotate(45deg);
+}
+
+.coach-toggle[aria-expanded='true'] {
+  background: linear-gradient(180deg, #d9f7d0, #9fdc92);
+  border-color: #3f8f3b;
+}
+
+.coach-toggle[aria-expanded='true']::after {
+  transform: translateY(-20%) rotate(-135deg);
+}
+
+@media (max-width: 1180px) {
+  .session-meters {
+    order: 5;
+    width: 100%;
+    padding-left: 0;
+    border-left: 0;
+  }
+}
+
+@media (max-width: 760px) {
+  .topbar {
+    gap: 6px 8px;
+    padding-block: 6px;
+  }
+  .brand-name {
+    font-size: 18px;
+  }
+  .bank {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .bank button {
+    padding-inline: 8px;
+    font-size: 13px;
+  }
+  .bank .coach-toggle {
+    padding-right: 26px;
+  }
+  .coach-toggle::after {
+    right: 10px;
+  }
+  .meters,
+  .session-meters {
+    order: 5;
+    width: 100%;
+  }
+  .meters,
+  .session-meters-list {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    width: 100%;
+  }
+  .session-meters {
+    order: 6;
+  }
+  .meter,
+  .session-meter {
+    min-width: 0;
+    padding: 2px 8px 3px;
+  }
+  .meter-name,
+  .session-meter dt {
+    font-size: 9.5px;
+    letter-spacing: 0.08em;
+  }
+  .meter-amount,
+  .session-meter dd {
+    font-size: 14px;
+  }
+  .bank button {
+    min-height: 40px;
+  }
+}
+
+/* ---- the machine's status banner ------------------------------------------------------ */
+
+/* The station's dark pill with its white line and red second line. The guide's step and the
+   round share one line where the pill has the room, as the station's message does; the tips and
+   the red refusal line take full lines of their own. */
+.status-banner {
+  grid-area: banner;
+  align-self: start;
+  justify-self: center;
+  width: min(100%, 600px);
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 6px 18px;
+  padding: 10px 14px;
+  border-radius: 18px;
+  background: var(--banner);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  box-shadow:
+    0 6px 18px rgba(0, 0, 0, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  text-align: center;
+}
+
+.banner-guide {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 6px 10px;
+}
+
+.banner-tag {
+  font-family: var(--font-machine);
+  font-weight: 700;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+
+.banner-step {
+  font-family: var(--font-machine);
+  font-weight: 700;
+  font-size: 18px;
+  line-height: 1.2;
+  color: #fff;
+  text-wrap: balance;
+}
+
+/* The round, as the station prints "PASS LINE POINT" along its number row. */
+.round-chip {
+  margin: 0;
+  font-family: var(--font-machine);
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: #d6ddd8;
+}
+
+/* With the guide hidden, the round is the banner's main line. */
+.status-banner > .round-chip:first-child,
+.tip + .round-chip {
+  font-size: 17px;
+  color: #fff;
+}
+
+/* The machine's refusals, in the banner's red second line ("Bill validator disabled"). */
 .reason-strip {
+  flex: 1 1 100%;
   min-height: 0;
-  padding: 0 4px;
-  color: var(--awful);
-  font-weight: 600;
+  font-weight: 700;
   font-size: 14px;
+  line-height: 1.3;
+  color: #ff8a8f;
 }
 
 .reason-strip:empty {
-  margin-top: -10px;
+  display: none;
 }
 
-/* Tip cards: the session notice and the approximation note; the chip is CSS, so the text is
-   exactly what the component says. */
+.guide-go {
+  min-height: 36px;
+  min-width: 64px;
+  padding: 4px 16px;
+  border: 1px solid #0d4a0b;
+  background: linear-gradient(180deg, #33a226, #155f10);
+  color: #fff;
+  font-weight: 700;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.5);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.45),
+    0 2px 5px var(--shadow);
+}
+
+/* Tip cards: the session notice and the approximation note, inside the banner. */
 .tip {
-  background: var(--panel-2);
-  border: 1px solid var(--line-soft);
-  border-radius: 14px;
-  padding: 12px 14px;
+  flex: 1 1 100%;
   display: flex;
-  flex-direction: column;
-  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 6px 10px;
+  text-align: left;
 }
 
 .tip::before {
   content: attr(data-sev);
-  align-self: flex-start;
-  font-family: var(--font-layout);
-  font-weight: 800;
-  font-size: 12px;
+  font-family: var(--font-machine);
+  font-weight: 700;
+  font-size: 11px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  padding: 2px 8px;
+  padding: 1px 8px;
   border-radius: 99px;
   border: 1px solid currentColor;
   color: var(--chalk-dim);
@@ -368,25 +672,46 @@ h3 {
 
 .tip p {
   margin: 0;
-  max-width: 62ch;
+  flex: 1 1 260px;
+  font-size: 13.5px;
+  color: #fff;
 }
 
 .tip button {
-  align-self: flex-start;
-  min-height: 36px;
-  border: 0;
-  background: var(--brass);
-  color: var(--ink-on-brass);
+  min-height: 34px;
+  padding: 4px 14px;
+  border: 1px solid #8e9690;
+  background: linear-gradient(180deg, var(--chrome-hi), var(--chrome-lo));
+  color: var(--chrome-ink);
   font-weight: 700;
 }
 
-/* ---- the machine grid ----------------------------------------------------------------- */
+/* ---- the felt ------------------------------------------------------------------------- */
 
+/* The screen: one bright felt with a glossy sheen, inside the cabinet's dark bezel. */
 .machine {
+  min-width: 0;
+  container: felt / inline-size;
+  border-radius: 22px;
+  padding: 12px;
+  background:
+    linear-gradient(165deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0) 38%),
+    radial-gradient(130% 120% at 8% 0%, var(--felt-glow), var(--felt) 45%, var(--felt-deep));
+  border: 3px solid #050806;
+  box-shadow:
+    0 0 0 1px #2a332e,
+    inset 0 0 40px rgba(0, 0, 0, 0.28),
+    0 12px 30px var(--shadow);
+}
+
+/* Stacked (phones): the dome, the banner, the numbers, the circles, the bands, the tabs, the
+   strip. The side bets go behind their tab (a bottom sheet). */
+.felt {
   display: grid;
-  gap: 12px;
+  gap: 10px;
   grid-template-columns: minmax(0, 1fr);
-  grid-template-areas: 'dome' 'layout' 'rolls' 'guide' 'coach';
+  grid-template-areas: 'dome' 'banner' 'numbers' 'circles' 'bands' 'props' 'side' 'strip';
+  align-items: start;
 }
 
 .dome-panel {
@@ -394,58 +719,1500 @@ h3 {
   min-width: 0;
 }
 
-.layout {
-  grid-area: layout;
+.felt-side {
+  grid-area: side;
 }
 
-.history {
-  grid-area: rolls;
+.felt-props {
+  grid-area: props;
 }
 
-.next-roll {
-  grid-area: guide;
+.felt-circles {
+  grid-area: circles;
 }
 
-.coach {
-  grid-area: coach;
+.felt-numbers {
+  grid-area: numbers;
 }
 
-@media (min-width: 1000px) {
-  .machine {
-    grid-template-columns: minmax(320px, 390px) minmax(0, 1fr);
-    grid-template-rows: auto 1fr auto;
-    grid-template-areas: 'dome layout' 'rolls layout' 'coach guide';
-    align-items: start;
+.felt-bands {
+  grid-area: bands;
+}
+
+.roll-strip {
+  grid-area: strip;
+}
+
+@media (max-width: 599px) {
+  .felt-side {
+    display: none;
   }
-  .history {
+}
+
+/* Two columns: the dome beside the banner and the side bets; the rest full width. */
+@container felt (min-width: 620px) {
+  .felt {
+    grid-template-columns: minmax(0, 300px) minmax(0, 1fr);
+    grid-template-areas:
+      'dome banner'
+      'dome side'
+      'numbers numbers'
+      'circles bands'
+      'props props'
+      'strip strip';
+  }
+  .felt-circles {
+    align-self: center;
+  }
+  /* Clear of the place tabs' coach tags, which hang below the number row. */
+  .felt > .felt-circles,
+  .felt > .felt-bands {
+    margin-top: 8px;
+  }
+}
+
+/* The station (the photo): the HARDWAYS / HOP BETS panel down the whole left side; the status
+   banner at the top centre with the Lucky Roller box under it, sitting on the number row; the
+   number row across the rest; the C, C&E and E circles under its left end beside the COME, FIELD
+   and PASS LINE bands; the history strip along the bottom. The dome — the bubble that sits above
+   the real screen — takes the top right, beside the Lucky Roller. */
+@container felt (min-width: 860px) {
+  .felt {
+    --dome-column: clamp(260px, 26cqi, 316px);
+    grid-template-columns: clamp(240px, 26cqi, 360px) auto minmax(0, 1fr) var(--dome-column);
+    grid-template-rows: auto auto auto 1fr auto;
+    grid-template-areas:
+      'props banner banner dome'
+      'props side side dome'
+      'props numbers numbers numbers'
+      'props circles bands bands'
+      'strip strip strip strip';
+    column-gap: 10px;
+    row-gap: 8px;
+  }
+  .felt-props {
     align-self: stretch;
   }
+  .felt-side {
+    align-self: end;
+  }
+  /* Clear of the place tabs' coach tags, which hang below the number row. */
+  .felt > .felt-circles,
+  .felt > .felt-bands {
+    margin-top: 10px;
+    align-self: stretch;
+  }
+  .felt > .felt-circles {
+    justify-content: space-around;
+  }
 }
 
-@media (min-width: 1300px) {
-  .machine {
-    grid-template-columns: minmax(300px, 360px) minmax(0, 1fr) minmax(250px, 290px);
-    grid-template-rows: auto auto 1fr;
-    grid-template-areas: 'dome layout guide' 'rolls layout guide' 'coach layout guide';
-  }
-  .history {
-    align-self: start;
-    max-height: 520px;
+/* A taller screen (1440 × 900 and up) has the room for the station's near-square number boxes and
+   its bigger chips. */
+@media (min-height: 861px) {
+  @container felt (min-width: 860px) {
+    .felt .num-box {
+      min-height: clamp(64px, 9.4cqi, 104px);
+    }
   }
 }
 
-/* ---- the dome ------------------------------------------------------------------------- */
+@media (min-height: 861px) and (min-width: 600px) {
+  .chip-rail .chip {
+    width: 52px;
+    height: 52px;
+    font-size: 14px;
+  }
+}
+
+/* A laptop's short screen (1280 × 800 and the like): the station's rows tighten so the whole felt,
+   the history strip included, stays above the docked chip rail. */
+@media (max-height: 860px) {
+  @container felt (min-width: 860px) {
+    .felt {
+      row-gap: 6px;
+      /* The dome no taller than the banner and the Lucky Roller beside it. */
+      --dome-column: clamp(236px, 22.5cqi, 276px);
+    }
+    .felt .num-box {
+      min-height: clamp(52px, 6.4cqi, 80px);
+    }
+    .felt .zone-slot-band {
+      min-height: 46px;
+    }
+    .felt .zone-slot-circle {
+      width: 56px;
+      height: 56px;
+      font-size: 16px;
+    }
+    .felt > .felt-circles,
+    .felt > .felt-bands {
+      margin-top: 8px;
+    }
+  }
+}
+
+/* ---- zones ---------------------------------------------------------------------------- */
+
+/* A zone: a filled spot with the felt's thin light outline and white bold lettering. */
+.zone {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  padding: 5px 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  border: 1.5px solid var(--felt-rim);
+  border-radius: 8px;
+  background: var(--felt-zone);
+  color: var(--felt-ink);
+  font-family: var(--font-machine);
+  font-weight: 700;
+  font-size: 13px;
+  line-height: 1.05;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  text-align: center;
+  transition:
+    background-color 0.15s ease,
+    transform 0.08s ease;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  touch-action: manipulation;
+}
+
+.zone:hover {
+  border-color: #fff;
+}
+
+.zone:active {
+  transform: scale(0.97);
+}
+
+/* A spot that cannot take the tap now is dimmed (an inactive component; the tap still asks).
+   The station never dims its big band lettering (COME stays red on the come-out, where its OFF
+   puck already says it takes no bet) nor its side-bet boxes (a placed one carries its lock). */
+.zone-blocked:not(.zone-comeBox):not(.zone-line):not(.zone-sideBet)
+  > :not(.zone-amount):not(.zone-odds-amount):not(.puck):not(.zone-off):not(.zone-track):not(
+    .zone-count
+  ):not(.zone-coach):not(.zone-lock) {
+  opacity: 0.55;
+}
+
+.zone-live {
+  border-color: #eaffd9;
+}
+
+.zone-label {
+  max-width: 100%;
+}
+
+.zone-pay,
+.zone-badge,
+.zone-detail {
+  font-family: var(--font-machine);
+  font-weight: 700;
+  font-size: 11px;
+  line-height: 1.15;
+  letter-spacing: 0.02em;
+  color: var(--felt-ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.zone-badge,
+.zone-detail {
+  font-weight: 600;
+  text-transform: none;
+}
+
+/* The coach's edge tag: small and quiet, straddling the zone's top edge so the face stays the
+   station's. Its colour is the grade; its number the coach's (plan §5.5). */
+.zone-coach {
+  position: absolute;
+  top: -8px;
+  left: 4px;
+  z-index: 2;
+  font-family: var(--font-body);
+  font-weight: 700;
+  font-size: 9.5px;
+  line-height: 14px;
+  letter-spacing: 0;
+  text-transform: none;
+  padding: 0 4px;
+  border-radius: 99px;
+  border: 1px solid currentColor;
+  background: #07140b;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+
+.sheet-edge {
+  font-family: var(--font-body);
+  font-weight: 800;
+  font-size: 12px;
+  line-height: 1.5;
+  letter-spacing: 0;
+  text-transform: none;
+  padding: 0 6px;
+  border-radius: 99px;
+  border: 1px solid currentColor;
+  font-variant-numeric: tabular-nums;
+}
+
+.grade-excellent,
+.grade-good {
+  color: var(--good);
+}
+
+.grade-fair {
+  color: var(--fair);
+}
+
+.grade-poor {
+  color: var(--poor);
+}
+
+.grade-awful {
+  color: var(--awful);
+}
+
+/* The bet on a spot: a chip in the station's colours, parked on the zone's right edge. */
+.zone-amount {
+  position: absolute;
+  top: 50%;
+  right: -4px;
+  z-index: 2;
+  transform: translateY(-50%);
+  display: inline-grid;
+  place-items: center;
+  min-width: 30px;
+  height: 30px;
+  padding: 0 3px;
+  border-radius: 99px;
+  font-family: var(--font-machine);
+  font-weight: 700;
+  font-size: 11px;
+  letter-spacing: 0;
+  text-transform: none;
+  white-space: nowrap;
+  border: 0;
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.35),
+    0 2px 5px var(--shadow);
+  font-variant-numeric: tabular-nums;
+}
+
+/* A locked side bet's chip carries the station's little lock. */
+.zone-lock {
+  position: absolute;
+  top: 50%;
+  right: 20px;
+  z-index: 3;
+  transform: translateY(-115%);
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #f4f4f2;
+  color: #1a1a1a;
+  box-shadow: 0 1px 2px var(--shadow);
+}
+
+.zone-odds-amount {
+  position: absolute;
+  bottom: 3px;
+  right: 30px;
+  font-family: var(--font-body);
+  font-weight: 700;
+  font-size: 10.5px;
+  letter-spacing: 0;
+  text-transform: none;
+  white-space: nowrap;
+  padding: 0 6px;
+  border-radius: 99px;
+  background: #07140b;
+  color: #fff;
+  border: 1px solid var(--felt-rim-soft);
+  font-variant-numeric: tabular-nums;
+}
+
+.zone-off {
+  position: absolute;
+  bottom: 3px;
+  left: 3px;
+  font-family: var(--font-body);
+  font-weight: 800;
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  line-height: 1.4;
+  padding: 0 4px;
+  border-radius: 3px;
+  background: #07140b;
+  color: #fff;
+  border: 1px solid var(--felt-rim-soft);
+}
+
+/* Chip colours by denomination (the rack and the bets on the felt), drawn as the station's
+   casino chips: the colour with eight white edge spots and, on the rack, a white inlay ring round
+   a plain centre where the amount sits in its ink (4.5:1 on the centre's colour). The white $1
+   and the gold $1,000 take grey and cream spots. */
+.chip,
+.zone-amount {
+  --chip-spot: #fbfbf6;
+  background:
+    radial-gradient(closest-side, var(--chip-face) 0 80%, transparent 81%),
+    repeating-conic-gradient(
+      from -11.25deg,
+      var(--chip-spot) 0 22.5deg,
+      var(--chip-face) 22.5deg 45deg
+    );
+  background-color: var(--chip-face);
+}
+
+.chip {
+  background:
+    radial-gradient(
+      closest-side,
+      var(--chip-face) 0 64%,
+      rgba(255, 255, 255, 0.9) 65% 70%,
+      var(--chip-face) 71% 76%,
+      transparent 77%
+    ),
+    repeating-conic-gradient(
+      from -11.25deg,
+      var(--chip-spot) 0 22.5deg,
+      var(--chip-face) 22.5deg 45deg
+    );
+  background-color: var(--chip-face);
+}
+
+[data-denom='1'] {
+  --chip-face: var(--chip-1);
+  color: var(--chip-ink-dark);
+}
+
+[data-denom='2'] {
+  --chip-face: var(--chip-2);
+  color: var(--chip-ink-light);
+}
+
+[data-denom='3'] {
+  --chip-face: var(--chip-3);
+  color: var(--chip-ink-dark);
+}
+
+[data-denom='5'] {
+  --chip-face: var(--chip-5);
+  color: var(--chip-ink-light);
+}
+
+[data-denom='10'] {
+  --chip-face: var(--chip-10);
+  color: var(--chip-ink-dark);
+}
+
+[data-denom='25'] {
+  --chip-face: var(--chip-25);
+  color: var(--chip-ink-light);
+}
+
+[data-denom='50'] {
+  --chip-face: var(--chip-50);
+  color: var(--chip-ink-light);
+}
+
+[data-denom='100'] {
+  --chip-face: var(--chip-100);
+  color: var(--chip-ink-light);
+}
+
+[data-denom='500'] {
+  --chip-face: var(--chip-500);
+  color: var(--chip-ink-light);
+}
+
+[data-denom='1000'] {
+  --chip-face: var(--chip-1000);
+  color: var(--chip-ink-dark);
+}
+
+[data-denom='1'] {
+  --chip-spot: #9ea7a1;
+}
+
+[data-denom='1000'] {
+  --chip-spot: #fff6d8;
+}
+
+/* The guide's highlight: dashed, so it never reads as the solid focus ring (plan §0 #18). */
+.guide-target {
+  outline: 3px dashed var(--focus);
+  outline-offset: 3px;
+  animation: spot 1.6s ease-in-out infinite;
+}
+
+@keyframes spot {
+  50% {
+    outline-color: rgba(255, 216, 77, 0.3);
+  }
+}
+
+.zone-shake {
+  animation: nope 0.32s ease;
+}
+
+@keyframes nope {
+  20% {
+    transform: translateX(-5px);
+  }
+  40% {
+    transform: translateX(5px);
+  }
+  60% {
+    transform: translateX(-3px);
+  }
+  80% {
+    transform: translateX(3px);
+  }
+}
+
+/* The point flag: ON on the number's box; OFF on the come box during the come-out. */
+.puck {
+  font-family: var(--font-machine);
+  font-weight: 700;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  background: #fff;
+  color: #111;
+  border: 2px solid #111;
+  box-shadow: 0 2px 4px var(--shadow);
+}
+
+.puck-off {
+  background: #111;
+  color: #fff;
+  border-color: #fff;
+}
+
+.zone .puck {
+  position: absolute;
+  top: 4px;
+  left: 6px;
+}
+
+/* The box carries the flag; the place tab's copy stays in the DOM only. */
+.zone-place .puck-on {
+  display: none;
+}
+
+/* ---- the number row: BUY tab, number box, PLACE tab ----------------------------------- */
+
+.felt-numbers {
+  position: relative;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  /* The row sizes its numerals and boxes to its own width (cqi below), so a docked drawer, a
+     laptop and a wide screen all get the station's proportions. */
+  container: numbers / inline-size;
+}
+
+.table-numbers {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  gap: 5px;
+}
+
+.number-column {
+  min-width: 0;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  gap: 3px;
+}
+
+.num-tabs {
+  display: flex;
+  gap: 2px;
+  min-width: 0;
+}
+
+.num-tabs > .zone {
+  flex: 1 1 0;
+}
+
+/* The tabs above and below each number: BUY angled like the station's, PLACE squared off. */
+.zone-slot-tab {
+  min-height: 28px;
+  padding: 3px 4px;
+  border-radius: 5px;
+  font-size: 11.5px;
+  letter-spacing: 0.06em;
+}
+
+/* The coach's tag straddles the tab's outer edge; the padding keeps the lettering clear of it. */
+.num-tabs-top .zone-slot-tab {
+  padding-top: 7px;
+}
+
+.num-tabs-bottom .zone-slot-tab {
+  min-height: 36px;
+  padding-bottom: 8px;
+}
+
+/* The angled BUY tab is drawn behind the button (rim, then fill), so the clip never cuts the
+   chip or the coach's tag. */
+.num-tabs-top .zone-slot-tab {
+  border: 0;
+  border-radius: 2px;
+  background: transparent;
+  isolation: isolate;
+}
+
+.num-tabs-top .zone-slot-tab::before,
+.num-tabs-top .zone-slot-tab::after {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  clip-path: polygon(10% 0, 90% 0, 100% 100%, 0 100%);
+}
+
+.num-tabs-top .zone-slot-tab::before {
+  inset: 0;
+  background: var(--felt-rim);
+}
+
+.num-tabs-top .zone-slot-tab::after {
+  inset: 1.5px 1.5px 0;
+  background: var(--felt-zone);
+}
+
+.num-tabs-top .zone-slot-tab:hover::before {
+  background: #fff;
+}
+
+.num-tabs-top .zone-coach {
+  top: -9px;
+}
+
+.num-tabs-bottom .zone-coach {
+  top: auto;
+  bottom: -8px;
+}
+
+.zone-slot-tab .zone-pay {
+  font-size: 10.5px;
+}
+
+.zone-slot-tab .zone-amount {
+  min-width: 26px;
+  height: 26px;
+  font-size: 10px;
+  border-width: 2px;
+  right: -6px;
+}
+
+/* On a number tab the chip sits on the tab's outer corner, clear of BUY or the place pay. */
+.num-tabs-top .zone-amount {
+  top: -9px;
+  transform: none;
+}
+
+/* Under the place tab the chip hangs below the tab's foot, clear of the pay ("13 FOR 6"). */
+.num-tabs-bottom .zone-amount {
+  top: auto;
+  bottom: -15px;
+  transform: none;
+  min-width: 24px;
+  height: 24px;
+}
+
+/* The big dark number box, with the numeral the station prints (SIX and NINE spelled out): near
+   square, as on the station, as far as the screen's height allows. */
+.num-box {
+  position: relative;
+  min-height: clamp(56px, 7.6cqi, 88px);
+  display: grid;
+  place-items: center;
+  border-radius: 6px;
+  background: linear-gradient(180deg, #1a6114, var(--felt-box) 70%);
+  border: 1.5px solid var(--felt-rim);
+  box-shadow:
+    inset 0 2px 10px rgba(0, 0, 0, 0.4),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.number-column.is-point .num-box {
+  border-color: #fff;
+  box-shadow:
+    inset 0 0 0 2px rgba(255, 255, 255, 0.55),
+    inset 0 2px 10px rgba(0, 0, 0, 0.4);
+}
+
+/* The station's numerals: heavy white with a dark drop shadow (Barlow 700, thickened by a hair of
+   stroke, since the self-hosted family stops at 700). */
+.num-label {
+  font-family: var(--font-machine);
+  font-weight: 700;
+  font-size: clamp(26px, 4.6cqi, 50px);
+  line-height: 1;
+  color: #fff;
+  -webkit-text-stroke: 0.04em #fff;
+  text-shadow:
+    0 2px 0 rgba(0, 0, 0, 0.5),
+    0 3px 6px rgba(0, 0, 0, 0.45);
+  pointer-events: none;
+}
+
+.num-label.word {
+  font-size: clamp(16px, 2.75cqi, 31px);
+  letter-spacing: 0.02em;
+}
+
+.num-box > .puck {
+  position: absolute;
+  top: -8px;
+  right: -6px;
+  z-index: 3;
+  width: 24px;
+  height: 24px;
+  font-size: 9px;
+  pointer-events: none;
+}
+
+/* The come spot is the box itself: a clear button over the numeral, its chip in the corner. */
+.zone-slot-box {
+  position: absolute;
+  inset: 0;
+  min-height: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+}
+
+.zone-slot-box:hover {
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.zone-slot-box .zone-amount {
+  top: auto;
+  bottom: 3px;
+  right: 3px;
+  transform: none;
+}
+
+.zone-slot-box .zone-odds-amount {
+  right: auto;
+  left: 3px;
+  bottom: 3px;
+}
+
+.zone-slot-box .zone-coach {
+  display: none;
+}
+
+/* A second come spot (the don't come) takes the top of the box. */
+.num-box-split > .zone-slot-box ~ .zone-slot-box {
+  inset: 0 0 auto 0;
+  height: 34%;
+  border-bottom: 1px dashed var(--felt-rim-soft);
+  border-radius: 6px 6px 0 0;
+}
+
+/* ---- the C, C&E and E circles --------------------------------------------------------- */
+
+.felt-circles {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.zone-slot-circle {
+  width: 62px;
+  height: 62px;
+  min-height: 0;
+  flex: 0 0 auto;
+  padding: 0;
+  border-radius: 50%;
+  border: 2px solid var(--felt-rim);
+  background: radial-gradient(circle at 50% 30%, #1d6d16, var(--felt-box) 72%);
+  font-size: 17px;
+  letter-spacing: 0.02em;
+}
+
+.zone-slot-circle .zone-pay {
+  display: none;
+}
+
+.zone-slot-circle .zone-coach {
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.zone-slot-circle .zone-amount {
+  right: -10px;
+}
+
+/* Beside the prop tabs (two-column felts and up) the circles stand in a column, as on the
+   station. */
+@container felt (min-width: 620px) {
+  .felt-circles {
+    flex-direction: column;
+  }
+}
+
+/* ---- the bands: COME, FIELD, PASS LINE, with PRESS beside them ------------------------- */
+
+.felt-bands {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 8px;
+  align-items: stretch;
+}
+
+.bands {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.band {
+  display: flex;
+  gap: 6px;
+  min-width: 0;
+}
+
+.band > .zone {
+  flex: 1 1 0;
+}
+
+.band > .zone-odds,
+.band > .zone-big {
+  flex: 0 0 auto;
+  width: clamp(76px, 20%, 132px);
+}
+
+/* The odds box is narrow: its chip rides the top right corner, clear of ODDS. */
+.band > .zone-odds .zone-amount {
+  top: -8px;
+  right: -6px;
+  transform: none;
+}
+
+.zone-slot-band {
+  min-height: 52px;
+  border-radius: 10px;
+  background: var(--felt-box);
+  box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.3);
+}
+
+.zone-slot-band .zone-amount {
+  right: 8px;
+  min-width: 34px;
+  height: 34px;
+}
+
+.zone-slot-band .zone-coach {
+  left: 10px;
+}
+
+/* COME in the station's big red letters, PASS LINE in its cyan italic. */
+.zone-comeBox .zone-label,
+.zone-line .zone-label {
+  font-size: clamp(28px, 3.6cqi, 42px);
+  line-height: 1;
+  letter-spacing: 0.03em;
+  text-shadow:
+    0 2px 0 rgba(0, 0, 0, 0.55),
+    0 0 10px rgba(0, 0, 0, 0.35);
+}
+
+.zone-comeBox .zone-label {
+  color: var(--come-red);
+}
+
+.zone-line .zone-label {
+  color: var(--pass-cyan);
+  font-style: italic;
+}
+
+.zone-comeBox[data-side='dont'] .zone-label,
+.zone-line[data-side='dont'] .zone-label {
+  color: #fff;
+  font-size: clamp(20px, 3cqi, 30px);
+  font-style: normal;
+}
+
+.zone-odds .zone-label,
+.zone-big .zone-label {
+  font-size: 18px;
+}
+
+/* The field: its totals in a row, the ones that pay more circled with "pays double" under. */
+.zone-field {
+  gap: 2px;
+}
+
+.zone-field .zone-label {
+  order: 2;
+  font-size: clamp(20px, 2.2cqi, 26px);
+  letter-spacing: 0.08em;
+}
+
+.zone-totals {
+  order: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 2px 4px;
+}
+
+.ft {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  font-size: clamp(16px, 1.9cqi, 21px);
+  line-height: 1;
+}
+
+.ft-n {
+  min-width: 1.4em;
+}
+
+/* The station's bullets between the totals: "2 • 3 • 4 • 9 • 10 • 11 • 12". */
+.ft + .ft {
+  position: relative;
+  margin-left: 0.7em;
+}
+
+.ft + .ft::before {
+  content: '•';
+  position: absolute;
+  left: -0.62em;
+  top: 0;
+  font-size: 0.8em;
+  line-height: 1.25;
+  opacity: 0.85;
+}
+
+.ft-special .ft-n {
+  display: grid;
+  place-items: center;
+  width: 1.55em;
+  height: 1.55em;
+  border-radius: 50%;
+  border: 2px solid #fff;
+}
+
+.ft-cap {
+  margin-top: 1px;
+  font-size: 8.5px;
+  letter-spacing: 0.08em;
+}
+
+/* PRESS (and the station's other group buttons): glossy green pills on the felt. */
+.group-buttons {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 8px;
+}
+
+.felt-pill {
+  min-width: 84px;
+  min-height: 40px;
+  padding: 6px 14px;
+  border: 1px solid #0d4a0b;
+  background: linear-gradient(180deg, #3aa82b, #1b6e15 55%, #135a0f);
+  color: #fff;
+  font-family: var(--font-machine);
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.6);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.45),
+    0 3px 6px rgba(0, 0, 0, 0.35);
+}
+
+/* ---- the prop tabs: HARDWAYS and HOP BETS ---------------------------------------------- */
+
+.felt-props {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  /* The hop pictures size to the panel's width (cqi below). */
+  container: props / inline-size;
+}
+
+.prop-tabs {
+  display: flex;
+  gap: 4px;
+  min-width: 0;
+}
+
+/* The station's tabs: chrome, the open one tinted green, each with the total bet in it. */
+.prop-tab {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 44px;
+  padding: 4px 8px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 2px 6px;
+  border-radius: 10px 10px 0 0;
+  border: 1px solid #8e9690;
+  border-bottom: 0;
+  background: linear-gradient(180deg, #e9ece9, #b9c0bb);
+  color: var(--chrome-ink);
+  font-family: var(--font-machine);
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.prop-tab[aria-selected='true'] {
+  background: linear-gradient(180deg, #e3fbd9, #a8e39b);
+  border-color: #3f8f3b;
+}
+
+.prop-tab-total {
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: #3b403d;
+  color: #fff;
+  font-size: 11px;
+  letter-spacing: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.prop-panel {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 8px;
+  border: 1.5px solid var(--felt-rim);
+  border-radius: 0 0 12px 12px;
+  background: rgba(0, 0, 0, 0.1);
+}
+
+.prop-sections {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* "31 FOR 1 • HOPPING HARD WAYS • 31 FOR 1" on the station's dark strip. */
+.prop-section-head {
+  margin: 0 0 5px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: var(--felt-strip);
+  color: #fff;
+  font-family: var(--font-machine);
+  font-weight: 700;
+  font-size: 11.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.psh-pay {
+  font-size: 10.5px;
+  white-space: nowrap;
+}
+
+/* The station's bullets between the pay and the title (the strip is aria-hidden); a title with a
+   pay before it has the same pay after it. */
+.psh-pay + .psh-title::before,
+.psh-pay + .psh-title::after {
+  content: '•';
+  margin: 0 0.6em;
+  opacity: 0.8;
+}
+
+.psh-title {
+  flex: 1 1 auto;
+  text-align: center;
+  white-space: nowrap;
+}
+
+/* On a narrow panel the strip's lettering tightens so it keeps to one line. */
+@container props (max-width: 320px) {
+  .prop-section-head {
+    padding-inline: 6px;
+    font-size: 10.5px;
+    letter-spacing: 0.03em;
+  }
+  .psh-pay {
+    font-size: 9.5px;
+  }
+  .psh-pay + .psh-title::before,
+  .psh-pay + .psh-title::after {
+    margin: 0 0.35em;
+  }
+}
+
+/* With the coach's tags on, the rows keep room so a tag never sits on the button above it. Two
+   to a row in the station's left panel, more where the panel runs the felt's width. */
+.prop-buttons {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(118px, 1fr));
+  gap: 9px 6px;
+}
+
+.zone-slot-prop {
+  min-height: 46px;
+  font-size: 12.5px;
+}
+
+.zone-slot-prop .zone-pay {
+  font-size: 11.5px;
+}
+
+/* A prop's chip rides its top right corner, clear of the name and the pay. */
+.zone-slot-prop .zone-amount,
+.zone-slot-hop .zone-amount {
+  top: -8px;
+  right: -6px;
+  transform: none;
+  min-width: 26px;
+  height: 26px;
+  font-size: 10px;
+  border-width: 2px;
+}
+
+/* The hop sections stand in the station's columns (under 7, the 7s, over 7): the outer columns
+   top to bottom, the 7s centred between them, staggered as on the station. */
+.hop-columns {
+  display: grid;
+  grid-auto-columns: minmax(0, 1fr);
+  grid-auto-flow: column;
+  column-gap: 6px;
+}
+
+.hop-col {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 9px;
+}
+
+/* A hop: two white dice and the pair, as the station draws it — the dice on the button's outer
+   side (left in the left column, right in the right), above the pair in the middle column. */
+.zone-slot-hop {
+  --hop-die: clamp(16px, 7.2cqi, 27px);
+  min-height: 44px;
+  flex-direction: row;
+  justify-content: space-between;
+  gap: 4px;
+  padding: 4px 8px;
+  white-space: nowrap;
+}
+
+.hop-col-right .zone-slot-hop {
+  flex-direction: row-reverse;
+}
+
+.hop-col-mid .zone-slot-hop {
+  flex-direction: column;
+  justify-content: center;
+  gap: 3px;
+  padding: 6px 4px;
+}
+
+.zone-slot-hop .zone-label {
+  flex: 1 1 auto;
+  font-size: clamp(13px, 5.2cqi, 18px);
+  letter-spacing: 0.02em;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.35);
+}
+
+.hop-col-mid .zone-slot-hop .zone-label {
+  flex: 0 0 auto;
+}
+
+.zone-slot-hop .die-small {
+  width: var(--hop-die);
+  height: var(--hop-die);
+  padding: calc(var(--hop-die) * 0.16);
+  border-radius: calc(var(--hop-die) * 0.18);
+}
+
+.zone-slot-hop .die-small .pip {
+  width: calc(var(--hop-die) * 0.19);
+  height: calc(var(--hop-die) * 0.19);
+}
+
+.zone-dice {
+  display: inline-flex;
+  flex: 0 0 auto;
+  gap: 2px;
+}
+
+.zone-slot-hop .zone-amount {
+  right: -6px;
+}
+
+/* The station's panel fills the left side from the tabs to the history strip: its buttons grow
+   into the height the felt gives it (to a point), the 2 × 2 hard hops and the 5-high columns
+   sharing it row for row. */
+@container felt (min-width: 860px) {
+  /* Sized by its grid area, not its buttons, so the panel never stretches the felt; a panel too
+     short for its buttons scrolls instead. */
+  .felt-props {
+    container-type: size;
+  }
+  .prop-panel {
+    min-height: 0;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+  }
+  .prop-sections {
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+  .prop-section {
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  .prop-section > .prop-buttons,
+  .prop-section > .hop-columns {
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+  .section-hardways {
+    flex: 2 1 auto;
+  }
+  .section-props {
+    flex: 4 1 auto;
+  }
+  .section-hopsHard {
+    flex: 2 1 auto;
+  }
+  .section-hopsEasy {
+    flex: 5 1 auto;
+  }
+  .prop-buttons {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-auto-rows: minmax(46px, 60px);
+    align-content: space-evenly;
+  }
+  /* An odd last prop (the horn) takes the whole row. */
+  .section-props .prop-buttons > .zone:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+  }
+  .hop-col > .zone {
+    flex: 0 1 62px;
+    min-height: 44px;
+  }
+  .hop-col-mid > .zone {
+    flex-basis: 68px;
+  }
+}
+
+/* ---- the side bets: the station's Lucky Roller box ------------------------------------ */
+
+/* The station's box: dark boxes side by side on the felt, sharing their borders, with the dice
+   crest above the middle one and, on the Lucky Roller, each outer box's numbers standing on the
+   felt above it (LOW ROLLS' 2 to 6 above its left end, HIGH ROLLS' 8 to 12 above its right). */
+.felt-side {
+  position: relative;
+  min-width: 0;
+  padding-top: 28px;
+}
+
+/* The two white dice in the crest, in the room above the middle box. */
+.side-emblem {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%) rotate(-8deg);
+  display: inline-flex;
+  gap: 3px;
+  filter: drop-shadow(0 3px 4px rgba(0, 0, 0, 0.5));
+  pointer-events: none;
+}
+
+.side-emblem .die {
+  width: 25px;
+  height: 25px;
+  padding: 4px;
+  border-radius: 5px;
+}
+
+.side-emblem .die .pip {
+  width: 4.5px;
+  height: 4.5px;
+}
+
+.side-zones {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+  gap: 6px;
+}
+
+.felt-side .side-zones {
+  gap: 0;
+  filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.3));
+}
+
+.felt-side .side-zones > .zone {
+  border-radius: 0;
+}
+
+.felt-side .side-zones > .zone + .zone {
+  border-left-width: 0;
+}
+
+.felt-side .side-zones > .zone:first-child {
+  border-radius: 12px 0 0 12px;
+}
+
+.felt-side .side-zones > .zone:last-child {
+  border-radius: 0 12px 12px 0;
+}
+
+.felt-side .side-zones > .zone:only-child {
+  border-radius: 12px;
+}
+
+.zone-slot-side,
+.zone-slot-sheet.zone-sideBet {
+  min-height: 92px;
+  justify-content: center;
+  gap: 3px;
+  padding: 6px 6px 8px;
+  background: linear-gradient(180deg, #1a6114, var(--felt-box) 75%);
+}
+
+.zone-slot-side {
+  padding-top: 18px;
+}
+
+.zone-sideBet .zone-label {
+  font-size: 14px;
+  letter-spacing: 0.05em;
+}
+
+/* The pay as the station prints it, big and white: "31 FOR 1". */
+.zone-sideBet .zone-pay {
+  order: 3;
+  font-size: clamp(17px, 1.75cqi, 24px);
+  color: #fff;
+  letter-spacing: 0.01em;
+  text-shadow: 0 2px 2px rgba(0, 0, 0, 0.4);
+}
+
+.zone-sideBet .zone-track {
+  order: -1;
+}
+
+/* A box's numbers in a compact row (five to a line). */
+.zone-sideBet .zone-track {
+  max-width: 118px;
+  gap: 2px;
+}
+
+.zone-sideBet .zone-track .pip {
+  min-width: 19px;
+  height: 19px;
+  padding: 0 2px;
+  font-size: 10.5px;
+  line-height: 17px;
+}
+
+/* The Lucky Roller's outer boxes: their numbers stand on the felt above the box, in one row. The
+   middle box (ROLL 'EM ALL, every number) keeps its own inside. */
+.felt-side .side-zones[data-count='3'] > .zone:first-child .zone-track,
+.felt-side .side-zones[data-count='3'] > .zone:last-child .zone-track {
+  position: absolute;
+  bottom: calc(100% + 4px);
+  max-width: none;
+  flex-wrap: nowrap;
+  margin: 0;
+}
+
+.felt-side .side-zones[data-count='3'] > .zone:first-child .zone-track {
+  left: 6px;
+}
+
+.felt-side .side-zones[data-count='3'] > .zone:last-child .zone-track {
+  right: 6px;
+}
+
+.felt-side .side-zones[data-count='3'] > .zone:first-child .zone-track .pip,
+.felt-side .side-zones[data-count='3'] > .zone:last-child .zone-track .pip {
+  min-width: 21px;
+  height: 21px;
+  font-size: 11.5px;
+  line-height: 19px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
+}
+
+/* The coach's tag sits in the box's top left corner, in the room the box keeps there. */
+.zone-slot-side .zone-coach {
+  top: 3px;
+  left: 4px;
+}
+
+.zone-sideBet .zone-amount {
+  top: 8px;
+  transform: none;
+}
+
+.zone-sideBet .zone-lock {
+  top: 8px;
+  right: 22px;
+  transform: none;
+}
+
+/* ---- the history strip ---------------------------------------------------------------- */
+
+.roll-strip {
+  min-width: 0;
+}
+
+.roll-strip-empty {
+  margin: 0;
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 99px;
+  background: var(--felt-strip);
+  color: #fff;
+  font-family: var(--font-machine);
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+/* Newest at the left, as on the station; the row scrolls sideways on a narrow screen. */
+.roll-strip-list {
+  list-style: none;
+  margin: 0;
+  padding: 2px 2px 4px;
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: thin;
+}
+
+/* Each roll as the station draws it on the felt: the two dice side by side over the total's tab. */
+.strip-roll {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 2px 1px 0;
+}
+
+.strip-dice {
+  display: inline-flex;
+  gap: 1px;
+}
+
+.strip-dice .die-small {
+  width: 21px;
+  height: 21px;
+  padding: 3px;
+}
+
+.strip-dice .die-small .pip {
+  width: 4px;
+  height: 4px;
+}
+
+.strip-total {
+  min-width: 43px;
+  padding: 1px 6px;
+  border-radius: 4px 4px 6px 6px;
+  background: #1b1f1d;
+  border: 1px solid #5c635f;
+  color: #fff;
+  font-family: var(--font-machine);
+  font-weight: 700;
+  font-size: 14px;
+  line-height: 1.2;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.strip-roll[data-result='won'] .strip-total {
+  background: var(--win-blue);
+  border-color: #8fb8f2;
+}
+
+.strip-roll[data-result='lost'] .strip-total {
+  background: var(--lose-red);
+  border-color: #f2a0a5;
+}
+
+/* The newest roll carries the station's little white arrow at its left. */
+.roll-strip-list {
+  padding-left: 12px;
+}
+
+.strip-roll:first-child {
+  position: relative;
+}
+
+.strip-roll:first-child::before {
+  content: '';
+  position: absolute;
+  left: -11px;
+  top: 6px;
+  border-style: solid;
+  border-width: 7px 9px 7px 0;
+  border-color: transparent #fff transparent transparent;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.5));
+}
+
+/* ---- the dome: the bubble above the station's screen ---------------------------------- */
 
 /* The dome box. `.dome-slot` fills it and holds the dice view; M10a mounts its canvas there. */
 .dome {
   position: relative;
   aspect-ratio: 16 / 10;
   max-width: 100%;
-  border-radius: 20px;
+  border-radius: 16px;
   overflow: hidden;
-  background: radial-gradient(120% 90% at 50% 20%, var(--panel-2), var(--cabinet) 70%);
-  border: 1px solid var(--line-soft);
-  box-shadow: inset 0 0 40px var(--shadow);
+  background: radial-gradient(120% 90% at 50% 20%, #1d2b25, #050806 72%);
+  border: 1px solid #5a6560;
+  box-shadow:
+    0 0 0 3px #0a0f0c,
+    0 0 0 4px #7d8781,
+    inset 0 0 36px var(--shadow),
+    0 8px 18px rgba(0, 0, 0, 0.45);
 }
 
 .dome-slot {
@@ -465,98 +2232,66 @@ h3 {
   display: block;
 }
 
-/* The overlays ride above the slot and never take a tap. */
+/* The overlays ride above the slot and never take a tap. Their boxes are the reserved zones the
+   3D camera keeps the dice out of (src/dome/camera.ts PUCK_ZONE, BOTTOM_BAND): change one,
+   change both. */
 .dome-overlay > * {
   position: absolute;
   z-index: 2;
   pointer-events: none;
 }
 
+/* 46 px at 8 px from the corner (PUCK_ZONE 62). */
 .dome-puck {
-  top: 10px;
-  left: 10px;
-  width: 58px;
-  height: 58px;
+  top: 8px;
+  left: 8px;
+  width: 46px;
+  height: 46px;
   border-radius: 50%;
   display: grid;
   place-items: center;
   align-content: center;
-  font-family: var(--font-layout);
-  font-weight: 900;
-  letter-spacing: 0.1em;
+  font-family: var(--font-machine);
+  font-weight: 700;
+  letter-spacing: 0.08em;
   line-height: 1;
-  background: var(--chip-100);
-  color: var(--chip-ink-light);
-  border: 3px solid var(--chip-ink-light);
+  background: #111;
+  color: #fff;
+  border: 3px solid #fff;
   box-shadow: 0 3px 8px var(--shadow);
 }
 
 .dome-puck small {
-  font-size: 11px;
+  font-size: 9px;
 }
 
 .dome-puck strong {
-  font-size: 22px;
+  font-size: 16px;
   letter-spacing: 0;
 }
 
 .dome-puck.on {
-  background: var(--chip-ink-light);
-  color: var(--chip-ink-dark);
-  border-color: var(--chip-100);
+  background: #fff;
+  color: #111;
+  border-color: #111;
 }
 
-.dome-recent {
-  top: 9px;
-  right: 9px;
-  display: flex;
-  gap: 4px;
-  margin: 0;
-  padding: 3px; /* room for the newest chip's outline inside the clipped box */
-  list-style: none;
-  max-width: calc(100% - 90px);
-  overflow: hidden;
-}
-
-.dome-recent li {
-  flex: 0 0 auto;
-  width: 26px;
-  height: 26px;
-  border-radius: 50%;
-  display: grid;
-  place-items: center;
-  font-weight: 700;
-  font-size: 12px;
-  font-variant-numeric: tabular-nums;
-  background: var(--panel);
-  border: 1px solid var(--line-soft);
-  color: var(--chalk);
-}
-
-.dome-recent li.seven {
-  background: var(--seven-chip);
-  border-color: var(--seven-chip);
-  color: var(--chip-ink-light);
-}
-
-.dome-recent li:first-child {
-  outline: 2px solid var(--brass);
-  outline-offset: 1px;
-}
-
+/* 30 px tall exactly (line, padding, border) at 8 px from the bottom (BOTTOM_BAND 44). */
 .callout {
   left: 50%;
-  bottom: 12px;
+  bottom: 8px;
   transform: translateX(-50%);
-  padding: 6px 14px;
+  padding: 4px 12px;
   border-radius: 99px;
-  background: var(--panel);
-  border: 1px solid var(--line);
-  font-family: var(--font-layout);
-  font-weight: 800;
-  font-size: 18px;
-  letter-spacing: 0.08em;
+  background: var(--banner);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  font-family: var(--font-machine);
+  font-weight: 700;
+  font-size: 14px;
+  line-height: 20px;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
+  color: #fff;
   white-space: nowrap;
   max-width: calc(100% - 24px);
   overflow: hidden;
@@ -582,16 +2317,16 @@ h3 {
 
 .dice {
   display: flex;
-  gap: 22px;
+  gap: 18px;
   align-items: center;
 }
 
 .dice-idle {
   margin: 0;
   color: var(--chalk-dim);
-  font-family: var(--font-layout);
+  font-family: var(--font-machine);
   font-weight: 700;
-  font-size: 14px;
+  font-size: 13px;
   letter-spacing: 0.14em;
   text-transform: uppercase;
 }
@@ -600,39 +2335,54 @@ h3 {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   grid-template-rows: repeat(3, 1fr);
-  width: 74px;
-  height: 74px;
-  padding: 10px;
-  border-radius: 14px;
+  width: 64px;
+  height: 64px;
+  padding: 9px;
+  border-radius: 12px;
   background: var(--seven);
   box-shadow:
     inset 0 -6px 0 rgba(0, 0, 0, 0.25),
     0 6px 16px var(--shadow);
 }
 
-.pip {
-  width: 13px;
-  height: 13px;
+.die .pip {
+  width: 11px;
+  height: 11px;
+  min-width: 0;
+  padding: 0;
+  border: 0;
   border-radius: 50%;
   background: var(--chip-ink-light);
   place-self: center;
 }
 
-.pip-off {
+.die .pip-off {
   visibility: hidden;
 }
 
 .die-small {
-  width: 20px;
-  height: 20px;
-  padding: 3px;
-  border-radius: 5px;
+  width: 18px;
+  height: 18px;
+  padding: 2.5px;
+  border-radius: 4px;
   box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.25);
 }
 
 .die-small .pip {
-  width: 4px;
-  height: 4px;
+  width: 3.5px;
+  height: 3.5px;
+}
+
+/* The station's white dice with black pips: the hop pictures, the strip, the side-bet crest. */
+.die-white {
+  background: linear-gradient(145deg, #ffffff, #dfe2df);
+  box-shadow:
+    inset 0 -1px 0 rgba(0, 0, 0, 0.18),
+    0 1px 2px rgba(0, 0, 0, 0.45);
+}
+
+.die-white .pip {
+  background: #121212;
 }
 
 .dice-rolling .die {
@@ -651,520 +2401,259 @@ h3 {
   }
 }
 
-/* ---- the felt ------------------------------------------------------------------------- */
+/* ---- the chip rail -------------------------------------------------------------------- */
 
-.layout {
-  min-width: 0;
-  background: radial-gradient(140% 100% at 50% 0%, var(--felt), var(--felt-deep));
-  border: 2px solid var(--brass-deep);
-  border-radius: 20px;
-  padding: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  box-shadow:
-    inset 0 0 0 4px var(--felt-deep),
-    0 10px 30px var(--shadow);
+.rack {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  background: linear-gradient(180deg, #1c2520, #0b100d);
+  border-top: 1px solid #39443e;
+  padding: 8px max(16px, env(safe-area-inset-right, 0px))
+    calc(8px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
+  box-shadow: 0 -8px 24px var(--shadow);
 }
 
-.table {
+.rack-inner {
   display: flex;
-  flex-direction: column;
-  gap: 10px;
-  min-width: 0;
-}
-
-.felt-head {
-  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   justify-content: space-between;
+  gap: 8px 14px;
+}
+
+.rack-inner > * {
+  min-width: 0;
+}
+
+.chip-rail {
+  display: flex;
   align-items: center;
   gap: 8px;
-  flex-wrap: wrap;
+  padding: 4px 2px;
 }
 
-.round-chip {
-  margin: 0;
-  font-family: var(--font-layout);
-  font-weight: 900;
-  font-size: 12px;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--ink-on-brass);
-  background: var(--brass);
-  padding: 2px 8px;
-  border-radius: 4px;
-}
-
-.table-numbers {
-  display: grid;
-  grid-template-columns: repeat(10, minmax(0, 1fr));
-  gap: 6px;
-}
-
-.number-column {
+.chips {
   display: flex;
-  flex-direction: column;
-  gap: 4px;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  padding: 4px;
-  min-width: 0;
+  gap: 5px;
 }
 
-.number-column.is-point {
-  border-color: var(--brass);
-  box-shadow: inset 0 0 0 1px var(--brass);
-}
-
-.number-head {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-  min-height: 30px;
-}
-
-.num-label {
-  font-family: var(--font-layout);
-  font-weight: 900;
-  font-size: 24px;
-  line-height: 1;
-  letter-spacing: 0.02em;
-}
-
-.num-label.word {
-  font-size: 19px;
-  letter-spacing: 0.06em;
-}
-
-/* The point flag: ON in the number's head; OFF on the come box during the come-out. */
-.puck {
-  font-family: var(--font-layout);
-  font-weight: 900;
-  font-size: 10px;
-  letter-spacing: 0.08em;
-  line-height: 1.2;
-  padding: 2px 4px;
-  border-radius: 4px;
-  background: var(--chip-ink-light);
-  color: var(--chip-ink-dark);
-}
-
-.puck-off {
-  background: var(--chip-100);
-  color: var(--chip-ink-light);
-  border: 1px solid var(--line);
-}
-
-.zone .puck {
-  position: absolute;
-  top: 4px;
-  left: 4px;
-}
-
-/* The column head already carries the flag; the place cell's copy stays in the DOM only. */
-.zone-place .puck-on {
-  display: none;
-}
-
-/* ---- zones ---------------------------------------------------------------------------- */
-
-.zone {
+/* A casino chip: the denomination's colour with white edge spots and a recessed centre. */
+.chip {
   position: relative;
-  width: 100%;
-  min-width: 0;
-  min-height: 46px;
-  padding: 6px 4px 5px;
-  display: flex;
-  flex-direction: column;
+  width: 44px;
+  height: 44px;
+  min-height: 0;
+  padding: 0;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  border: 0;
+  font-family: var(--font-machine);
+  font-weight: 700;
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.4),
+    inset 0 -2px 3px rgba(0, 0, 0, 0.25),
+    0 3px 6px var(--shadow);
+}
+
+.chip-selected {
+  outline: 3px solid #6dff6a;
+  outline-offset: 2px;
+  box-shadow:
+    0 0 14px 4px rgba(109, 255, 106, 0.65),
+    0 3px 6px var(--shadow);
+  transform: translateY(-2px);
+}
+
+/* The station's chrome pills: an icon and two short lines ("CLEAR / LAST BET"). */
+.chrome-pill {
+  display: inline-flex;
   align-items: center;
-  justify-content: center;
-  gap: 2px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: rgba(0, 0, 0, 0.14);
-  color: var(--chalk);
-  font-family: var(--font-layout);
-  font-weight: 800;
-  font-size: 13px;
+  gap: 5px;
+  min-height: 44px;
+  padding: 4px 9px 4px 5px;
+  border-radius: 12px;
+  font-family: var(--font-machine);
+  font-size: 11px;
   line-height: 1.05;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  text-align: center;
-  transition:
-    background-color 0.15s ease,
-    transform 0.08s ease;
-  -webkit-user-select: none;
-  user-select: none;
-  -webkit-touch-callout: none;
-  touch-action: manipulation;
+  text-align: left;
 }
 
-.zone:hover {
-  background: rgba(0, 0, 0, 0.24);
+.chrome-text {
+  max-width: 5.6em;
 }
 
-.zone:active {
-  transform: scale(0.97);
-}
-
-.zone-blocked
-  > :not(.zone-amount):not(.zone-odds-amount):not(.puck):not(.zone-off):not(.zone-track):not(
-    .zone-count
-  ) {
-  opacity: 0.45;
-}
-
-.zone-live {
-  border-color: var(--brass);
-  background: rgba(216, 178, 92, 0.12);
-}
-
-.zone-pay,
-.zone-badge,
-.zone-detail {
-  font-family: var(--font-body);
-  font-weight: 600;
-  font-size: 11px;
-  line-height: 1.15;
-  letter-spacing: 0;
-  text-transform: none;
-  color: var(--chalk-dim);
-  font-variant-numeric: tabular-nums;
-}
-
-/* A narrow spot shows the chip in place of its pays line, so the label stays readable. */
-.zone-compact.zone-live .zone-pay {
-  display: none;
-}
-
-/* The coach's edge badge: the grade colours it, the text carries the number (plan §5.5). */
-.zone-coach,
-.sheet-edge {
-  font-family: var(--font-body);
-  font-weight: 700;
-  font-size: 10.5px;
-  line-height: 1.5;
-  letter-spacing: 0;
-  text-transform: none;
-  padding: 0 5px;
-  border-radius: 99px;
-  border: 1px solid currentColor;
-  font-variant-numeric: tabular-nums;
-  margin-top: 1px;
-}
-
-.grade-excellent,
-.grade-good {
-  color: var(--good);
-}
-
-.grade-fair {
-  color: var(--fair);
-}
-
-.grade-poor {
-  color: var(--poor);
-}
-
-.grade-awful {
-  color: var(--awful);
-}
-
-/* The bet on a spot, as a chip. Narrow spots carry it inline; big zones park it in a corner. */
-.zone-amount {
-  display: inline-grid;
-  place-items: center;
-  min-width: 30px;
-  height: 19px;
-  padding: 0 6px;
-  margin-top: 2px;
-  border-radius: 99px;
-  font-family: var(--font-body);
-  font-weight: 700;
-  font-size: 11px;
-  letter-spacing: 0;
-  text-transform: none;
-  white-space: nowrap;
-  border: 2px dashed rgba(255, 255, 255, 0.75);
-  box-shadow: 0 1px 3px var(--shadow);
-  font-variant-numeric: tabular-nums;
-}
-
-.table-bars .zone-amount,
-.panel-zones .zone-amount {
-  position: absolute;
-  top: 3px;
-  right: 3px;
-  min-width: 28px;
-  height: 28px;
-  padding: 0 3px;
-  margin: 0;
-  border-width: 3px;
-  box-shadow: 0 2px 5px var(--shadow);
-}
-
-/* A big zone with a chip in its corner keeps its label clear of the chip. */
-.table-bars .zone-live,
-.panel-zones .zone-live {
-  padding-left: 32px;
-  padding-right: 32px;
-}
-
-.zone-odds-amount {
-  font-family: var(--font-body);
-  font-weight: 700;
-  font-size: 10px;
-  letter-spacing: 0;
-  text-transform: none;
-  white-space: nowrap;
-  color: var(--chalk);
-  font-variant-numeric: tabular-nums;
-}
-
-.table-bars .zone-odds-amount {
-  position: absolute;
-  bottom: 4px;
-  right: 4px;
-  padding: 0 6px;
-  border-radius: 99px;
-  background: var(--cabinet);
-  border: 1px solid var(--line-soft);
-}
-
-.zone-off {
-  font-family: var(--font-body);
-  font-weight: 800;
-  font-size: 9px;
-  letter-spacing: 0.08em;
-  line-height: 1.4;
-  padding: 0 4px;
-  border-radius: 3px;
-  background: var(--chip-100);
-  color: var(--chalk);
-  border: 1px solid var(--line-soft);
-}
-
-.table-bars .zone-off,
-.panel-zones .zone-off {
-  position: absolute;
-  bottom: 4px;
-  left: 4px;
-}
-
-/* chip colours by denomination */
-[data-denom='1'] {
-  background: var(--chip-1);
-  color: var(--chip-ink-dark);
-}
-
-[data-denom='5'] {
-  background: var(--chip-5);
-  color: var(--chip-ink-light);
-}
-
-[data-denom='25'] {
-  background: var(--chip-25);
-  color: var(--chip-ink-light);
-}
-
-[data-denom='100'] {
-  background: var(--chip-100);
-  color: var(--chip-ink-light);
-  border-color: var(--brass);
-}
-
-[data-denom='500'] {
-  background: var(--chip-500);
-  color: var(--chip-ink-light);
-}
-
-[data-denom='1000'] {
-  background: var(--chip-1000);
-  color: var(--chip-ink-dark);
-}
-
-/* The guide's highlight: dashed, so it never reads as the solid focus ring (plan §0 #18). */
-.guide-target {
-  outline: 3px dashed var(--brass);
-  outline-offset: 4px;
-  animation: spot 1.6s ease-in-out infinite;
-}
-
-@keyframes spot {
-  50% {
-    outline-color: rgba(216, 178, 92, 0.25);
-  }
-}
-
-.zone-shake {
-  animation: nope 0.32s ease;
-}
-
-@keyframes nope {
-  20% {
-    transform: translateX(-5px);
-  }
-  40% {
-    transform: translateX(5px);
-  }
-  60% {
-    transform: translateX(-3px);
-  }
-  80% {
-    transform: translateX(3px);
-  }
-}
-
-/* ---- the line bars, tabs and panels --------------------------------------------------- */
-
-.table-bars {
+.chrome-icon {
+  flex: 0 0 auto;
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #3b403d;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+.chrome-icon-repeat {
+  font-size: 17px;
+}
+
+.chrome-small {
+  padding: 4px 11px;
+  border-radius: 99px;
+}
+
+.chrome-small[aria-pressed='true'] {
+  background: linear-gradient(180deg, #ffe27a, var(--gold));
+  border-color: var(--gold-deep);
+  color: var(--ink-on-gold);
+}
+
+.action-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;
+}
+
+.action-macros {
+  min-width: 0;
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.roll-button {
+  min-width: 108px;
+  min-height: 54px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 14px;
+  background: radial-gradient(120% 120% at 30% 20%, #ffe27a, var(--gold) 45%, var(--gold-deep));
+  color: var(--ink-on-gold);
+  font-family: var(--font-machine);
+  font-weight: 700;
+  font-size: 26px;
+  letter-spacing: 0.14em;
+  box-shadow:
+    0 5px 0 #6f5409,
+    0 9px 18px var(--shadow);
+}
+
+.roll-button:active {
+  transform: translateY(3px);
+  box-shadow:
+    0 2px 0 #6f5409,
+    0 5px 10px var(--shadow);
+}
+
+/* ---- the Coach drawer ----------------------------------------------------------------- */
+
+.coach {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 18px;
+  background: var(--panel);
+  border: 1px solid var(--line-soft);
+  box-shadow: 0 10px 30px var(--shadow);
+}
+
+/* Docked beside the felt on a wide screen: it scrolls on its own, under the top bar. */
+@media (min-width: 1000px) {
+  .coach {
+    position: sticky;
+    top: 10px;
+    max-height: calc(100dvh - 170px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+  }
+}
+
+/* Below that, an open drawer is a bottom sheet over the felt. */
+@media (max-width: 999px) {
+  .coach {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 40;
+    max-height: 78dvh;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    border-radius: 18px 18px 0 0;
+    border-top: 2px solid var(--gold);
+    padding: 12px max(14px, env(safe-area-inset-right, 0px))
+      max(14px, env(safe-area-inset-bottom, 0px)) max(14px, env(safe-area-inset-left, 0px));
+    box-shadow: 0 -12px 34px rgba(0, 0, 0, 0.6);
+  }
+}
+
+.coach > * {
+  flex-shrink: 0;
+}
+
+.coach-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   gap: 8px;
 }
 
-.table-bars .zone {
-  min-height: 70px;
+.coach-close {
+  width: 44px;
+  height: 44px;
+  min-height: 0;
+  padding: 0;
+  font-size: 22px;
+  line-height: 1;
 }
 
-.table-bars .zone-label {
-  font-size: 24px;
-  font-weight: 900;
-  letter-spacing: 0.08em;
-}
-
-.table-bars .zone-line .zone-label {
-  font-size: 26px;
-}
-
-.zone-field .zone-detail {
-  font-family: var(--font-layout);
-  font-weight: 800;
-  font-size: 16px;
-  letter-spacing: 0.12em;
-  color: var(--chalk);
-}
-
-.table-tabs {
-  display: none;
-  gap: 6px;
-}
-
-.table-tab {
-  flex: 1;
-  min-height: 44px;
-  border-radius: 10px;
-  font-family: var(--font-layout);
-  font-weight: 800;
-  font-size: 13px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
-
-.table-tab[aria-selected='true'] {
-  background: var(--brass);
-  color: var(--ink-on-brass);
-  border-color: var(--brass);
-}
-
-.table-panels {
-  display: grid;
-  gap: 10px;
-  grid-template-columns: 1fr;
-}
-
-@media (min-width: 960px) {
-  .table-panels {
-    grid-template-columns: minmax(0, 2.2fr) minmax(0, 1fr) minmax(0, 1fr);
-    align-items: start;
-  }
-}
-
-.panel {
-  min-width: 0;
-}
-
-.panel-title {
-  margin-bottom: 6px;
-}
-
-.panel-zones {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(92px, 1fr));
-  gap: 6px;
-}
-
-.panel-zones .zone {
-  min-height: 54px;
-}
-
-.panel-empty {
-  margin: 0;
-  font-size: 13px;
-  color: var(--chalk-dim);
-}
-
-.bottom-sheet {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 30;
-  background: var(--panel);
-  border-top: 2px solid var(--brass);
-  border-radius: 18px 18px 0 0;
-  padding: 10px max(12px, env(safe-area-inset-right, 0px))
-    max(12px, env(safe-area-inset-bottom, 0px)) max(12px, env(safe-area-inset-left, 0px));
-  max-height: 60dvh;
-  overflow-y: auto;
-  box-shadow: 0 -10px 30px var(--shadow);
-}
-
-.bottom-sheet-head {
+.toggles {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  margin-bottom: 6px;
+  gap: 6px;
+  flex-wrap: wrap;
 }
 
-.bottom-sheet .panel-title {
-  margin: 0;
+.toggles button {
+  min-height: 34px;
+  padding: 5px 12px;
+  font-size: 13px;
 }
 
-/* phones: a 2×5 number grid and the panels behind tabs (plan §6) */
-@media (max-width: 760px) {
-  .table-numbers {
-    grid-template-columns: repeat(5, minmax(0, 1fr));
-  }
-  .table-bars .zone-label {
-    font-size: 20px;
-  }
-  .table-bars .zone-line .zone-label {
-    font-size: 22px;
-  }
+.coach-modes,
+.modes {
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
-@media (max-width: 599px) {
-  .table-tabs {
-    display: flex;
-  }
-  .table-panels {
-    display: none;
-  }
+.coach-modes-name {
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  margin: 0 4px 0 6px;
 }
 
-/* ---- the next-step bar ---------------------------------------------------------------- */
-
+/* The guide's detail (its step and Go ride in the status banner). */
 .next-step {
-  background: var(--cabinet);
-  border: 1px solid var(--brass-deep);
+  background: var(--panel-2);
+  border: 1px solid var(--line-soft);
   border-radius: 14px;
   padding: 10px 12px 12px;
   display: flex;
   flex-direction: column;
   gap: 6px;
-  box-shadow: 0 4px 14px var(--shadow);
 }
 
 .ns-top {
@@ -1221,11 +2710,12 @@ h3 {
   place-items: center;
   font-size: 11px;
   font-weight: 700;
-  background: var(--panel-2);
+  background: var(--panel);
   color: var(--chalk-dim);
 }
 
-/* Steps before the current one read as done. */
+/* Steps before the current one read as done. Without `:has()` (Firefox before 121) they keep
+   the plain colour; the current step is still marked below. */
 .guide-stepper:has(.step-active) li:not(.step-active):not(.step-active ~ li) {
   border-color: rgba(114, 214, 160, 0.45);
   color: var(--good);
@@ -1246,21 +2736,6 @@ h3 {
   color: var(--ink-on-brass);
 }
 
-/* Phones show only the current step's name; the others stay readable to screen readers. */
-@media (max-width: 560px) {
-  .guide-stepper li:not(.step-active) {
-    padding-right: 2px;
-  }
-  .guide-stepper li:not(.step-active) .lbl {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip-path: inset(50%);
-    white-space: nowrap;
-  }
-}
-
 .guide-body {
   display: flex;
   flex-direction: column;
@@ -1269,13 +2744,13 @@ h3 {
 
 .guide-title {
   margin: 0;
-  font-family: var(--font-layout);
-  font-weight: 900;
-  font-size: 24px;
-  line-height: 1.05;
-  letter-spacing: 0.04em;
+  font-family: var(--font-machine);
+  font-weight: 700;
+  font-size: 19px;
+  line-height: 1.1;
+  letter-spacing: 0.02em;
   text-transform: uppercase;
-  color: var(--brass);
+  color: var(--gold);
   text-wrap: balance;
 }
 
@@ -1289,14 +2764,6 @@ h3 {
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
-}
-
-.guide-go {
-  border: 0;
-  background: var(--brass);
-  color: var(--ink-on-brass);
-  font-weight: 700;
-  min-height: 38px;
 }
 
 .guide-alt {
@@ -1325,14 +2792,14 @@ h3 {
   visibility: hidden;
 }
 
-/* ---- roll history --------------------------------------------------------------------- */
+/* ---- roll history (in the Coach drawer) ---------------------------------------------- */
 
 .history {
   min-width: 0;
-  background: var(--panel);
+  background: var(--panel-2);
   border: 1px solid var(--line-soft);
-  border-radius: 20px;
-  padding: 14px;
+  border-radius: 14px;
+  padding: 12px;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -1347,7 +2814,7 @@ h3 {
   margin: 0;
   padding: 6px 8px;
   border-radius: 9px;
-  background: var(--panel-2);
+  background: var(--panel);
   color: var(--chalk-dim);
   font-size: 13.5px;
 }
@@ -1420,7 +2887,7 @@ h3 {
 .history-roll {
   padding: 6px 8px;
   border-radius: 10px;
-  background: var(--panel-2);
+  background: var(--panel);
   border: 1px solid transparent;
 }
 
@@ -1451,7 +2918,7 @@ h3 {
   font-family: var(--font-layout);
   font-weight: 900;
   font-size: 15px;
-  background: var(--felt);
+  background: var(--felt-box);
   border: 1px solid var(--line);
 }
 
@@ -1530,10 +2997,17 @@ h3 {
   color: var(--chalk-dim);
 }
 
-/* The recap: a settled bet's arithmetic takes the whole row under its line. */
-.roll-item:has(.roll-math),
+/* The recap: a settled bet's arithmetic takes the whole row under its line. The `:has()` row
+   is a rule of its own (M14): a browser without `:has()` (Firefox before 121) drops the whole
+   rule its selector list sits in, and the no-action lines and lessons must not go with it. */
 .roll-no-action,
 .coach-moment {
+  display: block;
+  flex-basis: 100%;
+  border-radius: 10px;
+}
+
+.roll-item:has(.roll-math) {
   display: block;
   flex-basis: 100%;
   border-radius: 10px;
@@ -1559,14 +3033,14 @@ h3 {
   border-left: 3px solid var(--brass);
 }
 
-/* ---- the next-roll panel -------------------------------------------------------------- */
+/* ---- the next-roll panel (in the Coach drawer) -------------------------------------- */
 
 .next-roll {
   min-width: 0;
-  background: var(--panel);
+  background: var(--panel-2);
   border: 1px solid var(--line-soft);
-  border-radius: 20px;
-  padding: 14px;
+  border-radius: 14px;
+  padding: 12px;
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -1595,7 +3069,7 @@ h3 {
   align-items: center;
   padding: 4px 8px;
   border-radius: 9px;
-  background: var(--panel-2);
+  background: var(--panel);
   border: 1px solid transparent;
 }
 
@@ -1617,7 +3091,7 @@ h3 {
   font-family: var(--font-layout);
   font-weight: 900;
   font-size: 16px;
-  background: var(--felt);
+  background: var(--felt-box);
   border: 1px solid var(--line);
 }
 
@@ -1704,7 +3178,7 @@ h3 {
   align-items: center;
   padding: 6px 8px;
   border-radius: 9px;
-  background: var(--panel-2);
+  background: var(--panel);
 }
 
 .need-empty {
@@ -1749,7 +3223,7 @@ h3 {
   font-weight: 800;
   font-size: 13px;
   letter-spacing: 0.02em;
-  background: var(--felt-deep);
+  background: var(--felt-box);
   border: 1px solid var(--good);
   color: var(--chalk);
   white-space: nowrap;
@@ -1771,52 +3245,6 @@ h3 {
   background: var(--seven-chip);
   border-color: var(--seven-chip);
   color: var(--chip-ink-light);
-}
-
-/* ---- the coach panel ------------------------------------------------------------------ */
-
-.coach {
-  min-width: 0;
-  background: var(--panel);
-  border: 1px solid var(--line-soft);
-  border-radius: 20px;
-  padding: 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-
-.coach-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.toggles {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-wrap: wrap;
-}
-
-.toggles button {
-  min-height: 34px;
-  padding: 5px 12px;
-  font-size: 13px;
-}
-
-.coach-modes {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.coach-modes-name {
-  font-size: 11px;
-  letter-spacing: 0.14em;
-  margin: 0 4px 0 6px;
 }
 
 /* The layout cost meter (plan §5.5 surface 6). */
@@ -1942,6 +3370,60 @@ h3 {
   color: var(--awful);
 }
 
+/* The session money list (rules spec §4.6): the session section and the summary. The compact
+   meters are the top bar's. */
+.session-money-value {
+  margin: 0;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.session-money {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.session-money-item {
+  display: grid;
+  grid-template-columns: minmax(96px, auto) minmax(0, 1fr);
+  column-gap: 12px;
+  align-items: baseline;
+  padding: 6px 10px;
+  border-radius: 10px;
+  background: var(--panel-2);
+}
+
+.session-money-item dt {
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.session-money-item dd {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.session-money-detail,
+.session-money-deposits {
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.session-money-deposits {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.session-money-note {
+  font-size: 12.5px;
+  color: var(--chalk-dim);
+}
+
 /* The cheat sheet (plan §5.5 surface 7). */
 .sheet {
   background: var(--panel-2);
@@ -2047,172 +3529,245 @@ h3 {
   color: var(--chalk-dim);
 }
 
-/* ---- the chip tray -------------------------------------------------------------------- */
+/* ---- bottom sheets (phones: the prop tabs and the side bets) --------------------------- */
 
-.rack {
-  position: sticky;
+.bottom-sheet {
+  position: fixed;
+  left: 0;
+  right: 0;
   bottom: 0;
-  z-index: 5;
-  margin-top: auto;
-  background: linear-gradient(180deg, var(--panel-2), var(--panel));
-  border: 1px solid var(--line-soft);
-  border-bottom: 0;
+  z-index: 30;
+  background: linear-gradient(180deg, #23731b, #1a6114 40%, var(--felt-box));
+  border-top: 2px solid var(--felt-rim);
   border-radius: 18px 18px 0 0;
-  padding: 10px 12px calc(10px + env(safe-area-inset-bottom, 0px));
-  box-shadow: 0 -10px 30px var(--shadow);
+  padding: 10px max(12px, env(safe-area-inset-right, 0px))
+    max(12px, env(safe-area-inset-bottom, 0px)) max(12px, env(safe-area-inset-left, 0px));
+  max-height: 64dvh;
+  overflow-y: auto;
+  box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.6);
 }
 
-.rack-inner {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  gap: 10px;
+.bottom-sheet-head {
+  display: flex;
+  justify-content: space-between;
   align-items: center;
+  margin-bottom: 8px;
 }
 
-.rack-inner > * {
+.bottom-sheet .panel-title {
+  margin: 0;
+  color: #fff;
+  font-family: var(--font-machine);
+  font-size: 14px;
+  letter-spacing: 0.14em;
+}
+
+.sheet-close {
+  min-height: 44px;
+  border: 1px solid #8e9690;
+  background: linear-gradient(180deg, var(--chrome-hi), var(--chrome-lo));
+  color: var(--chrome-ink);
+  font-weight: 700;
+}
+
+.panel-zones {
   min-width: 0;
 }
 
-.chip-rail {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-  padding: 4px;
-}
-
-.chips {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-}
-
-.chip {
-  width: 46px;
-  height: 46px;
-  min-height: 0;
-  padding: 0;
-  border-radius: 50%;
-  border: 4px dashed rgba(255, 255, 255, 0.7);
-  font-weight: 800;
-  font-size: 13px;
-  font-variant-numeric: tabular-nums;
-  box-shadow: 0 3px 6px var(--shadow);
-}
-
-.chip-selected {
-  outline: 3px solid var(--brass);
-  outline-offset: 2px;
-  transform: translateY(-2px);
-}
-
-.modes {
-  display: flex;
-  gap: 6px;
-}
-
-.modes button {
-  min-height: 38px;
-}
-
-.action-bar {
+/* On a phone's sheet the side bets stand one above the other, in the box's order, each with its
+   numbers on one line. */
+.side-zones.panel-zones {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 10px;
-  align-items: center;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
 }
 
-.action-macros {
-  min-width: 0;
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
+.side-zones.panel-zones .zone-track {
+  max-width: none;
+  flex-wrap: nowrap;
 }
 
-.action-macros button {
-  min-height: 38px;
+.side-zones.panel-zones .zone-sideBet {
+  min-height: 84px;
 }
 
-.roll-button {
-  min-width: 108px;
-  min-height: 76px;
-  padding: 0 18px;
-  border: 0;
-  border-radius: 18px;
-  background: radial-gradient(120% 120% at 30% 20%, var(--brass), var(--brass-deep));
-  color: var(--ink-on-brass);
-  font-family: var(--font-layout);
-  font-weight: 900;
-  font-size: 30px;
-  letter-spacing: 0.12em;
-  box-shadow:
-    0 6px 0 var(--brass-deep),
-    0 10px 20px var(--shadow);
+.zone-slot-sheet {
+  min-height: 52px;
 }
 
-.roll-button:active {
-  transform: translateY(3px);
-  box-shadow:
-    0 3px 0 var(--brass-deep),
-    0 6px 12px var(--shadow);
-}
+/* ---- phones: 375 px and up ------------------------------------------------------------ */
 
-.roll-button:focus-visible {
-  outline: 3px solid var(--chalk);
-  outline-offset: 3px;
-}
-
-@media (max-width: 760px) {
-  .rack {
-    padding-block: 8px calc(8px + env(safe-area-inset-bottom, 0px));
+@media (max-width: 599px) {
+  .machine {
+    padding: 8px;
+    border-radius: 16px;
   }
+  /* The number row folds into the plan's 2×5 grid (a 6-number row into 2×3). The rows stand far
+     enough apart that the first row's place tags and the second row's buy tags never share their
+     coach tags' room. */
+  .table-numbers {
+    grid-auto-flow: row;
+    grid-template-columns: repeat(var(--num-half, 5), minmax(0, 1fr));
+    gap: 20px 5px;
+  }
+  .num-tabs .zone-slot-tab {
+    min-height: 44px;
+  }
+  .num-tabs-top .zone-slot-tab::before,
+  .num-tabs-top .zone-slot-tab::after {
+    clip-path: none;
+    border-radius: 6px;
+  }
+  .num-box {
+    min-height: 48px;
+  }
+  .num-label {
+    font-size: 26px;
+  }
+  .num-label.word {
+    font-size: 15px;
+  }
+  .felt-bands {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .group-buttons {
+    flex-direction: row;
+    justify-content: center;
+  }
+  .felt-pill {
+    min-height: 44px;
+  }
+  .zone-slot-band {
+    min-height: 56px;
+  }
+  .zone-comeBox .zone-label,
+  .zone-line .zone-label {
+    font-size: 32px;
+  }
+  .ft {
+    font-size: 18px;
+  }
+  /* The totals keep to one line on a phone: no bullets between them here. */
+  .ft + .ft {
+    margin-left: 0;
+  }
+  .ft + .ft::before {
+    content: none;
+  }
+  /* Clear of the second number row's coach tags, which hang below its place tabs. */
+  .felt-circles {
+    margin-top: 8px;
+  }
+  .zone-slot-circle {
+    width: 56px;
+    height: 56px;
+    font-size: 15px;
+  }
+  .prop-tab {
+    min-height: 48px;
+    border-radius: 10px;
+    border-bottom: 1px solid #8e9690;
+  }
+  .prop-buttons {
+    grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  }
+  .section-hopsEasy .prop-buttons,
+  .section-hopsHard .prop-buttons {
+    grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  }
+  .zone-slot-hop,
+  .zone-slot-prop {
+    min-height: 48px;
+  }
+  .status-banner {
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+    padding: 8px 10px;
+  }
+  .banner-guide {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    text-align: left;
+  }
+  .banner-tag {
+    grid-column: 1 / -1;
+  }
+  .banner-step {
+    font-size: 16px;
+  }
+  .rack {
+    padding-block: 6px calc(6px + env(safe-area-inset-bottom, 0px));
+  }
+  /* One line: a wrapping column would size its line to the widest child, the scrolling rail. */
   .rack-inner {
-    grid-template-columns: 1fr;
-    gap: 8px;
+    flex-direction: column;
+    flex-wrap: nowrap;
+    align-items: stretch;
+    gap: 6px;
   }
   .chip-rail {
     flex-wrap: nowrap;
     overflow-x: auto;
     scrollbar-width: none;
-    padding: 4px 4px 6px;
+    padding: 4px 2px 6px;
   }
   .chip-rail::-webkit-scrollbar {
     display: none;
   }
-  .chips,
-  .modes {
+  .chips {
     flex: 0 0 auto;
-    flex-wrap: nowrap;
   }
   .chip {
     width: 44px;
     height: 44px;
     font-size: 12px;
   }
-  .modes button {
-    min-height: 44px;
+  .chrome-pill {
+    flex: 0 0 auto;
   }
+  .action-bar {
+    width: 100%;
+    margin-left: 0;
+    gap: 8px;
+  }
+  /* The four switches share the row beside ROLL, each label on up to two lines, so none hides
+     behind ROLL. */
   .action-macros {
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    scrollbar-width: none;
-    padding-bottom: 2px;
-  }
-  .action-macros::-webkit-scrollbar {
-    display: none;
+    flex: 1 1 auto;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 5px;
   }
   .action-macros button {
-    flex: 0 0 auto;
+    min-width: 0;
     min-height: 44px;
-    padding: 5px 11px;
+    padding: 2px 3px;
+    font-size: 10.5px;
+    line-height: 1.1;
+    letter-spacing: 0.03em;
+    white-space: normal;
+    text-align: center;
+    justify-content: center;
+    border-radius: 12px;
+  }
+  /* Every control a thumb reaches is at least 44 px tall here (plan §6), not only the zones. */
+  .guide-go,
+  .guide-alt,
+  .guide-dismiss,
+  .guide-hide,
+  .toggles button,
+  .tip button,
+  .bank button {
+    min-height: 44px;
   }
   .roll-button {
     min-height: 50px;
-    min-width: 104px;
-    font-size: 26px;
-    border-radius: 14px;
+    min-width: 100px;
+    font-size: 22px;
+    border-radius: 12px;
     box-shadow:
-      0 4px 0 var(--brass-deep),
+      0 4px 0 #6f5409,
       0 8px 16px var(--shadow);
   }
 }
@@ -2230,23 +3785,35 @@ h3 {
   padding: 16px;
 }
 
+/* Dialogs speak the station's message-box language: a dark graphite panel with a thin light rim
+   (the "Hand pay" box), white machine lettering, chrome and green buttons. */
 .dialog {
   width: min(460px, 100%);
   max-height: calc(100dvh - 32px);
   overflow: auto;
   padding: 18px;
-  border: 1px solid var(--brass-deep);
-  border-radius: 18px;
-  background: var(--panel);
+  border: 1px solid #6b7570;
+  border-radius: 16px;
+  background: linear-gradient(180deg, #232b27, #141a17 70%);
   color: var(--chalk);
-  box-shadow: 0 24px 60px var(--shadow);
+  box-shadow:
+    0 0 0 3px #050806,
+    0 24px 60px rgba(0, 0, 0, 0.65),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
   display: flex;
   flex-direction: column;
   gap: 10px;
 }
 
 .dialog-title {
-  font-size: 26px;
+  font-family: var(--font-machine);
+  font-weight: 700;
+  font-size: 21px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #fff;
+  padding-bottom: 6px;
+  border-bottom: 2px solid var(--gold);
 }
 
 .dialog-choices {
@@ -2290,6 +3857,7 @@ h3 {
   border-color: var(--brass);
 }
 
+/* Without `:has()` (Firefox before 121) the checked choice shows by its brass radio alone. */
 .dialog-choice:has(input:checked) {
   background: var(--brass);
   color: var(--ink-on-brass);
@@ -2407,12 +3975,16 @@ h3 {
 }
 
 .btn-primary {
-  border: 0;
-  background: var(--brass);
-  color: var(--ink-on-brass);
+  border: 1px solid #0d4a0b;
+  background: linear-gradient(180deg, #33a226, #155f10);
+  color: #fff;
   font-weight: 700;
   min-height: 42px;
   padding: 8px 18px;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.5);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.45),
+    0 2px 5px var(--shadow);
 }
 
 .dialog-close {
@@ -2565,14 +4137,14 @@ h3 {
   margin-top: 1px;
 }
 
-.pip {
+.zone-track .pip {
   min-width: 18px;
   height: 18px;
   padding: 0 4px;
   border-radius: 99px;
-  border: 1px solid var(--line);
-  background: rgba(0, 0, 0, 0.18);
-  color: var(--chalk-dim);
+  border: 1px solid #ffffff;
+  background: #eef1ec;
+  color: #16201a;
   font-family: var(--font-body);
   font-weight: 700;
   font-size: 11px;
@@ -2582,17 +4154,17 @@ h3 {
   font-variant-numeric: tabular-nums;
 }
 
-.pip-lit {
-  background: var(--brass);
-  border-color: var(--brass);
-  color: var(--ink-on-brass);
+.zone-track .pip-lit {
+  background: var(--gold);
+  border-color: #fff3b0;
+  color: var(--ink-on-gold);
+  box-shadow: 0 0 6px rgba(245, 197, 24, 0.75);
 }
 
 /* The Lucky Shooter's point: ringed, and lit only through its hits. */
-.pip-point {
-  border-color: var(--chalk);
-  color: var(--chalk);
-  box-shadow: inset 0 0 0 1px var(--chalk);
+.zone-track .pip-point {
+  border-color: var(--gold);
+  box-shadow: inset 0 0 0 2px var(--gold);
 }
 
 .zone-count {

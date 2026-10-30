@@ -15,8 +15,9 @@ import { reject, type BetInstance, type BetType, type Rejection } from './types.
 /**
  * The limits for a bet of `typeId` on `number`, with the config's defaults for a type that sets
  * none. On a number with a unit of its own (`/limits/perType/<t>/incrementByNumber`; for odds, the
- * parent's point) the increment is that unit: a live table takes odds on 6 in $5 units. Leave out
- * the number for the type's own increment.
+ * parent's point) the increment is that unit: a live table takes odds on 6 in $5 units. On a number
+ * with a minimum of its own (`/limits/perType/<t>/minByNumber`, M12) the minimum is that one: a
+ * live lay must win $20, so it is $40 on 4 and $24 on 6. Leave out the number for the type's own.
  */
 export function typeLimits(
   cfg: MachineConfig,
@@ -28,8 +29,11 @@ export function typeLimits(
     max: cfg.limits.max,
     increment: cfg.betIncrement,
   }
-  const unit = number === null ? undefined : cfg.limits.incrementByNumber.get(typeId)?.get(number)
-  return unit === undefined ? limits : { ...limits, increment: unit }
+  if (number === null) return limits
+  const unit = cfg.limits.incrementByNumber.get(typeId)?.get(number)
+  const min = cfg.limits.minByNumber.get(typeId)?.get(number)
+  if (unit === undefined && min === undefined) return limits
+  return { min: min ?? limits.min, max: limits.max, increment: unit ?? limits.increment }
 }
 
 /**
@@ -127,7 +131,10 @@ export function countsTowardMinimum(
  * §2.5): the bets that count must add up to `amount` (`totalRound`), or each be at least `amount`
  * (`perBet`). An empty table fails a `totalRound` minimum, as Interblock's round "will not start
  * until bets are valid" (research sidebets.md). The rejection says how much more is needed, `short`
- * in cents: Interblock shows it as "BETS ARE NOT VALID YET! – Must bet N credits more!".
+ * in cents: Interblock shows it as "BETS ARE NOT VALID YET! – Must bet N credits more!". When side
+ * bets on the table were left out of the count (`countSideBets` false, §9 #11), a `totalRound`
+ * refusal also carries their stakes as `sideBets`, so the refusal can say why a table with a side
+ * bet up still may not roll (M11 audit: a locked Hot Shooter alone after the pass lost).
  */
 export function checkMinTotal(
   state: TableState,
@@ -141,7 +148,16 @@ export function checkMinTotal(
   if (rule.scope === 'totalRound') {
     const total = onTable(counted)
     if (total >= min) return null
-    return reject('BELOW_MIN_TOTAL', { scope: 'totalRound', min, total, short: min - total })
+    const sideBets = rule.countSideBets
+      ? 0
+      : onTable(state.bets.filter((bet) => cfg.sideBets.has(bet.typeId)))
+    return reject('BELOW_MIN_TOTAL', {
+      scope: 'totalRound',
+      min,
+      total,
+      short: min - total,
+      ...(sideBets > 0 ? { sideBets } : {}),
+    })
   }
   const small = counted.find((bet) => bet.amount < min)
   if (small === undefined) return null

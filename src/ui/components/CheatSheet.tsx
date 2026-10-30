@@ -59,7 +59,13 @@ export function CheatSheet() {
                 {text(sheet.notModelled.parts)}
               </p>
             )}
-            <ol className="sheet-rows" data-testid="sheet-rows">
+            {/* The rows scroll inside the card, so the list takes focus for the keyboard (M14). */}
+            <ol
+              className="sheet-rows"
+              data-testid="sheet-rows"
+              tabIndex={0}
+              aria-label="Bets, best edge first"
+            >
               {sheet.rows.map((row) => (
                 <li key={row.key} className="sheet-row" data-sheet-row={row.key}>
                   <div className="sheet-head">

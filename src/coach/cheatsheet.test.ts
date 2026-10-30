@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { compileConfig } from '../engine/config/compile.ts'
 import { PRESETS, PRESET_IDS } from '../engine/config/presets/index.ts'
+import type { MachineConfigInput } from '../engine/config/schema.ts'
 import { Fraction } from '../engine/core/rational.ts'
 import { byEdge, catalogTable } from '../exact/index.ts'
 import { sheetFromRows } from './cheatsheet.ts'
@@ -138,12 +139,60 @@ describe('sheetFromRows', () => {
     expect(formatCoachNumber(hot!.edge)).toBe('9.07%')
   })
 
+  it('ranks the Lucky Shooter per resolved wager: 10.84%, awful, after Big 6/8 and Hard 6/8 (M11 audit)', () => {
+    // Rules spec §6.3, §8.1 rank 24: its come-out 7/11 push leaves it up and decides nothing, so its
+    // edge is 159317/1469664 per resolved wager, not 8.43% per come-out roll (EXACT_VERSION 3).
+    const strict = compileConfig(PRESETS.strictBubble)
+    const sheet = sheetFromRows(catalogTable(strict), strict)
+    const keys = sheet.rows.map((r) => r.key)
+    const shooter = sheet.rows.find((r) => r.key === 'luckyShooter|')
+    if (shooter === undefined) throw new Error('no Lucky Shooter row')
+    expect((shooter.edge.exact as Fraction).equals(Fraction.of(159317, 1469664))).toBe(true)
+    expect(formatCoachNumber(shooter.edge)).toBe('10.84%')
+    expect(shooter.grade).toBe('awful')
+    for (const key of ['big|6', 'big|8', 'hard|6', 'hard|8']) {
+      expect(keys.indexOf('luckyShooter|'), key).toBeGreaterThan(keys.indexOf(key))
+    }
+    // "Wins … of decisions" is the chance a resolved wager wins: 13/63, about 20.6%.
+    expect((chanceOf(shooter.detail.parts).exact as Fraction).equals(Fraction.of(13, 63))).toBe(
+      true,
+    )
+    expect(text(shooter.detail.parts)).toContain('wins 20.6% of decisions')
+  })
+
+  it('words a side bet from its config: a seven-out-only Lucky Roller, a Fire Bet paid at once', () => {
+    const input = structuredClone(PRESETS.craplessBubble) as MachineConfigInput
+    const low = input.sideBets.luckyRollerLow
+    if (low?.family !== 'collectSet') throw new Error('no Low Rolls')
+    low.endsOn = 'sevenOut'
+    const sevenOut = compileConfig(input)
+    const lowRow = sheetFromRows(catalogTable(sevenOut), sevenOut).rows.find(
+      (r) => r.key === 'luckyRollerLow|',
+    )
+    expect(lowRow?.note !== null && lowRow !== undefined && text(lowRow.note.parts)).toBe(
+      'Side bet: every target total must roll before a seven-out, repeats and order aside; it locks once the dice roll.',
+    )
+    const live = structuredClone(PRESETS.traditionalLive345) as MachineConfigInput
+    const fire = live.sideBets.fire
+    if (fire?.family !== 'uniquePointsMade') throw new Error('no Fire Bet')
+    fire.payImmediatelyAt = 6
+    const payAtSix = compileConfig(live)
+    const fireRow = sheetFromRows(catalogTable(payAtSix), payAtSix).rows.find(
+      (r) => r.key === 'fire|',
+    )
+    expect(fireRow?.note !== null && fireRow !== undefined && text(fireRow.note.parts)).toContain(
+      'at once on reaching the count the machine pays immediately',
+    )
+  })
+
   it('says nothing about unmodelled options where the machine sets none, and names them where it does', () => {
     expect(sheetFromRows(catalogTable(crapless), crapless).notModelled).toBeNull()
     const traditional = compileConfig(PRESETS.traditionalBubble)
     const sheet = sheetFromRows(catalogTable(traditional), traditional)
-    expect(sheet.notModelled !== null && text(sheet.notModelled.parts)).toContain(
-      '/offBets/consumeCredit',
+    expect(sheet.notModelled !== null && text(sheet.notModelled.parts)).toBe(
+      'This machine also sets options the trainer approximates: its OFF bets use no credit, but ' +
+        'the trainer counts them against your credit; its shared dome rolls on its own timer, ' +
+        'but the trainer rolls only when you press ROLL.',
     )
   })
 })

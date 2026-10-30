@@ -125,6 +125,32 @@ describe('the M11 acceptance scenarios through the reducer and the reference', (
     })
   })
 
+  it("a Hot Shooter taken on a later come-out carries the hand's rolls (rules spec §2.6; M11 audit)", () => {
+    // Hand 1: placed at its start, a 2-roll hand loses. Hand 2 starts unplaced (the driver lets
+    // every other hand's first come-out go by); after the made 4 the bet goes up with 2 rolls
+    // carried, and the 9-roll hand returns the stake under A, and loses under C (count 7).
+    const totals = [4, 7, 4, 4, 6, 5, 5, 5, 5, 5, 7]
+    const a = scripted('traditionalBubble+anyComeOut', 'hotShooter', totals)
+    expect(a.carried).toBe(1)
+    expect(a.settled).toEqual({ 'lose:x0': 1, 'push:x1': 1 })
+    const c = scripted('traditionalBubble+defC+anyComeOut', 'hotShooter', totals)
+    expect(c.carried).toBe(1)
+    expect(c.settled).toEqual({ 'lose:x0': 2 })
+    // Random hands carry rolls too, on both variants, with no mismatch.
+    for (const id of ['traditionalBubble+anyComeOut', 'traditionalBubble+defC+anyComeOut']) {
+      let carried = 0
+      fc.assert(
+        fc.property(diceSequenceArb(80), (dice) => {
+          const report = runSideBetSession(machine(id), 'hotShooter', 100, dice)
+          expect(report.mismatches.map(describeSideBetMismatch)).toEqual([])
+          carried += report.carried
+        }),
+        { seed: SEED, numRuns: 40 },
+      )
+      expect(carried, id).toBeGreaterThan(0)
+    }
+  })
+
   it('the Lucky Shooter: PA examples, the come-out pushes, the top award and the lock before the point', () => {
     expect(scripted('strictBubble', 'luckyShooter', [9, 10, 4, 6, 10]).settled).toEqual({
       'win:3hits': 1,

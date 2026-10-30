@@ -5,16 +5,23 @@ import { force3d } from './webgl.ts'
  * Quality tiers (plan §7 Quality and fallbacks, M10b): what the dome spends per frame, by device
  * class and by measured frame time, with a player override.
  *
- * | tier   | when                       | DPR      | glass        | shadows | MSAA |
- * |--------|----------------------------|----------|--------------|---------|------|
- * | high   | fine pointer (desktop)     | [1, 2]   | transmission | yes     | yes  |
- * | medium | coarse pointer (phone)     | [1, 1.5] | plain        | yes     | yes  |
- * | low    | dropped to by the monitor  | 1        | plain        | no      | no   |
+ * | tier   | when                       | DPR      | mesh detail | shadows | MSAA |
+ * |--------|----------------------------|----------|-------------|---------|------|
+ * | high   | fine pointer (desktop)     | [1, 2]   | finest      | yes     | yes  |
+ * | medium | coarse pointer (phone)     | [1, 1.5] | finer       | yes     | yes  |
+ * | low    | dropped to by the monitor  | 1        | coarse      | no      | no   |
+ *
+ * Every tier draws the same plain glass. M10b gave the high tier transmission glass (the scene
+ * rendered twice, refracted through the shell); with the camera reading the dice through the top
+ * of the dome it blurred them and laid the room light's glare over their faces (fix:dome,
+ * screenshots at each tier), so it went.
  *
  * The frame monitor runs only while a throw plays: once it has 60 frame times it takes their
  * median, and a median over 22 ms (under 45 fps) drops one tier. The drop is kept per device in
- * localStorage, so the next visit starts on the tier this device holds, and the player can pin a
- * tier instead (`override`), which turns the monitor off. 2D is never chosen by the monitor: it
+ * localStorage (`bct:v1:dome-quality`), so the next visit starts on the tier this device holds,
+ * and the player can pin a tier instead (`override`), which turns the monitor off. The pin is a
+ * player setting: it lives in `persistence/settings.ts` (`domeQuality`), which the App hands in as
+ * `pin`, so a settings export carries it. 2D is never chosen by the monitor: it
  * stays the fallback for a device without WebGL or one that loses its context. Geometry and
  * materials follow the tier live; MSAA is fixed when the renderer is created, so a drop's MSAA
  * change lands on the next load. Under `force3d=1` (the e2e, software WebGL) the tier is medium
@@ -33,8 +40,6 @@ export interface TierSpec {
   readonly dpr: number | [number, number]
   /** MSAA, decided when the renderer is created. */
   readonly antialias: boolean
-  /** The acrylic dome as transmission glass (renders the scene twice) or a plain transparent shell. */
-  readonly transmission: boolean
   /** Blob shadows under the dice. */
   readonly shadows: boolean
   /** Mesh detail: the die's rounded-box segments, the dome sphere's and ring's, the felt disc's. */
@@ -50,21 +55,18 @@ export const TIERS: Readonly<Record<QualityTier, TierSpec>> = {
   high: {
     dpr: [1, 2],
     antialias: true,
-    transmission: true,
     shadows: true,
     segments: { die: 4, dome: [64, 24], ring: [16, 128], felt: 72 },
   },
   medium: {
     dpr: [1, 1.5],
     antialias: true,
-    transmission: false,
     shadows: true,
     segments: { die: 3, dome: [48, 18], ring: [12, 96], felt: 64 },
   },
   low: {
     dpr: 1,
     antialias: false,
-    transmission: false,
     shadows: false,
     segments: { die: 2, dome: [32, 12], ring: [8, 64], felt: 48 },
   },
@@ -84,7 +86,7 @@ export function lowestTier(a: QualityTier, b: QualityTier): QualityTier {
   return TIER_ORDER.indexOf(a) >= TIER_ORDER.indexOf(b) ? a : b
 }
 
-/** The tier a device class starts on: transmission glass on fine pointers, plain glass elsewhere. */
+/** The tier a device class starts on: high on fine pointers (desktop), medium elsewhere. */
 export function defaultTier(forced: boolean = force3d()): QualityTier {
   if (forced || typeof matchMedia !== 'function') return 'medium'
   try {
@@ -167,37 +169,47 @@ export interface QualityState {
   drop(): boolean
 }
 
+/** Where the player's pin is kept: the settings store in the app, memory in tests. */
+export interface QualityPin {
+  read(): QualityChoice
+  write(choice: QualityChoice): void
+}
+
 export interface QualityOptions {
-  /** Where the override and the measured tier are kept; null keeps them in memory only. */
+  /** Where the measured tier is kept; null keeps it in memory only. */
   readonly storage?: Pick<Storage, 'getItem' | 'setItem'> | null
   /** The device class's tier; the default asks the browser. */
   readonly device?: QualityTier
   /** Whether the frame-time monitor runs during playback; the default is off only under force3d. */
   readonly monitor?: boolean
+  /** The player's pin; without one it starts on auto and lives in memory. */
+  readonly pin?: QualityPin
 }
 
+/** The device's measured tier (`{ measured }`); an older blob's `override` is ignored. */
 export const QUALITY_KEY = 'bct:v1:dome-quality'
 
-interface Saved {
-  readonly override: QualityChoice
-  readonly measured: QualityTier | null
-}
-
-function load(storage: Pick<Storage, 'getItem'> | null): Saved {
-  const fallback: Saved = { override: 'auto', measured: null }
-  if (storage === null) return fallback
+function loadMeasured(storage: Pick<Storage, 'getItem'> | null): QualityTier | null {
+  if (storage === null) return null
   try {
     const raw = storage.getItem(QUALITY_KEY)
-    if (raw === null) return fallback
+    if (raw === null) return null
     const parsed: unknown = JSON.parse(raw)
-    if (typeof parsed !== 'object' || parsed === null) return fallback
-    const { override, measured } = parsed as { override?: unknown; measured?: unknown }
-    return {
-      override: isQualityChoice(override) ? override : 'auto',
-      measured: isQualityChoice(measured) && measured !== 'auto' ? measured : null,
-    }
+    if (typeof parsed !== 'object' || parsed === null) return null
+    const { measured } = parsed as { measured?: unknown }
+    return isQualityChoice(measured) && measured !== 'auto' ? measured : null
   } catch {
-    return fallback
+    return null
+  }
+}
+
+function memoryPin(): QualityPin {
+  let choice: QualityChoice = 'auto'
+  return {
+    read: () => choice,
+    write: (next) => {
+      choice = next
+    },
   }
 }
 
@@ -217,32 +229,35 @@ function effective(device: QualityTier, measured: QualityTier | null, override: 
 export function createQualityStore(options: QualityOptions = {}): StoreApi<QualityState> {
   const storage = options.storage === undefined ? defaultStorage() : options.storage
   const device = options.device ?? defaultTier()
-  const saved = load(storage)
-  const save = (state: Saved): void => {
+  const pin = options.pin ?? memoryPin()
+  const measured = loadMeasured(storage)
+  const pinned = pin.read()
+  const override = isQualityChoice(pinned) ? pinned : 'auto'
+  const saveMeasured = (tier: QualityTier | null): void => {
     try {
-      storage?.setItem(QUALITY_KEY, JSON.stringify(state))
+      storage?.setItem(QUALITY_KEY, JSON.stringify({ measured: tier }))
     } catch {
       // Storage full or blocked: the tier still applies for this visit.
     }
   }
   return createStore<QualityState>()((set, get) => ({
     device,
-    measured: saved.measured,
-    override: saved.override,
-    tier: effective(device, saved.measured, saved.override),
+    measured,
+    override,
+    tier: effective(device, measured, override),
     setOverride: (choice) => {
-      const { measured } = get()
-      set({ override: choice, tier: effective(device, measured, choice) })
-      save({ override: choice, measured })
+      const { measured: kept, override: before } = get()
+      if (choice !== before) set({ override: choice, tier: effective(device, kept, choice) })
+      if (pin.read() !== choice) pin.write(choice)
     },
     drop: () => {
-      const { override, tier, measured } = get()
-      if (override !== 'auto') return false
+      const { override: current, tier, measured: kept } = get()
+      if (current !== 'auto') return false
       const lower = lowerTier(tier)
       if (lower === null) return false
-      const next = measured === null ? lower : lowestTier(measured, lower)
-      set({ measured: next, tier: effective(device, next, override) })
-      save({ override, measured: next })
+      const next = kept === null ? lower : lowestTier(kept, lower)
+      set({ measured: next, tier: effective(device, next, current) })
+      saveMeasured(next)
       return true
     },
   }))

@@ -1,8 +1,10 @@
 import { z } from 'zod'
+import { metersOfSession, type SessionMeters } from '../coach/summary/meters.ts'
 import {
   ENGINE_VERSION,
   ReplayError,
   hashJson,
+  headerConfig,
   lastWindowOf,
   resumeSession,
 } from '../engine/index.ts'
@@ -16,6 +18,7 @@ import type {
   WindowRecord,
   WindowedSession,
 } from '../engine/index.ts'
+import { describeMigrationError, migrateHead } from './migrations.ts'
 import {
   KEYS,
   SESSION_CHUNK,
@@ -41,7 +44,9 @@ import {
  *   on divergence the stored state is kept, the head marked divergent, and the notice surfaced as
  *   data (plan §8). Junk in storage never throws out of the repo: an invalid blob is moved to
  *   `corrupt:<ts>` and the load reports `corrupt`, so the shell starts fresh.
- * - A new game archives the old session as a `LastResult` summary and reuses the single slot.
+ * - A new game archives the old session as a `LastResult` summary and reuses the single slot. The
+ *   summary carries the session meters (rules spec §4.6), recomputed from the old session's whole
+ *   log before its keys go.
  */
 
 /** The shell's handle on the stored session: identity and the divergence mark, plain data. */
@@ -87,6 +92,13 @@ export interface LastResult {
   readonly rolls: number
   readonly hands: number
   readonly ledger: Ledger
+  /**
+   * The session meters (rules spec §4.6), from the session's whole log: every deposit after the
+   * buy-in, the total wagered and the commission's parts; their totals are `ledger.deposits` and
+   * `ledger.vigPaid`. Null when the log could not be read or its machine no longer compiles;
+   * absent from a result an older build archived.
+   */
+  readonly meters?: SessionMeters | null
 }
 
 export type RepoWrite = { readonly ok: true } | { readonly ok: false; readonly error: string }
@@ -181,6 +193,28 @@ function storedSession(head: SessionHead, committed: readonly WindowRecord[]): W
   }
 }
 
+/**
+ * The meters of a stored session, recomputed from its whole log (its chunks and the head's open
+ * window), exactly as a resume computes them; null when a chunk is missing or junk, or the machine
+ * no longer compiles. Never throws: archiving must not stop a new game.
+ */
+async function archivedMeters(head: SessionHead): Promise<SessionMeters | null> {
+  const committed: WindowRecord[] = []
+  for (let index = 0; index * SESSION_CHUNK < head.windowCount; index++) {
+    const chunk = await safeGet<unknown>(KEYS.chunk(head.id, index))
+    if (!chunk.ok || !Array.isArray(chunk.value) || !chunk.value.every(isWindowRecord)) return null
+    committed.push(...chunk.value)
+  }
+  if (committed.length < head.windowCount) return null
+  committed.length = head.windowCount
+  try {
+    const cfg = headerConfig(head.header, { anyEngineVersion: true })
+    return metersOfSession(storedSession(head, committed), cfg).current
+  } catch {
+    return null
+  }
+}
+
 /** Moves an invalid blob aside (`corrupt:<ts>`) so the next load starts fresh; best effort. */
 async function quarantine(
   error: string,
@@ -235,6 +269,7 @@ export function createSessionRepo(options: SessionRepoOptions = {}): SessionRepo
           rolls: old.state.round.rollIndex,
           hands: old.state.round.hand.index + 1,
           ledger: old.state.ledger,
+          meters: await archivedMeters(old),
         }
         await safeSet(KEYS.lastResult, result)
       }
@@ -266,7 +301,9 @@ export function createSessionRepo(options: SessionRepoOptions = {}): SessionRepo
         [KEYS.current, meta.id],
       ])
       if (!written.ok) return written
-      await requestPersistence()
+      // Not awaited (M14 cross-browser): Firefox settles persist() only once the player answers
+      // its permission prompt — never, headless — so awaiting it held the boot and every New game.
+      void requestPersistence()
       return { ok: true }
     },
 
@@ -307,7 +344,20 @@ export function createSessionRepo(options: SessionRepoOptions = {}): SessionRepo
       if (headBlob.value === undefined) {
         return quarantine(`session ${id} has no head`, [], now)
       }
-      const parsedHead = HeadSchema.safeParse(headBlob.value)
+      // Stored shapes are migrated on read, before any check (plan §8, `migrations.ts`). No shape
+      // has changed yet, so this only checks each table's version (`TableState.v`): a head from a
+      // newer build, or one without a version, is moved aside rather than misread. A future table
+      // change also changes the hashes the log recorded, so it comes with an ENGINE_VERSION bump
+      // and resumes through the cross-version path below.
+      const migrated = migrateHead(headBlob.value)
+      if (!migrated.ok) {
+        return quarantine(
+          `session ${id} head: ${describeMigrationError(migrated.error)}`,
+          [[KEYS.head(id), headBlob.value]],
+          now,
+        )
+      }
+      const parsedHead = HeadSchema.safeParse(migrated.head)
       if (!parsedHead.success) {
         const error = `session ${id} head is invalid: ${parsedHead.error.issues
           .map((issue) => issue.path.join('.') || '/')

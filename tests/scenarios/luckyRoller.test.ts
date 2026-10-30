@@ -31,9 +31,10 @@ describe('Interblock Lucky Roller on the crapless machine [V IB §6.2]', () => {
       .expectBankroll(49_900)
   })
 
-  it('completing the set pays 30 to 1 at once, repeats ignored, the bet coming down (plan §10 M11) [R]', () => {
+  it('completing the set pays 30 to 1 at once, repeats ignored, the bet coming down (plan §10 M11) [V]', () => {
+    // "31 FOR 1" on the game screen and on the player's own station (photo, plan §0 #28).
     scenario('craplessBubble')
-      .expectProvenance('/sideBets/luckyRollerLow/pays', 'reported')
+      .expectProvenance('/sideBets/luckyRollerLow/pays', 'verified')
       .place('pass', 500)
       .place('luckyRollerLow', 100)
       .roll(1, 1)

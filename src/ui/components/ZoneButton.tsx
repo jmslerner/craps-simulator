@@ -1,23 +1,25 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { formatCents } from '../../engine/index.ts'
-import type { Cents } from '../../engine/index.ts'
+import type { Cents, Die as DieFace } from '../../engine/index.ts'
 import { formatCoachNumber } from '../../coach/format.ts'
 import { badgeVisibleIn, coachModeName } from '../../coach/policy.ts'
 import { badgeKey } from '../../coach/types.ts'
 import type { ZoneBadge } from '../../coach/types.ts'
+import { Die } from '../dice2d/Die.tsx'
 import { badgeFor, ensureCatalog, subscribeAnalysis } from '../services/analysisClient.ts'
-import type { ZoneSpec } from '../layout/layoutSpec.ts'
+import type { ZoneKind, ZoneSpec } from '../layout/layoutSpec.ts'
 import type { SideBetProgress } from '../layout/sideBetProgress.ts'
 import { useGameState, useSettingsState, useUi } from './context.tsx'
 import { useLongPress } from './useLongPress.ts'
 
 /**
  * One layout zone as a button (plan §6 accessibility): the aria-label reads like "Place 6, $12.00,
- * pays 7 to 6" — no house-edge claim until M9's CoachNumbers. A refused action shakes the zone
- * (CSS honours `prefers-reduced-motion`), the guide's highlight draws a dashed outline and scrolls
- * the zone into view, and a long-press or right-click opens the inspector. The zone stays tappable
- * when it cannot take a bet (`aria-disabled`, never `disabled`), so a tap can show the machine's
- * own refusal in the reason strip.
+ * pays 7 to 6, house edge 1.52 percent, good" — the coach badge's words only where the coach mode
+ * shows the badge, its number the same `CoachNumber` the badge renders (`zoneName`). A refused
+ * action shakes the zone (CSS honours `prefers-reduced-motion`), the guide's highlight draws a
+ * dashed outline and scrolls the zone into view, and a long-press or right-click opens the
+ * inspector. The zone stays tappable when it cannot take a bet (`aria-disabled`, never
+ * `disabled`), so a tap can show the machine's own refusal in the reason strip.
  *
  * **Coach badge (plan §10 M9a, §13 M8 → M9 hand-off):** next to the machine's own badge
  * (`ZoneSpec.badge`, machine text like vig timing and odds caps) the zone carries a second,
@@ -30,7 +32,37 @@ import { useLongPress } from './useLongPress.ts'
  * the ones the bet has collected (`progressOf` over the engine's `BetInstance.progress`), with the
  * Lucky Shooter's point drawn apart; the Hot Shooter shows its roll count instead. `data-lit` on
  * the track names the lit numbers for the e2e check.
+ *
+ * **The station's faces (plan §0 #28):** each zone draws what the player's Interblock station
+ * prints on that spot and nothing more — a BUY tab says just "Buy" (its pays, vig and edge are in
+ * the inspector), a line bar or come box its name, a place tab its name over the pay in the
+ * machine's own notation (`ZoneSpec.payText`), the field its totals with "pays double" under the
+ * 2, a hop its dice picture over "2-2", a side bet its collected numbers over its pay; a locked
+ * side bet's chip carries a lock, as on the station. Everything the face leaves out is said in the
+ * zone's name. `slot` says where the zone sits (a number tab, the number box, a band, a circle, a
+ * prop or hop button, a side-bet box) for the CSS, and `showPay` false leaves the pay to the
+ * section heading that already prints it ("16 for 1 • Hop bets • 16 for 1"). The coach's edge tag
+ * is a small corner tag that never sits on the face.
  */
+
+/** Where a zone sits on the felt, for its shape: see the module comment. */
+export type ZoneSlot = 'tab' | 'box' | 'band' | 'circle' | 'prop' | 'hop' | 'side' | 'sheet'
+
+/** Kinds whose face carries no pay: the station prints none there (the inspector says it). */
+const NO_PAY_ON_FACE: ReadonlySet<ZoneKind> = new Set<ZoneKind>([
+  'buy',
+  'lay',
+  'line',
+  'odds',
+  'comeBox',
+  'comeSpot',
+  'composite',
+  'big',
+  'field',
+])
+
+/** Kinds whose machine badge (vig wording) the face leaves to the inspector. */
+const NO_BADGE_ON_FACE: ReadonlySet<ZoneKind> = new Set<ZoneKind>(['buy', 'lay', 'field'])
 
 export interface ZoneView {
   readonly zone: ZoneSpec
@@ -45,7 +77,30 @@ export interface ZoneView {
   readonly puck: 'on' | 'off' | null
   /** A side bet's progress (M11); null on every other zone and on an empty side-bet spot. */
   readonly progress: SideBetProgress | null
+  /** A side bet that can no longer come down (the engine's `canRemove` refuses): its chip is locked. */
+  readonly locked: boolean
+  /**
+   * The machine's facts in words ("Place 6, $12.00, pays 7 to 6"); the button adds the coach's
+   * badge, the point and "off for this roll" (`zoneName`).
+   */
   readonly ariaLabel: string
+}
+
+/**
+ * The zone's accessible name (plan §6; M14): the table's words, then the coach badge exactly as
+ * the zone shows it when the coach mode shows it ("house edge 1.52 percent, good" — the grade
+ * the badge's colour carries, in words), then the point puck and the off state. Every visible
+ * part of the zone is said here, which is why the zone's own text past its label is aria-hidden.
+ * The name starts with the zone's visible label; the button carries it as visually hidden text.
+ */
+export function zoneName(view: ZoneView, coach: ZoneBadge | null): string {
+  const parts = [view.ariaLabel]
+  if (coach !== null) {
+    parts.push(`house edge ${formatCoachNumber(coach.edge).replace('%', ' percent')}`, coach.grade)
+  }
+  if (view.puck === 'on') parts.push('the point')
+  if (view.off) parts.push('off for this roll')
+  return parts.join(', ')
 }
 
 /** The class of one track pip: lit when collected, marked when it is the Lucky Shooter's point. */
@@ -57,15 +112,18 @@ export function ZoneButton({
   view,
   onTap,
   onInspect,
-  compact = false,
+  slot = 'band',
+  showPay = true,
 }: {
   view: ZoneView
   onTap(): void
   onInspect(): void
-  /** Tighter styling for strips inside a number column. */
-  compact?: boolean
+  /** Where the zone sits on the felt (its shape). */
+  slot?: ZoneSlot
+  /** False when the zone's section heading already prints its pay. */
+  showPay?: boolean
 }) {
-  const { zone, amount, oddsAmount, off, blocked, puck, progress, ariaLabel } = view
+  const { zone, amount, oddsAmount, off, blocked, puck, progress, locked } = view
   const ui = useUi()
   const press = useLongPress(onTap, onInspect)
   const shake = useShake(zone.key)
@@ -85,7 +143,7 @@ export function ZoneButton({
   const classes = [
     'zone',
     `zone-${zone.kind}`,
-    compact ? 'zone-compact' : '',
+    `zone-slot-${slot}`,
     amount > 0 ? 'zone-live' : '',
     blocked ? 'zone-blocked' : '',
     highlighted ? 'guide-target' : '',
@@ -94,18 +152,40 @@ export function ZoneButton({
     .filter((name) => name !== '')
     .join(' ')
 
+  const pay = showPay && !NO_PAY_ON_FACE.has(zone.kind) ? zone.payText : null
+  const badgeText = NO_BADGE_ON_FACE.has(zone.kind) ? null : zone.badge
+  // A collect set's "any 7 loses" and a composite's parts are said in the name, not drawn.
+  const detail = zone.kind === 'sideBet' && zone.payText === null ? zone.detail : null
+
+  // The accessible name comes from the content (M14, WCAG 2.5.3 label in name): one visually
+  // hidden span says the whole zone in words (`zoneName`, which starts with the visible label),
+  // while everything drawn on the felt — the label and the shorthand ("13 for 6", "$6", "OFF") —
+  // is aria-hidden, so a screen reader hears "pays 7 to 6" once and voice control finds the zone
+  // by the label it shows. The number box (`slot` box) draws no label of its own: the column's
+  // numeral under it is the felt's, and the name says "Come on 6".
   return (
     <button
       ref={ref}
       type="button"
       className={classes}
-      aria-label={ariaLabel}
       aria-disabled={blocked || undefined}
       data-zone={zone.key}
       data-target={zone.target}
+      data-side={zone.side ?? undefined}
       {...press}
     >
-      <span className="zone-label">{zone.label}</span>
+      {zone.dice !== null && (
+        <span className="zone-dice" aria-hidden="true">
+          <Die face={zone.dice[0] as DieFace} small variant="white" />
+          <Die face={zone.dice[1] as DieFace} small variant="white" />
+        </span>
+      )}
+      {slot !== 'box' && (
+        <span className="zone-label" aria-hidden="true">
+          {zone.dice !== null ? `${zone.dice[0]}-${zone.dice[1]}` : zone.label}
+        </span>
+      )}
+      <span className="sr-only">{zoneName(view, coach)}</span>
       {zone.track !== null && (
         <span className="zone-track" aria-hidden="true" data-lit={progress?.lit.join(' ') ?? ''}>
           {zone.track.map((n) => (
@@ -119,34 +199,71 @@ export function ZoneButton({
         </span>
       )}
       {progress !== null && progress.count !== null && (
-        <span className="zone-count" data-count={progress.count}>
+        <span className="zone-count" data-count={progress.count} aria-hidden="true">
           {progress.count} {progress.count === 1 ? 'roll' : 'rolls'}
         </span>
       )}
-      {zone.payLabel !== null && <span className="zone-pay">{zone.payLabel}</span>}
-      {zone.badge !== null && <span className="zone-badge">{zone.badge}</span>}
+      {zone.totals !== null && (
+        <span className="zone-totals" aria-hidden="true">
+          {zone.totals.map(({ total, caption }) => (
+            <span key={total} className={caption === null ? 'ft' : 'ft ft-special'}>
+              <span className="ft-n">{total}</span>
+              {caption !== null && <span className="ft-cap">{caption}</span>}
+            </span>
+          ))}
+        </span>
+      )}
+      {pay !== null && (
+        <span className="zone-pay" aria-hidden="true">
+          {pay}
+        </span>
+      )}
+      {badgeText !== null && (
+        <span className="zone-badge" aria-hidden="true">
+          {badgeText}
+        </span>
+      )}
       {coach !== null && (
         <span
           className={`zone-coach grade-${coach.grade}`}
           data-coach-badge={badgeKey(zone.typeId, zone.number)}
+          aria-hidden="true"
         >
           {formatCoachNumber(coach.edge)}
         </span>
       )}
-      {zone.detail !== null && <span className="zone-detail">{zone.detail}</span>}
+      {detail !== null && (
+        <span className="zone-detail" aria-hidden="true">
+          {detail}
+        </span>
+      )}
       {amount > 0 && (
-        <span className="zone-amount" data-denom={denomOf(amount)}>
+        <span className="zone-amount" data-denom={denomOf(amount)} aria-hidden="true">
           {formatCents(amount, { trimWholeDollars: true })}
         </span>
       )}
+      {amount > 0 && locked && (
+        <span className="zone-lock" aria-hidden="true" title="Locked">
+          <svg viewBox="0 0 12 14" width="10" height="12" focusable="false">
+            <path
+              d="M3 6V4a3 3 0 0 1 6 0v2h1a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1zm1.5 0h3V4a1.5 1.5 0 0 0-3 0z"
+              fill="currentColor"
+            />
+          </svg>
+        </span>
+      )}
       {oddsAmount !== null && oddsAmount > 0 && (
-        <span className="zone-odds-amount">
+        <span className="zone-odds-amount" aria-hidden="true">
           odds {formatCents(oddsAmount, { trimWholeDollars: true })}
         </span>
       )}
-      {off && <span className="zone-off">OFF</span>}
+      {off && (
+        <span className="zone-off" aria-hidden="true">
+          OFF
+        </span>
+      )}
       {puck !== null && (
-        <span className={puck === 'on' ? 'puck puck-on' : 'puck puck-off'}>
+        <span className={puck === 'on' ? 'puck puck-on' : 'puck puck-off'} aria-hidden="true">
           {puck === 'on' ? 'ON' : 'OFF'}
         </span>
       )}
@@ -183,12 +300,19 @@ function useShake(zoneKey: string): boolean {
   return seq !== null && seq !== doneSeq
 }
 
-/** The chip colour bucket for an amount: the denomination of the largest chip inside it. */
+/**
+ * The chip colour bucket for an amount: the denomination of the largest chip inside it, from the
+ * station's own rack ($1 white, $2 blue, $3 yellow, $5 red, $10 orange, $25 green, $50 blue,
+ * $100 black; plan §0 #28) plus the high-limit chips above it.
+ */
 export function denomOf(amount: Cents): string {
-  if (amount >= 100_000) return '1000'
-  if (amount >= 50_000) return '500'
-  if (amount >= 10_000) return '100'
-  if (amount >= 2_500) return '25'
-  if (amount >= 500) return '5'
+  for (const bucket of DENOMS) {
+    if (amount >= bucket.from) return bucket.denom
+  }
   return '1'
 }
+
+/** Largest first: an amount takes the first bucket it reaches (whole dollars, in cents). */
+const DENOMS: readonly { readonly from: number; readonly denom: string }[] = [
+  1_000, 500, 100, 50, 25, 10, 5, 3, 2,
+].map((dollars) => ({ from: dollars * 100, denom: String(dollars) }))

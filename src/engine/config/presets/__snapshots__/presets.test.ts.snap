@@ -1,12 +1,12 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
 exports[`preset fingerprints > craplessBubble 1`] = `
-"craplessBubble "Crapless bubble craps" crapless, configHash 4537b96ffb0ea61c
+"craplessBubble "Crapless bubble craps" crapless, configHash b98393e15ab519bf
 rules [V]: naturals 7; craps -; points 2 3 4 5 6 8 9 10 11 12; bar -; put bets no [V]
 money: payouts floor/$0.01 [A]; bankroll $500 [A]; increment $1 [A]
 limits: $1 [A] to $500 [A]; table -; minimum total $5 [A] totalRound, OFF bets count no [V], side bets count no [A]
 not modelled: -
-chips [A]: $1 $5 $10 $25 $50 $100
+chips [R]: $1 $2 $3 $5 $10 $25 $50 $100
 catalog:
   pass [V] "Pass Line" line do/comeOut [V]: pays 1:1 [V]; after a win stay [V]
   come [V] "Come" line do/point [A]: pays 1:1 [V]; after a win return [A]
@@ -17,13 +17,13 @@ catalog:
     pays 2=6:1, 3=3:1, 4=2:1, 5=3:2, 6=6:5, 8=6:5, 9=3:2, 10=2:1, 11=3:1, 12=6:1 [A]
     limit stake 2=2x, 3=2x, 4=2x, 5=2x, 6=2x, 8=2x, 9=2x, 10=2x, 11=2x, 12=2x [R]
   place [V] "Place" place: payouts floor/$0.01 [A] (default); after a win stay [A]; come-out on [V]
-    pays 2=11:2, 3=11:4, 4=9:5, 5=7:5, 6=7:6, 8=7:6, 9=7:5, 10=9:5, 11=11:4, 12=11:2 [A]
+    pays 2=11:2 [A], 3=11:4 [A], 4=9:5 [A], 5=7:5 [A], 6=7:6 [A], 8=7:6 [A], 9=7:5 [R], 10=9:5 [A], 11=11:4 [A], 12=11:2 [A]
   buy [V] "Buy" buy: payouts floor/$0.01 [A] (default); after a win stay [A]; come-out on [V]
     pays 2=6:1, 3=3:1, 4=2:1, 5=3:2, 6=6:5, 8=6:5, 9=3:2, 10=2:1, 11=3:1, 12=6:1 [V]
     vig on 2 3 4 5 6 8 9 10 11 12: 1/20 of stake upfront [V], rounded ceil/$0.01 [A], min $0 [A], refund no [A], rearm recollectFromWin [A]
   hard [V] "Hard Ways" hardway: after a win stay [A]; come-out on [A]
     pays 4=7:1, 6=9:1, 8=9:1, 10=7:1 [A]
-  field [V] "Field" one roll by total: pays 2=2:1, 3=1:1, 4=1:1, 9=1:1, 10=1:1, 11=1:1, 12=2:1 [R]; after a win return [A]; payouts floor/$0.01 [A] (default)
+  field [V] "Field" one roll by total: pays 2=2:1 [V], 3=1:1 [R], 4=1:1 [R], 9=1:1 [R], 10=1:1 [R], 11=1:1 [R], 12=2:1 [R]; after a win return [A]; payouts floor/$0.01 [A] (default)
   any7 [V] "Seven" one roll by total: pays 7=5 for 1 (4:1) [R]; after a win return [A]; payouts floor/$0.01 [A] (default)
   anyCraps [V] "Any Craps" one roll by total: pays 2=8 for 1 (7:1), 3=8 for 1 (7:1), 12=8 for 1 (7:1) [R]; after a win return [A]; payouts floor/$0.01 [A] (default)
   c [V] "C" one roll by total: pays 2=8 for 1 (7:1), 3=8 for 1 (7:1), 12=8 for 1 (7:1) [R]; after a win return [A]; payouts floor/$0.01 [A] (default)
@@ -32,42 +32,42 @@ catalog:
   aceDeuce [V] "Ace-Deuce" one roll by total: pays 3=16 for 1 (15:1) [R]; after a win return [A]; payouts floor/$0.01 [A] (default)
   yo [V] "Yo" one roll by total: pays 11=16 for 1 (15:1) [R]; after a win return [A]; payouts floor/$0.01 [A] (default)
   boxcars [V] "Boxcars" one roll by total: pays 12=31 for 1 (30:1) [R]; after a win return [A]; payouts floor/$0.01 [A] (default)
-  hop13 [V] "Hop 1-3" one roll by dice: pays 1-3=16 for 1 (15:1) [R]; after a win return [A]; payouts floor/$0.01 [A] (default)
-  hop14 [V] "Hop 1-4" one roll by dice: pays 1-4=16 for 1 (15:1) [R]; after a win return [A]; payouts floor/$0.01 [A] (default)
-  hop15 [V] "Hop 1-5" one roll by dice: pays 1-5=16 for 1 (15:1) [R]; after a win return [A]; payouts floor/$0.01 [A] (default)
-  hop16 [V] "Hop 1-6" one roll by dice: pays 1-6=16 for 1 (15:1) [R]; after a win return [A]; payouts floor/$0.01 [A] (default)
-  hop22 [V] "Hop 2-2" one roll by dice: pays 2-2=31 for 1 (30:1) [R]; after a win return [A]; payouts floor/$0.01 [A] (default)
-  hop23 [V] "Hop 2-3" one roll by dice: pays 2-3=16 for 1 (15:1) [R]; after a win return [A]; payouts floor/$0.01 [A] (default)
-  hop24 [V] "Hop 2-4" one roll by dice: pays 2-4=16 for 1 (15:1) [R]; after a win return [A]; payouts floor/$0.01 [A] (default)
-  hop25 [V] "Hop 2-5" one roll by dice: pays 2-5=16 for 1 (15:1) [R]; after a win return [A]; payouts floor/$0.01 [A] (default)
-  hop26 [V] "Hop 2-6" one roll by dice: pays 2-6=16 for 1 (15:1) [R]; after a win return [A]; payouts floor/$0.01 [A] (default)
-  hop33 [V] "Hop 3-3" one roll by dice: pays 3-3=31 for 1 (30:1) [R]; after a win return [A]; payouts floor/$0.01 [A] (default)
-  hop34 [V] "Hop 3-4" one roll by dice: pays 3-4=16 for 1 (15:1) [R]; after a win return [A]; payouts floor/$0.01 [A] (default)
-  hop35 [V] "Hop 3-5" one roll by dice: pays 3-5=16 for 1 (15:1) [R]; after a win return [A]; payouts floor/$0.01 [A] (default)
-  hop36 [V] "Hop 3-6" one roll by dice: pays 3-6=16 for 1 (15:1) [R]; after a win return [A]; payouts floor/$0.01 [A] (default)
-  hop44 [V] "Hop 4-4" one roll by dice: pays 4-4=31 for 1 (30:1) [R]; after a win return [A]; payouts floor/$0.01 [A] (default)
-  hop45 [V] "Hop 4-5" one roll by dice: pays 4-5=16 for 1 (15:1) [R]; after a win return [A]; payouts floor/$0.01 [A] (default)
-  hop46 [V] "Hop 4-6" one roll by dice: pays 4-6=16 for 1 (15:1) [R]; after a win return [A]; payouts floor/$0.01 [A] (default)
-  hop55 [V] "Hop 5-5" one roll by dice: pays 5-5=31 for 1 (30:1) [R]; after a win return [A]; payouts floor/$0.01 [A] (default)
+  hop13 [V] "Hop 1-3" one roll by dice: pays 1-3=16 for 1 (15:1) [V]; after a win return [A]; payouts floor/$0.01 [A] (default)
+  hop14 [V] "Hop 1-4" one roll by dice: pays 1-4=16 for 1 (15:1) [V]; after a win return [A]; payouts floor/$0.01 [A] (default)
+  hop15 [V] "Hop 1-5" one roll by dice: pays 1-5=16 for 1 (15:1) [V]; after a win return [A]; payouts floor/$0.01 [A] (default)
+  hop16 [V] "Hop 1-6" one roll by dice: pays 1-6=16 for 1 (15:1) [V]; after a win return [A]; payouts floor/$0.01 [A] (default)
+  hop22 [V] "Hop 2-2" one roll by dice: pays 2-2=31 for 1 (30:1) [V]; after a win return [A]; payouts floor/$0.01 [A] (default)
+  hop23 [V] "Hop 2-3" one roll by dice: pays 2-3=16 for 1 (15:1) [V]; after a win return [A]; payouts floor/$0.01 [A] (default)
+  hop24 [V] "Hop 2-4" one roll by dice: pays 2-4=16 for 1 (15:1) [V]; after a win return [A]; payouts floor/$0.01 [A] (default)
+  hop25 [V] "Hop 2-5" one roll by dice: pays 2-5=16 for 1 (15:1) [V]; after a win return [A]; payouts floor/$0.01 [A] (default)
+  hop26 [V] "Hop 2-6" one roll by dice: pays 2-6=16 for 1 (15:1) [V]; after a win return [A]; payouts floor/$0.01 [A] (default)
+  hop33 [V] "Hop 3-3" one roll by dice: pays 3-3=31 for 1 (30:1) [V]; after a win return [A]; payouts floor/$0.01 [A] (default)
+  hop34 [V] "Hop 3-4" one roll by dice: pays 3-4=16 for 1 (15:1) [V]; after a win return [A]; payouts floor/$0.01 [A] (default)
+  hop35 [V] "Hop 3-5" one roll by dice: pays 3-5=16 for 1 (15:1) [V]; after a win return [A]; payouts floor/$0.01 [A] (default)
+  hop36 [V] "Hop 3-6" one roll by dice: pays 3-6=16 for 1 (15:1) [V]; after a win return [A]; payouts floor/$0.01 [A] (default)
+  hop44 [V] "Hop 4-4" one roll by dice: pays 4-4=31 for 1 (30:1) [V]; after a win return [A]; payouts floor/$0.01 [A] (default)
+  hop45 [V] "Hop 4-5" one roll by dice: pays 4-5=16 for 1 (15:1) [V]; after a win return [A]; payouts floor/$0.01 [A] (default)
+  hop46 [V] "Hop 4-6" one roll by dice: pays 4-6=16 for 1 (15:1) [V]; after a win return [A]; payouts floor/$0.01 [A] (default)
+  hop55 [V] "Hop 5-5" one roll by dice: pays 5-5=31 for 1 (30:1) [V]; after a win return [A]; payouts floor/$0.01 [A] (default)
 composites:
   ce [V] "C & E" = c + e
   horn [V] "Horn" = snakeEyes + aceDeuce + yo + boxcars
 side bets:
-  luckyRollerLow [V] "Low Rolls" all of 2 3 4 5 6 before anySeven [V]: pays 31 for 1 (30:1) [R]; placed afterSevenOrStart [V]
-  luckyRollerHigh [V] "High Rolls" all of 8 9 10 11 12 before anySeven [V]: pays 31 for 1 (30:1) [R]; placed afterSevenOrStart [V]
-  luckyRollerAll [V] "Roll 'Em All" all of 2 3 4 5 6 8 9 10 11 12 before anySeven [V]: pays 156 for 1 (155:1) [R]; placed afterSevenOrStart [V]
+  luckyRollerLow [V] "Low Rolls" all of 2 3 4 5 6 before anySeven [V]: pays 31 for 1 (30:1) [V]; placed afterSevenOrStart [V]
+  luckyRollerHigh [V] "High Rolls" all of 8 9 10 11 12 before anySeven [V]: pays 31 for 1 (30:1) [V]; placed afterSevenOrStart [V]
+  luckyRollerAll [V] "Roll 'Em All" all of 2 3 4 5 6 8 9 10 11 12 before anySeven [V]: pays 156 for 1 (155:1) [V]; placed afterSevenOrStart [V]
 working: toggle [V] global yes, per bet no [A], untilChanged, covers place buy passOdds comeOdds hard
   come-out auto-OFF [V]: -
   after a seven-out [V]: new place buy OFF after sevenOut [A] until playerOn [A]
   lay auto-ON [V]: -; OFF odds returned at point made yes [A]; OFF bets use credit yes [V]
 exclusive [V]: -; line vs lay/buy no [V]
-flow: shooter single [V]; invalid roll reVibrate [R]; puck reset 0 [V]; buttons press across (afterComeOutWithLineOrOneRoll) [V]; history 20 [A]; macros repeatLastBet double [V]; labels asWritten
+flow: shooter single [V]; invalid roll reVibrate [R]; puck reset 0 [V]; buttons press across (afterComeOutWithLineOrOneRoll) [V]; history 20 [A]; macros repeatLastBet double [V]; labels for
 pace: 120 rolls/hour [A]; bet window - [R]; shooter window - [R]
-assumed (60): /afterSevenOut/newPlacedOff/trigger, /afterSevenOut/newPlacedOff/until, /catalog/aceDeuce/afterWin, /catalog/any7/afterWin, /catalog/anyCraps/afterWin, /catalog/boxcars/afterWin, /catalog/buy/afterWin, /catalog/buy/commission/minimum, /catalog/buy/commission/rearm, /catalog/buy/commission/refundOnTakeDown, /catalog/buy/commission/rounding, /catalog/c/afterWin, /catalog/come/afterWin, /catalog/come/window, /catalog/comeOdds/comeOutDefault, /catalog/comeOdds/pays, /catalog/e/afterWin, /catalog/field/afterWin, /catalog/hard/afterWin, /catalog/hard/comeOutDefault, /catalog/hard/pays, /catalog/hop13/afterWin, /catalog/hop14/afterWin, /catalog/hop15/afterWin, /catalog/hop16/afterWin, /catalog/hop22/afterWin, /catalog/hop23/afterWin, /catalog/hop24/afterWin, /catalog/hop25/afterWin, /catalog/hop26/afterWin, /catalog/hop33/afterWin, /catalog/hop34/afterWin, /catalog/hop35/afterWin, /catalog/hop36/afterWin, /catalog/hop44/afterWin, /catalog/hop45/afterWin, /catalog/hop46/afterWin, /catalog/hop55/afterWin, /catalog/passOdds/pays, /catalog/place/afterWin, /catalog/place/pays, /catalog/place/pays/11, /catalog/place/pays/12, /catalog/place/pays/2, /catalog/place/pays/3, /catalog/snakeEyes/afterWin, /catalog/yo/afterWin, /chips, /flow/historyLength, /limits/max, /limits/min, /limits/minTotal/amount, /limits/minTotal/countSideBets, /money/betIncrement, /money/payoutRounding, /money/startingBankroll, /oddsOffReturnedAtPointMade, /pace/rollsPerHour, /payLabelStyle, /workingToggle/perBet"
+assumed (58): /afterSevenOut/newPlacedOff/trigger, /afterSevenOut/newPlacedOff/until, /catalog/aceDeuce/afterWin, /catalog/any7/afterWin, /catalog/anyCraps/afterWin, /catalog/boxcars/afterWin, /catalog/buy/afterWin, /catalog/buy/commission/minimum, /catalog/buy/commission/rearm, /catalog/buy/commission/refundOnTakeDown, /catalog/buy/commission/rounding, /catalog/c/afterWin, /catalog/come/afterWin, /catalog/come/window, /catalog/comeOdds/comeOutDefault, /catalog/comeOdds/pays, /catalog/e/afterWin, /catalog/field/afterWin, /catalog/hard/afterWin, /catalog/hard/comeOutDefault, /catalog/hard/pays, /catalog/hop13/afterWin, /catalog/hop14/afterWin, /catalog/hop15/afterWin, /catalog/hop16/afterWin, /catalog/hop22/afterWin, /catalog/hop23/afterWin, /catalog/hop24/afterWin, /catalog/hop25/afterWin, /catalog/hop26/afterWin, /catalog/hop33/afterWin, /catalog/hop34/afterWin, /catalog/hop35/afterWin, /catalog/hop36/afterWin, /catalog/hop44/afterWin, /catalog/hop45/afterWin, /catalog/hop46/afterWin, /catalog/hop55/afterWin, /catalog/passOdds/pays, /catalog/place/afterWin, /catalog/place/pays, /catalog/place/pays/11, /catalog/place/pays/12, /catalog/place/pays/2, /catalog/place/pays/3, /catalog/snakeEyes/afterWin, /catalog/yo/afterWin, /flow/historyLength, /limits/max, /limits/min, /limits/minTotal/amount, /limits/minTotal/countSideBets, /money/betIncrement, /money/payoutRounding, /money/startingBankroll, /oddsOffReturnedAtPointMade, /pace/rollsPerHour, /workingToggle/perBet"
 `;
 
 exports[`preset fingerprints > craplessBubbleHighLimit 1`] = `
-"craplessBubbleHighLimit "Crapless bubble craps — high limit" crapless, configHash a0aa2f020186de05
+"craplessBubbleHighLimit "Crapless bubble craps — high limit" crapless, configHash 3291de85eece6f21
 rules [V]: naturals 7; craps -; points 2 3 4 5 6 8 9 10 11 12; bar -; put bets no [V]
 money: payouts floor/$0.01 [A]; bankroll $5,000 [A]; increment $5 [A]
 limits: $5 [A] to $5,000 [A]; table $20,000; minimum total $25 [A] totalRound, OFF bets count no [V], side bets count no [A]
@@ -114,13 +114,13 @@ catalog:
     pays 2=6:1, 3=3:1, 4=2:1, 5=3:2, 6=6:5, 8=6:5, 9=3:2, 10=2:1, 11=3:1, 12=6:1 [A]
     limit stake 2=2x, 3=2x, 4=2x, 5=2x, 6=2x, 8=2x, 9=2x, 10=2x, 11=2x, 12=2x [R]
   place [V] "Place" place: payouts floor/$0.01 [A] (default); after a win stay [A]; come-out on [V]
-    pays 2=11:2, 3=11:4, 4=9:5, 5=7:5, 6=7:6, 8=7:6, 9=7:5, 10=9:5, 11=11:4, 12=11:2 [A]
+    pays 2=11:2 [A], 3=11:4 [A], 4=9:5 [A], 5=7:5 [A], 6=7:6 [A], 8=7:6 [A], 9=7:5 [R], 10=9:5 [A], 11=11:4 [A], 12=11:2 [A]
   buy [V] "Buy" buy: payouts floor/$0.01 [A] (default); after a win stay [A]; come-out on [V]
     pays 2=6:1, 3=3:1, 4=2:1, 5=3:2, 6=6:5, 8=6:5, 9=3:2, 10=2:1, 11=3:1, 12=6:1 [V]
     vig on 2 3 4 5 6 8 9 10 11 12: 1/20 of stake upfront [V], rounded ceil/$0.01 [A], min $0 [A], refund no [A], rearm recollectFromWin [A]
   hard [V] "Hard Ways" hardway: after a win stay [A]; come-out on [A]
     pays 4=7:1, 6=9:1, 8=9:1, 10=7:1 [A]
-  field [V] "Field" one roll by total: pays 2=2:1, 3=1:1, 4=1:1, 9=1:1, 10=1:1, 11=1:1, 12=2:1 [R]; after a win return [A]; payouts floor/$0.01 [A] (default)
+  field [V] "Field" one roll by total: pays 2=2:1 [V], 3=1:1 [R], 4=1:1 [R], 9=1:1 [R], 10=1:1 [R], 11=1:1 [R], 12=2:1 [R]; after a win return [A]; payouts floor/$0.01 [A] (default)
   any7 [V] "Seven" one roll by total: pays 7=5 for 1 (4:1) [R]; after a win return [A]; payouts floor/$0.01 [A] (default)
   anyCraps [V] "Any Craps" one roll by total: pays 2=8 for 1 (7:1), 3=8 for 1 (7:1), 12=8 for 1 (7:1) [R]; after a win return [A]; payouts floor/$0.01 [A] (default)
   c [V] "C" one roll by total: pays 2=8 for 1 (7:1), 3=8 for 1 (7:1), 12=8 for 1 (7:1) [R]; after a win return [A]; payouts floor/$0.01 [A] (default)
@@ -129,45 +129,46 @@ catalog:
   aceDeuce [V] "Ace-Deuce" one roll by total: pays 3=16 for 1 (15:1) [R]; after a win return [A]; payouts floor/$0.01 [A] (default)
   yo [V] "Yo" one roll by total: pays 11=16 for 1 (15:1) [R]; after a win return [A]; payouts floor/$0.01 [A] (default)
   boxcars [V] "Boxcars" one roll by total: pays 12=31 for 1 (30:1) [R]; after a win return [A]; payouts floor/$0.01 [A] (default)
-  hop13 [V] "Hop 1-3" one roll by dice: pays 1-3=16 for 1 (15:1) [R]; after a win return [A]; payouts floor/$0.01 [A] (default)
-  hop14 [V] "Hop 1-4" one roll by dice: pays 1-4=16 for 1 (15:1) [R]; after a win return [A]; payouts floor/$0.01 [A] (default)
-  hop15 [V] "Hop 1-5" one roll by dice: pays 1-5=16 for 1 (15:1) [R]; after a win return [A]; payouts floor/$0.01 [A] (default)
-  hop16 [V] "Hop 1-6" one roll by dice: pays 1-6=16 for 1 (15:1) [R]; after a win return [A]; payouts floor/$0.01 [A] (default)
-  hop22 [V] "Hop 2-2" one roll by dice: pays 2-2=31 for 1 (30:1) [R]; after a win return [A]; payouts floor/$0.01 [A] (default)
-  hop23 [V] "Hop 2-3" one roll by dice: pays 2-3=16 for 1 (15:1) [R]; after a win return [A]; payouts floor/$0.01 [A] (default)
-  hop24 [V] "Hop 2-4" one roll by dice: pays 2-4=16 for 1 (15:1) [R]; after a win return [A]; payouts floor/$0.01 [A] (default)
-  hop25 [V] "Hop 2-5" one roll by dice: pays 2-5=16 for 1 (15:1) [R]; after a win return [A]; payouts floor/$0.01 [A] (default)
-  hop26 [V] "Hop 2-6" one roll by dice: pays 2-6=16 for 1 (15:1) [R]; after a win return [A]; payouts floor/$0.01 [A] (default)
-  hop33 [V] "Hop 3-3" one roll by dice: pays 3-3=31 for 1 (30:1) [R]; after a win return [A]; payouts floor/$0.01 [A] (default)
-  hop34 [V] "Hop 3-4" one roll by dice: pays 3-4=16 for 1 (15:1) [R]; after a win return [A]; payouts floor/$0.01 [A] (default)
-  hop35 [V] "Hop 3-5" one roll by dice: pays 3-5=16 for 1 (15:1) [R]; after a win return [A]; payouts floor/$0.01 [A] (default)
-  hop36 [V] "Hop 3-6" one roll by dice: pays 3-6=16 for 1 (15:1) [R]; after a win return [A]; payouts floor/$0.01 [A] (default)
-  hop44 [V] "Hop 4-4" one roll by dice: pays 4-4=31 for 1 (30:1) [R]; after a win return [A]; payouts floor/$0.01 [A] (default)
-  hop45 [V] "Hop 4-5" one roll by dice: pays 4-5=16 for 1 (15:1) [R]; after a win return [A]; payouts floor/$0.01 [A] (default)
-  hop46 [V] "Hop 4-6" one roll by dice: pays 4-6=16 for 1 (15:1) [R]; after a win return [A]; payouts floor/$0.01 [A] (default)
-  hop55 [V] "Hop 5-5" one roll by dice: pays 5-5=31 for 1 (30:1) [R]; after a win return [A]; payouts floor/$0.01 [A] (default)
+  hop13 [V] "Hop 1-3" one roll by dice: pays 1-3=16 for 1 (15:1) [V]; after a win return [A]; payouts floor/$0.01 [A] (default)
+  hop14 [V] "Hop 1-4" one roll by dice: pays 1-4=16 for 1 (15:1) [V]; after a win return [A]; payouts floor/$0.01 [A] (default)
+  hop15 [V] "Hop 1-5" one roll by dice: pays 1-5=16 for 1 (15:1) [V]; after a win return [A]; payouts floor/$0.01 [A] (default)
+  hop16 [V] "Hop 1-6" one roll by dice: pays 1-6=16 for 1 (15:1) [V]; after a win return [A]; payouts floor/$0.01 [A] (default)
+  hop22 [V] "Hop 2-2" one roll by dice: pays 2-2=31 for 1 (30:1) [V]; after a win return [A]; payouts floor/$0.01 [A] (default)
+  hop23 [V] "Hop 2-3" one roll by dice: pays 2-3=16 for 1 (15:1) [V]; after a win return [A]; payouts floor/$0.01 [A] (default)
+  hop24 [V] "Hop 2-4" one roll by dice: pays 2-4=16 for 1 (15:1) [V]; after a win return [A]; payouts floor/$0.01 [A] (default)
+  hop25 [V] "Hop 2-5" one roll by dice: pays 2-5=16 for 1 (15:1) [V]; after a win return [A]; payouts floor/$0.01 [A] (default)
+  hop26 [V] "Hop 2-6" one roll by dice: pays 2-6=16 for 1 (15:1) [V]; after a win return [A]; payouts floor/$0.01 [A] (default)
+  hop33 [V] "Hop 3-3" one roll by dice: pays 3-3=31 for 1 (30:1) [V]; after a win return [A]; payouts floor/$0.01 [A] (default)
+  hop34 [V] "Hop 3-4" one roll by dice: pays 3-4=16 for 1 (15:1) [V]; after a win return [A]; payouts floor/$0.01 [A] (default)
+  hop35 [V] "Hop 3-5" one roll by dice: pays 3-5=16 for 1 (15:1) [V]; after a win return [A]; payouts floor/$0.01 [A] (default)
+  hop36 [V] "Hop 3-6" one roll by dice: pays 3-6=16 for 1 (15:1) [V]; after a win return [A]; payouts floor/$0.01 [A] (default)
+  hop44 [V] "Hop 4-4" one roll by dice: pays 4-4=31 for 1 (30:1) [V]; after a win return [A]; payouts floor/$0.01 [A] (default)
+  hop45 [V] "Hop 4-5" one roll by dice: pays 4-5=16 for 1 (15:1) [V]; after a win return [A]; payouts floor/$0.01 [A] (default)
+  hop46 [V] "Hop 4-6" one roll by dice: pays 4-6=16 for 1 (15:1) [V]; after a win return [A]; payouts floor/$0.01 [A] (default)
+  hop55 [V] "Hop 5-5" one roll by dice: pays 5-5=31 for 1 (30:1) [V]; after a win return [A]; payouts floor/$0.01 [A] (default)
 composites:
   ce [V] "C & E" = c + e
   horn [V] "Horn" = snakeEyes + aceDeuce + yo + boxcars
 side bets:
-  luckyRollerLow [V] "Low Rolls" all of 2 3 4 5 6 before anySeven [V]: pays 31 for 1 (30:1) [R]; placed afterSevenOrStart [V]
-  luckyRollerHigh [V] "High Rolls" all of 8 9 10 11 12 before anySeven [V]: pays 31 for 1 (30:1) [R]; placed afterSevenOrStart [V]
-  luckyRollerAll [V] "Roll 'Em All" all of 2 3 4 5 6 8 9 10 11 12 before anySeven [V]: pays 156 for 1 (155:1) [R]; placed afterSevenOrStart [V]
+  luckyRollerLow [V] "Low Rolls" all of 2 3 4 5 6 before anySeven [V]: pays 31 for 1 (30:1) [V]; placed afterSevenOrStart [V]
+  luckyRollerHigh [V] "High Rolls" all of 8 9 10 11 12 before anySeven [V]: pays 31 for 1 (30:1) [V]; placed afterSevenOrStart [V]
+  luckyRollerAll [V] "Roll 'Em All" all of 2 3 4 5 6 8 9 10 11 12 before anySeven [V]: pays 156 for 1 (155:1) [V]; placed afterSevenOrStart [V]
 working: toggle [V] global yes, per bet no [A], untilChanged, covers place buy passOdds comeOdds hard
   come-out auto-OFF [V]: -
   after a seven-out [V]: new place buy OFF after sevenOut [A] until playerOn [A]
   lay auto-ON [V]: -; OFF odds returned at point made yes [A]; OFF bets use credit yes [V]
 exclusive [V]: -; line vs lay/buy no [V]
-flow: shooter single [V]; invalid roll reVibrate [R]; puck reset 0 [V]; buttons press across (afterComeOutWithLineOrOneRoll) [V]; history 20 [A]; macros repeatLastBet double [V]; labels asWritten
+flow: shooter single [V]; invalid roll reVibrate [R]; puck reset 0 [V]; buttons press across (afterComeOutWithLineOrOneRoll) [V]; history 20 [A]; macros repeatLastBet double [V]; labels for
 pace: 120 rolls/hour [A]; bet window - [R]; shooter window - [R]
-assumed (61): /afterSevenOut/newPlacedOff/trigger, /afterSevenOut/newPlacedOff/until, /catalog/aceDeuce/afterWin, /catalog/any7/afterWin, /catalog/anyCraps/afterWin, /catalog/boxcars/afterWin, /catalog/buy/afterWin, /catalog/buy/commission/minimum, /catalog/buy/commission/rearm, /catalog/buy/commission/refundOnTakeDown, /catalog/buy/commission/rounding, /catalog/c/afterWin, /catalog/come/afterWin, /catalog/come/window, /catalog/comeOdds/comeOutDefault, /catalog/comeOdds/pays, /catalog/e/afterWin, /catalog/field/afterWin, /catalog/hard/afterWin, /catalog/hard/comeOutDefault, /catalog/hard/pays, /catalog/hop13/afterWin, /catalog/hop14/afterWin, /catalog/hop15/afterWin, /catalog/hop16/afterWin, /catalog/hop22/afterWin, /catalog/hop23/afterWin, /catalog/hop24/afterWin, /catalog/hop25/afterWin, /catalog/hop26/afterWin, /catalog/hop33/afterWin, /catalog/hop34/afterWin, /catalog/hop35/afterWin, /catalog/hop36/afterWin, /catalog/hop44/afterWin, /catalog/hop45/afterWin, /catalog/hop46/afterWin, /catalog/hop55/afterWin, /catalog/passOdds/pays, /catalog/place/afterWin, /catalog/place/pays, /catalog/place/pays/11, /catalog/place/pays/12, /catalog/place/pays/2, /catalog/place/pays/3, /catalog/snakeEyes/afterWin, /catalog/yo/afterWin, /chips, /flow/historyLength, /limits/max, /limits/min, /limits/minTotal/amount, /limits/minTotal/countSideBets, /limits/perType, /money/betIncrement, /money/payoutRounding, /money/startingBankroll, /oddsOffReturnedAtPointMade, /pace/rollsPerHour, /payLabelStyle, /workingToggle/perBet"
+assumed (60): /afterSevenOut/newPlacedOff/trigger, /afterSevenOut/newPlacedOff/until, /catalog/aceDeuce/afterWin, /catalog/any7/afterWin, /catalog/anyCraps/afterWin, /catalog/boxcars/afterWin, /catalog/buy/afterWin, /catalog/buy/commission/minimum, /catalog/buy/commission/rearm, /catalog/buy/commission/refundOnTakeDown, /catalog/buy/commission/rounding, /catalog/c/afterWin, /catalog/come/afterWin, /catalog/come/window, /catalog/comeOdds/comeOutDefault, /catalog/comeOdds/pays, /catalog/e/afterWin, /catalog/field/afterWin, /catalog/hard/afterWin, /catalog/hard/comeOutDefault, /catalog/hard/pays, /catalog/hop13/afterWin, /catalog/hop14/afterWin, /catalog/hop15/afterWin, /catalog/hop16/afterWin, /catalog/hop22/afterWin, /catalog/hop23/afterWin, /catalog/hop24/afterWin, /catalog/hop25/afterWin, /catalog/hop26/afterWin, /catalog/hop33/afterWin, /catalog/hop34/afterWin, /catalog/hop35/afterWin, /catalog/hop36/afterWin, /catalog/hop44/afterWin, /catalog/hop45/afterWin, /catalog/hop46/afterWin, /catalog/hop55/afterWin, /catalog/passOdds/pays, /catalog/place/afterWin, /catalog/place/pays, /catalog/place/pays/11, /catalog/place/pays/12, /catalog/place/pays/2, /catalog/place/pays/3, /catalog/snakeEyes/afterWin, /catalog/yo/afterWin, /chips, /flow/historyLength, /limits/max, /limits/min, /limits/minTotal/amount, /limits/minTotal/countSideBets, /limits/perType, /money/betIncrement, /money/payoutRounding, /money/startingBankroll, /oddsOffReturnedAtPointMade, /pace/rollsPerHour, /workingToggle/perBet"
 `;
 
 exports[`preset fingerprints > strictBubble 1`] = `
-"strictBubble "Strict machine" traditional, configHash ee70fd727329d6d0
+"strictBubble "Strict machine" traditional, configHash adda4610f05453ba
 rules [V]: naturals 7 11; craps 2 3 12; points 4 5 6 8 9 10; bar 12; put bets no [V]
 money: payouts floor/$0.01 [A]; bankroll $500 [A]; increment $1 [A]
 limits: $1 [A] to $500 [A]; table -; minimum total $5 [A] totalRound, OFF bets count no [V], side bets count no [A]
+  luckyShooter [V]: max $100
 not modelled: -
 chips [A]: $1 $5 $10 $25 $50 $100
 catalog:
@@ -249,7 +250,7 @@ rules [V]: naturals 7 11; craps 2 3 12; points 4 5 6 8 9 10; bar 12; put bets no
 money: payouts floor/$0.01 [A]; bankroll $500 [A]; increment $1 [A]
 limits: $1 [A] to $500 [A]; table -; minimum total $3 [A] totalRound, OFF bets count no [V], side bets count no [A]
   hotShooter [V]: min $1 max $1,000
-not modelled: /offBets/consumeCredit
+not modelled: /offBets/consumeCredit /flow/shooter/mode
 chips [A]: $1 $5 $10 $25 $50 $100
 catalog:
   pass [V] "Pass Line" line do/comeOut [V]: pays 1 to 1 (1:1) [V]; after a win stay [V]
@@ -331,7 +332,7 @@ assumed (34): /catalog/buy/commission/rounding, /catalog/dontCome/onNumber, /cat
 `;
 
 exports[`preset fingerprints > traditionalLive345 1`] = `
-"traditionalLive345 "Generous live table" traditional, configHash a17489739caa9249
+"traditionalLive345 "Generous live table" traditional, configHash 8e035858e8ed93d3
 rules [V]: naturals 7 11; craps 2 3 12; points 4 5 6 8 9 10; bar 12; put bets yes [R]
 money: payouts floor/$1 [V]; bankroll $500 [A]; increment $1 [V]
 limits: $1 [A] to $5,000 [A]; table -; minimum total -
@@ -350,6 +351,10 @@ limits: $1 [A] to $5,000 [A]; table -; minimum total -
   hornHigh11 [A]: min $5 step $5
   hornHigh12 [A]: min $5 step $5
   world [A]: min $5 step $5
+  fire [R]: max $5
+  place [A]: min $5
+  buy [V]: min $20
+  lay [V]: min $24 mins 4=$40 5=$30 9=$30 10=$40 [V]
 not modelled: -
 chips [A]: $1 $5 $25 $100 $500
 catalog:
@@ -431,5 +436,5 @@ working: toggle [V] global no, per bet yes [V], untilChanged, covers place buy l
 exclusive [A]: -; line vs lay/buy no [A]
 flow: shooter community [A]; invalid roll noRoll [A]; puck reset 0 [A]; buttons - (always) [A]; history 0 [A]; macros - [A]; labels asWritten
 pace: 144 rolls/hour [R]; bet window - [A]; shooter window - [A]
-assumed (62): /catalog/aceDeuce/afterWin, /catalog/aces/afterWin, /catalog/any7/afterWin, /catalog/anyCraps/afterWin, /catalog/big/afterWin, /catalog/boxcars/afterWin, /catalog/buy/afterWin, /catalog/c/afterWin, /catalog/come/afterWin, /catalog/dontCome/afterWin, /catalog/dontPass/afterWin, /catalog/e/afterWin, /catalog/field/afterWin, /catalog/hard/afterWin, /catalog/hop11, /catalog/hop12, /catalog/hop13, /catalog/hop14, /catalog/hop15, /catalog/hop16, /catalog/hop22, /catalog/hop23, /catalog/hop24, /catalog/hop25, /catalog/hop26, /catalog/hop33, /catalog/hop34, /catalog/hop35, /catalog/hop36, /catalog/hop44, /catalog/hop45, /catalog/hop46, /catalog/hop55, /catalog/hop56, /catalog/hop66, /catalog/lay/afterWin, /catalog/pass/afterWin, /catalog/place/afterWin, /catalog/placeToLose/afterWin, /catalog/yo/afterWin, /chips, /excludeLineVsLayBuy, /exclusiveGroups, /flow, /limits, /limits/perType/ce, /limits/perType/comeOdds/incrementByNumber, /limits/perType/dontComeOdds/incrementByNumber, /limits/perType/dontPassOdds/incrementByNumber, /limits/perType/horn, /limits/perType/hornHigh11, /limits/perType/hornHigh12, /limits/perType/hornHigh2, /limits/perType/hornHigh3, /limits/perType/passOdds/incrementByNumber, /limits/perType/world, /money/startingBankroll, /oddsOffReturnedAtPointMade, /offBets, /pace/betWindowSec, /pace/shooterWindowSec, /payLabelStyle"
+assumed (63): /catalog/aceDeuce/afterWin, /catalog/aces/afterWin, /catalog/any7/afterWin, /catalog/anyCraps/afterWin, /catalog/big/afterWin, /catalog/boxcars/afterWin, /catalog/buy/afterWin, /catalog/c/afterWin, /catalog/come/afterWin, /catalog/dontCome/afterWin, /catalog/dontPass/afterWin, /catalog/e/afterWin, /catalog/field/afterWin, /catalog/hard/afterWin, /catalog/hop11, /catalog/hop12, /catalog/hop13, /catalog/hop14, /catalog/hop15, /catalog/hop16, /catalog/hop22, /catalog/hop23, /catalog/hop24, /catalog/hop25, /catalog/hop26, /catalog/hop33, /catalog/hop34, /catalog/hop35, /catalog/hop36, /catalog/hop44, /catalog/hop45, /catalog/hop46, /catalog/hop55, /catalog/hop56, /catalog/hop66, /catalog/lay/afterWin, /catalog/pass/afterWin, /catalog/place/afterWin, /catalog/placeToLose/afterWin, /catalog/yo/afterWin, /chips, /excludeLineVsLayBuy, /exclusiveGroups, /flow, /limits, /limits/perType/ce, /limits/perType/comeOdds/incrementByNumber, /limits/perType/dontComeOdds/incrementByNumber, /limits/perType/dontPassOdds/incrementByNumber, /limits/perType/horn, /limits/perType/hornHigh11, /limits/perType/hornHigh12, /limits/perType/hornHigh2, /limits/perType/hornHigh3, /limits/perType/passOdds/incrementByNumber, /limits/perType/place, /limits/perType/world, /money/startingBankroll, /oddsOffReturnedAtPointMade, /offBets, /pace/betWindowSec, /pace/shooterWindowSec, /payLabelStyle"
 `;

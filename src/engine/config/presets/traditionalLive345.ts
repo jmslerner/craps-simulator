@@ -101,6 +101,10 @@ export const traditionalLive345: MachineConfigInput = deepFreeze({
       hornHigh11: { min: 500, increment: 500 },
       hornHigh12: { min: 500, increment: 500 },
       world: { min: 500, increment: 500 },
+      fire: { max: 500 },
+      place: { min: 500 },
+      buy: { min: 2_000 },
+      lay: { min: 2_400, minByNumber: { '4': 4_000, '5': 3_000, '9': 3_000, '10': 4_000 } },
     },
     minTotal: null,
   },
@@ -492,6 +496,25 @@ export const traditionalLive345: MachineConfigInput = deepFreeze({
     '/limits/perType/hornHigh11': COMPOSITE_UNITS,
     '/limits/perType/hornHigh12': COMPOSITE_UNITS,
     '/limits/perType/world': COMPOSITE_UNITS,
+    '/limits/perType/fire': {
+      status: 'reported',
+      source: 'MD-C',
+      note: 'Maryland posts the Fire Bet at $1 to $5 in $1 units, the only limits researched (research sidebets.md §5); a Las Vegas table posts its own.',
+    },
+    '/limits/perType/place': {
+      status: 'assumed',
+      note: 'Place bets from $5, the live grid ($5 on 4, 5, 9 and 10; $6 on 6 and 8, research spec.md): a $5 place 6 is taken and paid $5, keeping the change (LVA-RND), while a $1 place 4 paid $1 at 9 to 5 would cost 33.33%. A $10 table may post higher place minimums (M12, impl4 item 18).',
+    },
+    '/limits/perType/buy': {
+      status: 'verified',
+      source: 'HAR-PA',
+      note: 'Minimum buy $20, where the 5% commission is a whole $1 (rules spec §4.3, LIVE minimums).',
+    },
+    '/limits/perType/lay': {
+      status: 'verified',
+      source: 'HAR-PA',
+      note: 'A lay must win at least $20 (rules spec §4.3, LIVE minimums): $40 on 4 and 10 at 1 to 2, $30 on 5 and 9 at 2 to 3, $24 on 6 and 8 at 5 to 6 (the type minimum).',
+    },
     '/chips': { status: 'assumed', note: 'Standard $1, $5, $25, $100 and $500 chips.' },
     '/catalog/pass': {
       status: 'verified',

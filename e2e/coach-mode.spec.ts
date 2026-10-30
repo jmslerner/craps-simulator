@@ -1,11 +1,12 @@
 import { expect, test } from '@playwright/test'
-import { appUrl, chip, zone } from './hooks.ts'
+import { appUrl, chip, closeCoachSheet, openCoach, zone } from './hooks.ts'
 
 /**
- * The coach-mode control (plan §5.6 Off / Quiet / Coach; M9 audit MAJOR-2/3): the topbar group
- * writes the setting, each change is announced, Quiet keeps only the poor/awful badges and a
- * compact meter, Off hides every coach surface (badges, meter, cheat sheet), and the choice is
- * remembered across a reload.
+ * The coach-mode control (plan §5.6 Off / Quiet / Coach; M9 audit MAJOR-2/3): the group in the
+ * Coach drawer writes the setting, each change is announced, Quiet keeps only the poor/awful
+ * badges and a compact meter, Off hides every coach surface (badges, meter, cheat sheet), and the
+ * choice is remembered across a reload. A phone's drawer is a bottom sheet over the felt (plan §0
+ * #28), so the spec closes it to tap the felt and opens it again.
  */
 
 test('Quiet keeps poor/awful badges and a compact meter; Off hides every coach surface; the mode is remembered', async ({
@@ -19,6 +20,7 @@ test('Quiet keeps poor/awful badges and a compact meter; Off hides every coach s
     .poll(() => badges.count(), { message: 'no coach badges rendered' })
     .toBeGreaterThan(10)
   const allBadges = await badges.count()
+  await openCoach(page)
   await expect(page.getByRole('button', { name: 'Coach on' })).toHaveAttribute(
     'aria-pressed',
     'true',
@@ -37,8 +39,10 @@ test('Quiet keeps poor/awful badges and a compact meter; Off hides every coach s
   expect(grades.every((grade) => grade === 'grade-poor' || grade === 'grade-awful')).toBe(true)
 
   // Quiet's meter is compact: the headline alone, no hourly line.
+  await closeCoachSheet(page)
   await chip(page, '$5.00').click()
   await zone(page, 'place:place:4').click()
+  await openCoach(page)
   await expect(page.getByTestId('meter-per-roll')).toContainText('a roll')
   await expect(page.getByTestId('layout-meter')).toHaveAttribute('data-compact', 'true')
   await expect(page.getByTestId('meter-hourly')).toHaveCount(0)

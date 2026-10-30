@@ -4,6 +4,7 @@ import { craplessBubble } from '../../../src/engine/config/presets/index.ts'
 import type { PointNumber } from '../../../src/engine/config/rulesets.ts'
 import type { Dice } from '../../../src/engine/core/dice.ts'
 import { cents } from '../../../src/engine/core/money.ts'
+import { smallestBet, typeLimits } from '../../../src/engine/bets/limits.ts'
 import { requireType, resolveType } from '../../../src/engine/bets/registry.ts'
 import type { Decision } from '../../../src/engine/bets/types.ts'
 import type { Action } from '../../../src/engine/table/actions.ts'
@@ -225,7 +226,9 @@ describe.each(MACHINES)('number bets on $name', ({ name, points, offered: rows, 
         for (const n of CRAPLESS_POINTS) {
           const want = (numbers as readonly number[]).includes(n) ? 'accepted' : 'BAD_PARAMS'
           const phase = state.round.phase.kind
-          expect(verdict(state, placeOn(kind, n), cfg), `${kind} ${n}, ${phase}`).toBe(want)
+          // The smallest stake the machine takes there: a live lay must win $20 (M12).
+          const amount = smallestBet(typeLimits(cfg, kind, n))
+          expect(verdict(state, placeOn(kind, n, amount), cfg), `${kind} ${n}, ${phase}`).toBe(want)
         }
       }
     },

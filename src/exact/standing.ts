@@ -4,7 +4,6 @@ import {
   requireBet,
   totalOf,
   type Cents,
-  type FamilyKey,
   type MachineConfig,
   type Phase,
   type PointNumber,
@@ -13,6 +12,7 @@ import {
 import {
   ExactError,
   groupFor,
+  isSideFamily,
   rearmDue,
   rollOutcomes,
   startTable,
@@ -420,15 +420,6 @@ function roundAfter(round: RoundState, outcome: RollOutcome): RoundState {
       totalsMask: round.sinceSeven.totalsMask,
     },
   }
-}
-
-function isSideFamily(family: FamilyKey): boolean {
-  return (
-    family === 'collectSet' ||
-    family === 'uniquePointsMade' ||
-    family === 'handLength' ||
-    family === 'pointRun'
-  )
 }
 
 /** E[loss of one decision] of `spec` at `amount` from `start`, as paid, in cents. */

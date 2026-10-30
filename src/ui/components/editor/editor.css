@@ -1,0 +1,482 @@
+/* ---- machine editor, Match My Machine, files (M12) ----------------------------------------
+   Its own stylesheet, loaded with the machine views, on the app's tokens (src/index.css :root).
+   The provenance chips use the grade colours: verified good, reported fair, assumed poor, and the
+   player's own values brass. */
+
+.dialog-wide {
+  width: min(880px, 100%);
+}
+
+.dialog-machine-actions,
+.files-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.dialog-machine-actions button,
+.files-actions button {
+  min-height: 40px;
+  font-size: 13.5px;
+}
+
+.ed {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.ed-intro,
+.ed-loading {
+  margin: 0;
+  font-size: 13.5px;
+  color: var(--chalk-dim);
+}
+
+.ed-legend {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  vertical-align: middle;
+}
+
+.ed-status {
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--good);
+  color: var(--good);
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.ed-status.is-blocked {
+  border-color: var(--awful);
+  color: var(--awful);
+}
+
+.ed-summary,
+.ed-messages {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ed-summary {
+  max-height: 180px;
+  overflow: auto;
+}
+
+.ed-msg {
+  font-size: 13px;
+  line-height: 1.4;
+  padding-left: 10px;
+  border-left: 3px solid var(--line);
+}
+
+.ed-msg-error {
+  border-left-color: var(--awful);
+  color: var(--awful);
+}
+
+.ed-msg-warning {
+  border-left-color: var(--fair);
+  color: var(--fair);
+}
+
+.ed-link {
+  border: 0;
+  background: none;
+  padding: 2px 8px;
+  min-height: 28px;
+  color: var(--brass);
+  text-decoration: underline;
+  font-size: 13px;
+}
+
+.ed-sections {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ed-section {
+  border: 1px solid var(--line-soft);
+  border-radius: 12px;
+  background: var(--panel-2);
+}
+
+.ed-section.has-issues {
+  border-color: var(--awful);
+}
+
+.ed-section-title {
+  margin: 0;
+  font-size: 15px;
+}
+
+.ed-section-title button {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 12px;
+  background: none;
+  text-align: left;
+  font-weight: 700;
+}
+
+.ed-section-title button::after {
+  content: '▸';
+  color: var(--chalk-dim);
+}
+
+.ed-section-title button[aria-expanded='true']::after {
+  content: '▾';
+}
+
+.ed-badge {
+  margin-left: auto;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: var(--awful);
+  color: var(--ink-on-brass);
+  font-size: 12px;
+}
+
+.ed-section > .ed-messages {
+  padding: 0 12px 8px;
+}
+
+.ed-section-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 0 12px 12px;
+}
+
+.ed-group {
+  margin: 0;
+  padding: 8px 10px 10px;
+  min-width: 0;
+  border: 1px solid var(--line-soft);
+  border-radius: 10px;
+}
+
+.ed-legend-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 0 4px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--chalk-dim);
+}
+
+.ed-group-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ed-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(92px, 1fr));
+  gap: 6px;
+}
+
+.ed-field {
+  display: grid;
+  grid-template-columns: minmax(120px, 1fr) minmax(0, 2fr) auto auto;
+  align-items: center;
+  gap: 4px 8px;
+  min-width: 0;
+}
+
+.ed-field > .ed-messages {
+  grid-column: 1 / -1;
+}
+
+.ed-cell {
+  grid-template-columns: auto 1fr;
+  gap: 2px 4px;
+  padding: 4px;
+  border-radius: 8px;
+  background: var(--panel);
+}
+
+.ed-cell > .ed-label {
+  grid-column: 1 / -1;
+  font-weight: 700;
+}
+
+/* A cell with a message takes the whole row, so the message reads at full width. */
+.ed-cell.has-messages {
+  grid-column: 1 / -1;
+}
+
+.ed-cell.has-messages > .ed-text {
+  max-width: 12em;
+}
+
+.ed-label {
+  font-size: 13.5px;
+  color: var(--chalk);
+}
+
+.ed-field.is-invalid input,
+.ed-field.is-invalid select {
+  border-color: var(--awful);
+}
+
+.ed-text {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.ed-text input,
+.ed-select,
+.ed-key,
+.ed-adds select,
+.match-odds select {
+  min-width: 0;
+  min-height: 36px;
+  padding: 4px 8px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--cabinet);
+  color: var(--chalk);
+  font: inherit;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+
+.ed-text input {
+  flex: 1;
+  width: 100%;
+}
+
+.ed-text-compact input {
+  width: 100%;
+}
+
+.ed-fixed {
+  font-size: 14px;
+  color: var(--chalk-dim);
+}
+
+.ed-set {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+}
+
+.ed-set-item,
+.ed-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 32px;
+  font-size: 13.5px;
+}
+
+.ed-check,
+.ed-set-item input,
+.ed-toggle input {
+  width: 22px;
+  height: 22px;
+  margin: 0;
+  accent-color: var(--brass);
+}
+
+.ed-input-error {
+  flex-basis: 100%;
+  font-size: 12.5px;
+  color: var(--awful);
+}
+
+.ed-chip {
+  display: inline-block;
+  padding: 1px 7px;
+  border-radius: 999px;
+  border: 1px solid currentColor;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.ed-chip-verified {
+  color: var(--good);
+}
+
+.ed-chip-reported {
+  color: var(--fair);
+}
+
+.ed-chip-assumed {
+  color: var(--poor);
+}
+
+.ed-chip-mine {
+  color: var(--brass);
+}
+
+.ed-remove {
+  min-height: 32px;
+  min-width: 32px;
+  padding: 0 8px;
+  font-size: 16px;
+  line-height: 1;
+}
+
+.ed-adds {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.ed-add {
+  min-height: 34px;
+  font-size: 13px;
+}
+
+.ed-buttons {
+  position: sticky;
+  bottom: -18px;
+  padding: 10px 0 4px;
+  background: var(--panel);
+}
+
+/* The editor (machine design, plan §0 #28): the dialog itself does not scroll; its sections do,
+   between the status above and the buttons below, so the footer never sits over a field (a
+   control half under it was an overlapping target, WCAG 2.5.8). */
+.dialog.dialog-editor {
+  overflow: hidden;
+}
+
+.dialog-editor .ed {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.dialog-editor .ed-sections {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  padding-right: 2px;
+}
+
+.dialog-editor .ed-buttons {
+  position: static;
+  padding-top: 8px;
+  border-top: 1px solid var(--line-soft);
+  background: transparent;
+}
+
+.match-q {
+  margin: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--line-soft);
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.match-q legend {
+  padding: 0 4px;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.match-choice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.match-choice input {
+  width: 22px;
+  height: 22px;
+  margin: 0;
+  flex: 0 0 auto;
+  accent-color: var(--brass);
+}
+
+.match-odds {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 40px;
+  font-size: 14px;
+}
+
+.match-nearest,
+.files-message {
+  margin: 0;
+  font-size: 14px;
+  color: var(--chalk);
+}
+
+.files-load {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.files-load input {
+  font: inherit;
+  font-size: 13.5px;
+  color: var(--chalk-dim);
+}
+
+.files-confirm {
+  padding: 10px 12px;
+  border: 1px solid var(--brass-deep);
+  border-radius: 10px;
+}
+
+.files-confirm p {
+  margin: 0 0 6px;
+  font-size: 14px;
+}
+
+@media (max-width: 599px) {
+  .ed-field {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+  }
+
+  .ed-field > .ed-label {
+    grid-column: 1 / -1;
+  }
+
+  .ed-cell {
+    grid-template-columns: auto 1fr;
+  }
+
+  .ed-grid {
+    grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+  }
+}

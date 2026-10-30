@@ -4,7 +4,11 @@
  * compares, on every roll, whether the bet may be placed (rules spec §2.6 windows), whether it may
  * be taken down (its lock), the settlement the roll produces (outcome, cash, whether the bet comes
  * down) and the bet's progress, plus the round itself (phase, point and `hand.rolls`), and re-places
- * the bet whenever its window opens again so one dice sequence exercises many bets.
+ * the bet whenever its window opens again so one dice sequence exercises many bets. A Hot Shooter
+ * whose window is any come-out (Pennsylvania's `anyComeOut`) is let through the start of every
+ * other hand unplaced — the window still probed — so it goes up on a later come-out of that hand
+ * and carries the hand's earlier rolls (§2.6; the M11 audit found the engine counting from
+ * placement, which a bet only ever placed at a hand's start cannot show).
  *
  * Machines are the presets, loosened by `dispatchVariant` (1¢ increments, no minimum total) so a
  * side bet alone can roll, plus variants that turn on the knobs no preset uses. This file lives in
@@ -22,6 +26,7 @@ import {
   newTable,
   pointRunState,
   totalsInMask,
+  validateAction,
   type Action,
   type BetId,
   type GameEvent,
@@ -56,7 +61,11 @@ export interface SideBetDiffMachine {
 
 type Edit = (input: MachineConfigInput) => void
 
-/** A preset with `edit` applied, its provenance pruned, loosened for the dispatch table. */
+/**
+ * A preset with `edit` applied, its provenance pruned, loosened for the dispatch table, and its side
+ * bets' own limits lifted (the Fire Bet's $5, the Lucky Shooter's $100): the walker reads no limits,
+ * so every stake the driver tries must be one the table takes.
+ */
 function variant(
   id: PresetId,
   name: string,
@@ -65,7 +74,11 @@ function variant(
 ): SideBetDiffMachine {
   const copy = structuredClone(PRESETS[id]) as MachineConfigInput
   edit(copy)
-  const input = dispatchVariant({ ...copy, provenance: pruneProvenance(copy) })
+  const perType = Object.fromEntries(
+    Object.entries(copy.limits.perType ?? {}).filter(([typeId]) => !(typeId in copy.sideBets)),
+  )
+  const lifted: MachineConfigInput = { ...copy, limits: { ...copy.limits, perType } }
+  const input = dispatchVariant({ ...lifted, provenance: pruneProvenance(lifted) })
   return { id: name, knobs, input, cfg: compileConfig(input), machine: sideBetMachineFrom(input) }
 }
 
@@ -104,6 +117,14 @@ export const VARIANT_SIDE_BET_MACHINES: readonly SideBetDiffMachine[] = [
   variant('traditionalBubble', 'traditionalBubble+defB', ['handLength exceptSevenOut'], (input) => {
     sideBet(input, 'hotShooter', 'handLength').countDefinition = 'exceptSevenOut'
   }),
+  variant(
+    'traditionalBubble',
+    'traditionalBubble+anyComeOut',
+    ['handLength placement anyComeOut'],
+    (input) => {
+      sideBet(input, 'hotShooter', 'handLength').placement = 'anyComeOut'
+    },
+  ),
   variant(
     'traditionalBubble',
     'traditionalBubble+defC+anyComeOut',
@@ -243,6 +264,8 @@ export interface SessionReport {
   /** Settlements by coverage key (`outcome:detail`). */
   readonly settled: Readonly<Record<string, number>>
   readonly rolls: number
+  /** Hot Shooter bets placed after their hand's first roll, carrying its rolls (§2.6). */
+  readonly carried: number
 }
 
 export function describeSideBetMismatch(m: SideBetMismatch): string {
@@ -270,6 +293,9 @@ export function runSideBetSession(
   const settled: Record<string, number> = {}
   let placed = 0
   let refused = 0
+  let carried = 0
+  /** Hands the sequence has started; a later come-out placement is tried on every other one. */
+  let hands = 0
   let state: TableState = newTable(cfg, `side-bet ${dm.id} ${typeId}`)
   let round: RefRound = START_ROUND
   let refBet: RefSideBet | null = null
@@ -323,21 +349,33 @@ export function runSideBetSession(
         wonSinceSeven,
         mainGameStake: mainGameStake(state, machine),
       })
-      const result = act({ type: 'place', typeId, amount: cents(stake) })
-      if (result.ok !== window.open) {
-        note(index, pair, 'placement', refusal(result), window.open ? 'open' : window.why)
+      const place: Action = { type: 'place', typeId, amount: cents(stake) }
+      if (holdsBack(rule, round, hands)) {
+        // Let the hand's first come-out pass with the window probed but the bet not placed.
+        const probe = validateAction(state, place, cfg)
+        if ((probe === null) !== window.open) {
+          const engine =
+            probe === null ? 'accepted' : `${probe.code} ${JSON.stringify(probe.details)}`
+          note(index, pair, 'placement', engine, window.open ? 'open' : window.why)
+        }
+      } else {
+        const result = act(place)
+        if (result.ok !== window.open) {
+          note(index, pair, 'placement', refusal(result), window.open ? 'open' : window.why)
+        }
+        if (result.ok) {
+          const event = result.events.find(
+            (e): e is Extract<GameEvent, { type: 'betPlaced' }> =>
+              e.type === 'betPlaced' && e.bet.typeId === typeId,
+          )
+          if (event === undefined) throw new Error('accepted without a betPlaced event')
+          state = result.state
+          betId = event.bet.id
+          refBet = placeSideBet(rule, stake)
+          placed++
+          if (rule.family === 'handLength' && round.handRolls > 0) carried++
+        } else if (!window.open) refused++
       }
-      if (result.ok) {
-        const event = result.events.find(
-          (e): e is Extract<GameEvent, { type: 'betPlaced' }> =>
-            e.type === 'betPlaced' && e.bet.typeId === typeId,
-        )
-        if (event === undefined) throw new Error('accepted without a betPlaced event')
-        state = result.state
-        betId = event.bet.id
-        refBet = placeSideBet(rule, stake)
-        placed++
-      } else if (!window.open) refused++
     } else if (betId !== null) {
       // The lock: taking the bet down is refused once the dice have rolled on it (§2.6).
       const result = act({ type: 'setAmount', betId, amount: cents(0) })
@@ -368,8 +406,8 @@ export function runSideBetSession(
       }
       if (after !== undefined && step.bet !== null) {
         const engineProgress = describeEngineProgress(rule, after.progress)
-        const refProgress = describeReferenceProgress(step.bet)
-        if (engineProgress !== null && engineProgress !== refProgress) {
+        const refProgress = describeReferenceProgress(step.bet, advanced.round)
+        if (engineProgress !== refProgress) {
           note(index, pair, 'progress', engineProgress, refProgress)
         }
       }
@@ -378,6 +416,7 @@ export function runSideBetSession(
       if (after === undefined) betId = null
     }
     if (total === 7) wonSinceSeven = false
+    if (advanced.event === 'sevenOut') hands++
 
     const enginePhase = rolled.state.round.phase
     const engineRound = JSON.stringify({
@@ -395,7 +434,20 @@ export function runSideBetSession(
     state = rolled.state
     round = advanced.round
   }
-  return { mismatches, placed, refused, settled, rolls: dice.length }
+  return { mismatches, placed, refused, settled, rolls: dice.length, carried }
+}
+
+/**
+ * Whether to let this placement chance go by: a Hot Shooter taken on any come-out, at the first
+ * roll of every other hand, so the bet goes up on a later come-out of that hand if it has one.
+ */
+function holdsBack(rule: SideBetRule, round: RefRound, hands: number): boolean {
+  return (
+    rule.family === 'handLength' &&
+    rule.placement === 'anyComeOut' &&
+    round.handRolls === 0 &&
+    hands % 2 === 1
+  )
 }
 
 /** The stakes of the main game's bets on the table, ON or OFF, in cents. */
@@ -420,16 +472,16 @@ function describeReference(settlement: RefSettlement | null, gone: boolean): str
   return `${outcome} credited ${credited} (win ${winPaid}), ${ends ? 'down' : 'stays'}`
 }
 
-/** The engine's progress decoded through its public API; null for a family compared elsewhere. */
-function describeEngineProgress(rule: SideBetRule, progress: number): string | null {
+/** The engine's progress decoded through its public API. */
+function describeEngineProgress(rule: SideBetRule, progress: number): string {
   switch (rule.family) {
     case 'collectSet':
       return `hit ${totalsInMask(progress).join(',')}`
     case 'uniquePointsMade':
       return `made ${totalsInMask(progress).join(',')}`
     case 'handLength':
-      // The count is the hand's; the round comparison covers it.
-      return null
+      // The engine keeps the hand's rolls so far on the bet (§2.6).
+      return `hand ${progress}`
     case 'pointRun': {
       const { point, hits } = pointRunState(progress)
       return `point ${point ?? '-'} hits ${totalsInMask(hits).join(',')}`
@@ -437,7 +489,7 @@ function describeEngineProgress(rule: SideBetRule, progress: number): string | n
   }
 }
 
-function describeReferenceProgress(bet: RefSideBet): string {
+function describeReferenceProgress(bet: RefSideBet, round: RefRound): string {
   const sorted = (totals: readonly Total[]) => [...totals].sort((a, b) => a - b).join(',')
   switch (bet.progress.family) {
     case 'collectSet':
@@ -445,7 +497,8 @@ function describeReferenceProgress(bet: RefSideBet): string {
     case 'uniquePointsMade':
       return `made ${sorted(bet.progress.made)}`
     case 'handLength':
-      return 'hand'
+      // The reference counts the hand itself (`hand.rolls`, §2.6), after the roll.
+      return `hand ${round.handRolls}`
     case 'pointRun':
       return `point ${bet.progress.point ?? '-'} hits ${sorted(bet.progress.hits)}`
   }

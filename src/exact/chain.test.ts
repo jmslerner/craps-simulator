@@ -451,18 +451,27 @@ describe('side-bet chains (M11)', () => {
     expect([ways('lose'), ways('push'), ways('progress')]).toEqual([4, 8, 24])
     const pushes = start?.steps.filter((s) => s.decision.kind === 'push') ?? []
     expect(pushes.every((step) => step.to !== -1)).toBe(true)
-    // At the decision horizon the same push ends the decision (ties counted, like a barred 12).
+    // The push leaves the bet up and decides nothing (rules spec §0.1, §6.3; EXACT_VERSION 3): it
+    // carries no label, and at the decision horizon too the chain runs on to a resolved wager.
+    expect(pushes.every((step) => step.labels.length === 0)).toBe(true)
+    expect(shooter.labels.map((label) => label.key)).not.toContain('push:bar:stays')
     const once = chainOf(strict, side('luckyShooter'), 'decision')
     const first = once.nodes[once.starts[0]?.node ?? -1]
-    expect(first?.steps.filter((s) => s.decision.kind === 'push').every((s) => s.to === -1)).toBe(
-      true,
-    )
+    const firstPushes = first?.steps.filter((s) => s.decision.kind === 'push') ?? []
+    // 7 (three dice classes) and 11 (one): 8 ways out of 36, none ending the decision.
+    expect(firstPushes.reduce((n, step) => n + step.weight, 0)).toBe(8)
+    expect(firstPushes.every((step) => step.to !== -1 && step.labels.length === 0)).toBe(true)
+    // A main-game tie is still a decision: the don't pass bar 12 ends its first decision.
+    const dontPass = chainOf(strict, { typeId: 'dontPass', number: null }, 'decision')
+    const comeOut = dontPass.nodes[dontPass.starts[0]?.node ?? -1]
+    const bar = comeOut?.steps.find((step) => step.decision.kind === 'push')
+    expect([bar?.to, bar?.labels.length]).toEqual([-1, 1])
     const fire = chainOf(live, side('fire'), 'decision')
     // 64 masks of points made in each of the 7 phases, plus the fresh bet.
     expect(fire.nodes).toHaveLength(449)
   })
 
-  it('starts a side bet from its progress when it is carried, and refuses progress on a new bet', () => {
+  it('starts a side bet from its progress, new or carried, and refuses progress no bet could have', () => {
     const carried: StartContext = {
       ...startIn(COME_OUT),
       carried: true,
@@ -475,10 +484,31 @@ describe('side-bet chains (M11)', () => {
     const ways = (kind: string) =>
       start?.steps.filter((s) => s.decision.kind === kind).reduce((n, s) => n + s.weight, 0)
     expect([ways('win'), ways('lose'), ways('none')]).toEqual([5, 6, 25])
+    // A new bet may start with progress: a Hot Shooter placed on a later come-out carries the
+    // hand's rolls (rules spec §2.6), and no side-bet decision reads whether it was carried.
+    const later = buildChain(
+      side('hotShooter'),
+      { ...startIn(COME_OUT), progress: 2 },
+      'decision',
+      traditional,
+    )
+    expect(later.nodes[later.starts[0]?.node ?? -1]?.table.bets[0]?.progress).toBe(2)
+    // The families' own invariants still refuse progress no bet could have: a 7 among the totals
+    // a Low Rolls bet has collected.
     expect(
       code(() =>
-        buildChain(side('luckyRollerLow'), { ...carried, carried: false }, 'decision', crapless),
+        buildChain(side('luckyRollerLow'), { ...carried, progress: 1 << 7 }, 'decision', crapless),
       ),
     ).toBe('BAD_START')
+  })
+
+  it("lumps a definition-C count one roll later: C leaves two of the hand's rolls out", () => {
+    const input = structuredClone(PRESETS.traditionalBubble) as MachineConfigInput
+    const hot = input.sideBets.hotShooter
+    if (hot?.family !== 'handLength') throw new Error('no Hot Shooter')
+    hot.countDefinition = 'exceptComeOutAndSevenOut'
+    const chain = chainOf(compileConfig(input), side('hotShooter'), 'decision')
+    // A seven-out after 51 rolls of the hand counts 50 under C: the top tier from there on.
+    expect(Math.max(...progressOf(chain))).toBe(51)
   })
 })

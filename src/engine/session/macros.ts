@@ -117,12 +117,15 @@ export function maxOutOdds(
 }
 
 /**
- * Take down all: every bet whose spot says it can come down (`canRemove` null), in table order.
- * Odds whose parent comes down go with it; contract bets stay.
+ * Take down all: every bet whose spot says it can come down (`canRemove` null), in table order,
+ * side bets included (M11 audit): one placed in this betting window can still come down by hand,
+ * so it comes down with the rest, while a side bet the dice have rolled on is locked and stays,
+ * like any contract bet. Odds whose parent comes down go with it. (Double Bet stays with the main
+ * game: it doubles only the main-game spots, so a locked side bet can never empty its batch.)
  */
 export function takeDownAll(state: TableState, cfg: MachineConfig): readonly Action[] {
   const removable = new Set(
-    legalBets(state, cfg).flatMap((spot: LegalBet) =>
+    legalBets(state, cfg, { sideBets: true }).flatMap((spot: LegalBet) =>
       spot.betId !== null && spot.canRemove === null ? [spot.betId] : [],
     ),
   )

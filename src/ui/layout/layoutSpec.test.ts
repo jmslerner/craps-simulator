@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { COMPILED_PRESETS } from '../state/machineStore.ts'
-import { layoutSpec, numberName, vigBadge } from './layoutSpec.ts'
+import { feltPay, layoutSpec, numberName, vigBadge } from './layoutSpec.ts'
 
 const crapless = layoutSpec(COMPILED_PRESETS.craplessBubble)
 const traditional = layoutSpec(COMPILED_PRESETS.traditionalBubble)
@@ -203,6 +203,197 @@ describe('layoutSpec on the traditional machine', () => {
     const field = traditional.center.find((zone) => zone.kind === 'field')
     expect(field?.badge).toContain('2')
     expect(field?.badge).toContain('12')
+  })
+})
+
+describe('the station’s grouping and pay notation (plan §0 #28)', () => {
+  const all = (spec: typeof crapless) => [
+    ...spec.lines,
+    ...spec.center,
+    ...spec.hardways,
+    ...spec.props,
+    ...spec.sideBets,
+    ...spec.numbers.flatMap((column) => column.cells),
+  ]
+  const place = (spec: typeof crapless, n: number) =>
+    spec.numbers.find((column) => column.number === n)?.cells.find((cell) => cell.kind === 'place')
+
+  it('prints pays in the crapless station’s "for" notation, computed from the ratios', () => {
+    expect(COMPILED_PRESETS.craplessBubble.payLabelStyle).toBe('for')
+    // The photo: "PLACE 12 FOR 5" under NINE; 7:6 adds the stake back to "13 for 6".
+    expect(place(crapless, 9)?.payText).toBe('12 for 5')
+    expect(place(crapless, 6)?.payText).toBe('13 for 6')
+    expect(place(crapless, 2)?.payText).toBe('13 for 2')
+    expect(place(crapless, 3)?.payText).toBe('15 for 4')
+    expect(crapless.hardways.find((zone) => zone.number === 6)?.payText).toBe('10 for 1')
+    expect(crapless.sideBets.map((zone) => zone.payText)).toStrictEqual([
+      '31 for 1',
+      '31 for 1',
+      '156 for 1',
+    ])
+    // The spoken wording stays as written, for the zones' names.
+    expect(place(crapless, 9)?.payLabel).toBe('7:5')
+  })
+
+  it('keeps each machine’s own wording under asWritten, and the net ratio under to', () => {
+    expect(COMPILED_PRESETS.traditionalBubble.payLabelStyle).toBe('asWritten')
+    expect(place(traditional, 6)?.payText).toBe(place(traditional, 6)?.payLabel)
+    const any7 = COMPILED_PRESETS.craplessBubble.catalog.get('any7')
+    const six = COMPILED_PRESETS.craplessBubble.catalog.get('place')
+    if (any7?.family !== 'oneRoll' || six?.family !== 'numberVsSeven') throw new Error('types')
+    const five = any7.pays.get('7')
+    const seven = six.pays.get(6)
+    if (five === undefined || seven === undefined) throw new Error('pays')
+    expect(feltPay(five, 'to')).toBe('4 to 1')
+    expect(feltPay(five, 'for')).toBe('5 for 1')
+    expect(feltPay(five, 'asWritten')).toBe('5 for 1')
+    expect(feltPay(seven, 'to')).toBe('7 to 6')
+  })
+
+  it('draws C, C&E and E as circles: the two-part composite between its parts', () => {
+    expect(crapless.circles?.map((zone) => zone.typeId)).toStrictEqual(['c', 'ce', 'e'])
+    expect(traditional.circles?.map((zone) => zone.typeId)).toStrictEqual(['c', 'ce', 'e'])
+    // The circles leave the tabs; the horn composite stays on the HARDWAYS tab.
+    const tabbed = crapless.propTabs.flatMap((tab) =>
+      tab.sections.flatMap((section) => section.zones.map((zone) => zone.typeId)),
+    )
+    expect(tabbed).not.toContain('ce')
+    expect(tabbed).not.toContain('c')
+    expect(tabbed).toContain('horn')
+  })
+
+  it('splits the props into HARDWAYS and HOP BETS, each hop section headed by its shared pay', () => {
+    expect(crapless.propTabs.map((tab) => [tab.id, tab.title])).toStrictEqual([
+      ['hardways', 'Hardways'],
+      ['hops', 'Hop bets'],
+    ])
+    const [hard, hops] = crapless.propTabs
+    expect(hard?.sections.map((section) => section.id)).toStrictEqual(['hardways', 'props'])
+    expect(hard?.sections[0]?.zones.map((zone) => zone.number)).toStrictEqual([4, 6, 8, 10])
+    // The photo: "31 FOR 1 • HOPPING HARD WAYS" over 2-2 to 5-5, "16 FOR 1 • HOP BETS" over 13.
+    expect(hops?.sections.map((s) => [s.id, s.title, s.pay, s.zones.length])).toStrictEqual([
+      ['hopsHard', 'Hopping hard ways', '31 for 1', 4],
+      ['hopsEasy', 'Hop bets', '16 for 1', 13],
+    ])
+    expect(hops?.sections[0]?.zones.map((zone) => zone.dice)).toStrictEqual([
+      [2, 2],
+      [3, 3],
+      [4, 4],
+      [5, 5],
+    ])
+    // A live table books all 21 hops, 1-1 and 6-6 among the hard ones.
+    const live = layoutSpec(COMPILED_PRESETS.traditionalLive345).propTabs.find(
+      (t) => t.id === 'hops',
+    )
+    expect(live?.sections.map((section) => section.zones.length)).toStrictEqual([6, 15])
+    // The station's hop columns: under 7, the 7s, over 7 (the photo: 2-2 and 3-3 beside 4-4 and
+    // 5-5; 1-3 down to the 6s, then 1-6, 2-5 and 3-4, then 2-6 down to 4-6). Grids elsewhere.
+    const pairs = (zones: readonly { readonly dice: readonly number[] | null }[] | undefined) =>
+      zones?.map((zone) => zone.dice?.join('-'))
+    expect(hops?.sections[0]?.columns?.map(pairs)).toStrictEqual([
+      ['2-2', '3-3'],
+      ['4-4', '5-5'],
+    ])
+    expect(hops?.sections[1]?.columns?.map(pairs)).toStrictEqual([
+      ['1-3', '1-4', '2-3', '1-5', '2-4'],
+      ['1-6', '2-5', '3-4'],
+      ['2-6', '3-5', '3-6', '4-5', '4-6'],
+    ])
+    expect(hard?.sections.map((section) => section.columns)).toStrictEqual([null, null])
+    for (const section of [...(hops?.sections ?? []), ...(live?.sections ?? [])]) {
+      expect(
+        section.columns
+          ?.flat()
+          .map((zone) => zone.key)
+          .sort(),
+      ).toStrictEqual(section.zones.map((zone) => zone.key).sort())
+    }
+    expect(live?.sections[0]?.columns?.map(pairs)).toStrictEqual([
+      ['1-1', '2-2', '3-3'],
+      ['4-4', '5-5', '6-6'],
+    ])
+    // Every zone on a tab or a circle is a prop the layout already lists.
+    for (const spec of [crapless, traditional]) {
+      const listed = new Set([...spec.hardways, ...spec.props].map((zone) => zone.key))
+      const placed = [
+        ...(spec.circles ?? []),
+        ...spec.propTabs.flatMap((tab) => tab.sections.flatMap((section) => section.zones)),
+      ]
+      expect(placed.map((zone) => zone.key).sort()).toStrictEqual([...listed].sort())
+    }
+  })
+
+  it('orders the side-bet box as the station does: ROLL ’EM ALL between LOW and HIGH ROLLS', () => {
+    // Config order stays Low, High, All; the box puts the set that covers both in the middle.
+    expect(crapless.sideBets.map((zone) => zone.typeId)).toStrictEqual([
+      'luckyRollerLow',
+      'luckyRollerHigh',
+      'luckyRollerAll',
+    ])
+    expect(crapless.sideBox.map((zone) => zone.typeId)).toStrictEqual([
+      'luckyRollerLow',
+      'luckyRollerAll',
+      'luckyRollerHigh',
+    ])
+    // Other side bets keep their places (Shoot To Win's Hot Shooter first, then the trio).
+    const shootToWin = layoutSpec(COMPILED_PRESETS.traditionalBubble)
+    expect(shootToWin.sideBets.map((zone) => zone.typeId)).toStrictEqual([
+      'hotShooter',
+      'luckyRollerLow',
+      'luckyRollerHigh',
+      'luckyRollerAll',
+    ])
+    expect(shootToWin.sideBox.map((zone) => zone.typeId)).toStrictEqual([
+      'hotShooter',
+      'luckyRollerLow',
+      'luckyRollerAll',
+      'luckyRollerHigh',
+    ])
+    expect(
+      layoutSpec(COMPILED_PRESETS.strictBubble).sideBox.map((zone) => zone.typeId),
+    ).toStrictEqual(['luckyRollerLow', 'luckyRollerAll', 'luckyRollerHigh', 'luckyShooter'])
+    // A machine without such a set keeps config order (the live table's Fire Bet alone).
+    const live = layoutSpec(COMPILED_PRESETS.traditionalLive345)
+    expect(live.sideBox).toStrictEqual(live.sideBets)
+  })
+
+  it('lays the bands top to bottom: come box, field (and big 6/8), each line bar with its odds', () => {
+    expect(crapless.bands.map((band) => band.map((zone) => zone.typeId))).toStrictEqual([
+      ['come'],
+      ['field'],
+      ['pass', 'passOdds'],
+    ])
+    // Shoot To Win: both come boxes, big 6 and 8 beside the field, then each line with its odds.
+    expect(traditional.bands.map((band) => band.map((zone) => zone.key))).toStrictEqual([
+      ['comeBox:come', 'comeBox:dontCome'],
+      ['big:big:6', 'big:big:8', 'field:field'],
+      ['line:pass', 'odds:passOdds'],
+      ['line:dontPass', 'odds:dontPassOdds'],
+    ])
+    expect(crapless.lines.find((zone) => zone.typeId === 'pass')?.side).toBe('do')
+    expect(traditional.lines.find((zone) => zone.typeId === 'dontPass')?.side).toBe('dont')
+  })
+
+  it('prints the field’s totals with "pays double" under the ones that pay 2:1', () => {
+    const field = crapless.center.find((zone) => zone.kind === 'field')
+    expect(field?.totals).toStrictEqual([
+      { total: 2, caption: 'pays double' },
+      { total: 3, caption: null },
+      { total: 4, caption: null },
+      { total: 9, caption: null },
+      { total: 10, caption: null },
+      { total: 11, caption: null },
+      { total: 12, caption: 'pays double' },
+    ])
+    const live = layoutSpec(COMPILED_PRESETS.traditionalLive345).center.find(
+      (zone) => zone.kind === 'field',
+    )
+    expect(live?.totals?.find((t) => t.total === 12)?.caption).toBe('pays triple')
+    // No other zone carries totals or dice.
+    for (const zone of all(crapless)) {
+      if (zone.kind !== 'field') expect(zone.totals).toBeNull()
+      if (zone.kind !== 'prop') expect(zone.dice).toBeNull()
+    }
   })
 })
 

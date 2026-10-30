@@ -1,5 +1,9 @@
-/* The 3D dome's own styles: the canvas box and the dice-mode toggle. Everything else about the
-   dome box (.dome, .dome-slot, the overlays) lives in index.css. */
+/* The 3D dome's own styles: the canvas box, the idle prompt, the controls row under the box (the
+   dice-mode toggle and the quality pin) and the lost-context toast. Everything else about the
+   dome box (.dome, .dome-slot, the overlays) lives in index.css. The camera keeps the resting
+   dice clear of the overlays (src/dome/camera.ts reservedZones restates their sizes): change one,
+   change both. Since the machine design (plan §0 #28) the dome is a compact panel on the felt, so
+   its controls are dark pills that read on the bright green. */
 
 .dice-view-3d {
   position: absolute;
@@ -12,13 +16,29 @@
   inset: 0;
 }
 
-/* The 2D ↔ 3D switch sits in the dome's bottom-right corner, above the overlays, and takes taps. */
-.dome-mode {
+/* Before the first roll the dome draws no dice; this says what the 2D view says. */
+.dome-prompt {
   position: absolute;
-  right: 10px;
-  bottom: 10px;
-  z-index: 3;
-  min-height: 32px;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  white-space: nowrap;
+  pointer-events: none;
+  text-shadow: 0 1px 6px var(--shadow);
+}
+
+/* The row under the dome box: the 3D quality pin, then the 2D ↔ 3D switch, at the right. Out of
+   the box, they cover neither the callout nor the dice the camera frames. */
+.dome-controls {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.dome-mode {
+  min-height: 28px;
   padding: 4px 12px;
   border-radius: 99px;
   border: 1px solid var(--line);
@@ -43,13 +63,9 @@
   outline-offset: 2px;
 }
 
-/* The quality pin sits in the bottom-left corner, mirroring the 3D toggle. */
+/* The 3D quality pin, beside the toggle while the dome is in 3D. */
 .dome-quality {
-  position: absolute;
-  left: 10px;
-  bottom: 10px;
-  z-index: 3;
-  min-height: 32px;
+  min-height: 28px;
   padding: 4px 10px;
   border-radius: 99px;
   border: 1px solid var(--line);
@@ -106,4 +122,13 @@
 .dome-retry:focus-visible {
   outline: 2px solid var(--brass);
   outline-offset: 2px;
+}
+
+/* On phones the dome's controls are thumb-sized (plan §6: 44 px targets). */
+@media (max-width: 599px) {
+  .dome-mode,
+  .dome-quality,
+  .dome-retry {
+    min-height: 44px;
+  }
 }

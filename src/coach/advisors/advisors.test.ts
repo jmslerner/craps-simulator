@@ -206,7 +206,11 @@ describe('amountEfficiency (plan §5.4): breakage and the minimum-vig trap', () 
   })
 
   it('the sizing advice names only an exact stake too: a vig-minimum trap gets the min-vig words instead', () => {
-    const live = compileConfig(PRESETS.traditionalLive345)
+    // The live table's $20 minimum buy (M12, HAR-PA) refuses the $10 buy this trap needs: lift it.
+    const posted = structuredClone(PRESETS.traditionalLive345) as MachineConfigInput
+    delete posted.limits.perType?.['buy']
+    delete posted.provenance['/limits/perType/buy']
+    const live = compileConfig(posted)
     let state = newTable(live, 'sizing-exact')
     state = apply(state, { type: 'place', typeId: 'pass', amount: cents(1000) }, live) // the $10 line minimum
     state = apply(state, { type: 'place', typeId: 'buy', number: 4, amount: cents(1000) }, live)

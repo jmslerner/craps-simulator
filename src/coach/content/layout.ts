@@ -87,3 +87,20 @@ export function atMinimumNote(n: { amount: CoachNumber; edge: CoachNumber }): Te
 export function notModelledNote(items: string): TemplateParts {
   return ['This machine also sets options the trainer approximates: ', items, '.']
 }
+
+/**
+ * Plain words for each machine value the trainer approximates (`MachineConfig.notModelled`, plan
+ * §0 #23; the compiler's `notModelledPointers` lists every one it can report), so the banner and
+ * the cheat sheet never show a player a raw config pointer. An unknown pointer reads as itself.
+ */
+const NOT_MODELLED_WORDS: Readonly<Record<string, string>> = {
+  '/offBets/consumeCredit':
+    'its OFF bets use no credit, but the trainer counts them against your credit',
+  '/flow/shooter/mode':
+    'its shared dome rolls on its own timer, but the trainer rolls only when you press ROLL',
+}
+
+/** The approximated values of a machine, in words, joined for one sentence. */
+export function notModelledWords(pointers: readonly string[]): string {
+  return pointers.map((pointer) => NOT_MODELLED_WORDS[pointer] ?? pointer).join('; ')
+}

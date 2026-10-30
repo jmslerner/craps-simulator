@@ -4,25 +4,22 @@ import { roundEventWords } from './copy.ts'
 import { useGameState } from './context.tsx'
 
 /**
- * The dome's dressing (the demo's dice dome): the ON/OFF puck with the point, the recent-rolls
- * chip strip (newest first, sevens red) and the big callout under the dice — "Come-out roll",
- * "Point is 6", "7 · seven-out" in the machine's own words. Pure presentation over state the
- * screen already shows elsewhere: the point from the shown table (the round chip), the totals from
- * the roll history, the callout's words from `roundEventWords`. The history gains its entry only
- * at the reveal and the shown table is the pre-roll table while the dice are in the air, so
- * nothing here can show a result before the dice land. The whole overlay is `aria-hidden`: the
- * round chip, the history and the announcer already say all of it.
+ * The dome's dressing: the ON/OFF puck with the point and the big callout under the dice — "Come-out
+ * roll", "Point is 6", "7 · seven-out" in the machine's own words. (The recent totals moved to the
+ * felt's history strip, as on the player's station: plan §0 #28.) Pure presentation over state the
+ * screen already shows elsewhere: the point from the shown table (the round chip), the callout's
+ * words from `roundEventWords` over the newest roll. The history gains its entry only at the
+ * reveal and the shown table is the pre-roll table while the dice are in the air, so nothing here
+ * can show a result before the dice land. The whole overlay is `aria-hidden`: the round chip, the
+ * history strip and the announcer already say all of it.
  */
-
-/** How many recent totals the strip shows, newest first. */
-const RECENT_ROLLS = 12
 
 export function DomeOverlay() {
   const shown = useGameState(selectShown)
-  const rolls = useGameState((state) => state.history.rolls)
+  const newest = useGameState((state) => state.history.rolls[0] ?? null)
   if (shown === null) return null
   const point = shown.round.phase.kind === 'point' ? shown.round.phase.point : null
-  const callout = calloutOf(rolls[0] ?? null, point)
+  const callout = calloutOf(newest, point)
   return (
     <div className="dome-overlay" aria-hidden="true">
       <div className={point === null ? 'dome-puck' : 'dome-puck on'} data-testid="dome-puck">
@@ -35,15 +32,6 @@ export function DomeOverlay() {
           </>
         )}
       </div>
-      {rolls.length > 0 && (
-        <ol className="dome-recent" data-testid="dome-recent">
-          {rolls.slice(0, RECENT_ROLLS).map((roll) => (
-            <li key={roll.rollIndex} className={roll.total === 7 ? 'seven' : undefined}>
-              {roll.total}
-            </li>
-          ))}
-        </ol>
-      )}
       <div className={callout.tone === null ? 'callout' : `callout ${callout.tone}`}>
         {callout.text}
       </div>

@@ -2,8 +2,8 @@
   "format": "bubble-craps-session",
   "version": 1,
   "header": {
-    "engineVersion": 3,
-    "configHash": "4537b96ffb0ea61c",
+    "engineVersion": 4,
+    "configHash": "b98393e15ab519bf",
     "seed": "crapless-200",
     "config": {
       "schemaVersion": 1,
@@ -32,7 +32,7 @@
           "countSideBets": false
         }
       },
-      "chips": [100, 500, 1000, 2500, 5000, 10000],
+      "chips": [100, 200, 300, 500, 1000, 2500, 5000, 10000],
       "catalog": {
         "pass": {
           "family": "line",
@@ -422,7 +422,7 @@
       "offBets": { "consumeCredit": true },
       "exclusiveGroups": [],
       "excludeLineVsLayBuy": false,
-      "payLabelStyle": "asWritten",
+      "payLabelStyle": "for",
       "flow": {
         "shooter": { "mode": "single" },
         "invalidRoll": "reVibrate",
@@ -483,9 +483,9 @@
           "note": "Whether side bets count toward the minimum is undocumented (rules spec §9 #11)."
         },
         "/chips": {
-          "status": "assumed",
-          "source": "IB §5.1",
-          "note": "Interblock shows seven chips whose values scale with denomination; these values are a trainer default."
+          "status": "reported",
+          "source": "IB §5.1; USER photo 2026-10-30",
+          "note": "The player's station shows eight chips at this denomination: $1, $2, $3, $5, $10, $25, $50 and $100 (research interblock-station-photo-2026-10-30.md); IB §5.1 says chip values scale with denomination."
         },
         "/catalog/pass": {
           "status": "verified",
@@ -555,6 +555,11 @@
           "status": "assumed",
           "source": "CW §17; WOO-B",
           "note": "The standard 9:5, 7:5 and 7:6 on 4 to 10, as on Shoot To Win and live tables. Interblock v2.5.1 removed its pay tables, and its par sheet is not public (rules spec §5.2)."
+        },
+        "/catalog/place/pays/9": {
+          "status": "reported",
+          "source": "USER photo 2026-10-30",
+          "note": "The player's station prints \"PLACE 12 FOR 5\" under NINE: 7:5 (research interblock-station-photo-2026-10-30.md)."
         },
         "/catalog/place/pays/2": {
           "status": "assumed",
@@ -657,6 +662,11 @@
           "status": "reported",
           "source": "VA; IB §2.7",
           "note": "2:1 on 2 and 12 (\"typically ... a double payout\"); pay table EL602 pays 3:1 on 12 in standard craps only."
+        },
+        "/catalog/field/pays/2": {
+          "status": "verified",
+          "source": "VA; IB §2.7; USER photo 2026-10-30",
+          "note": "The player's station prints the field's 2 circled, \"PAYS DOUBLE\": 2:1 (research interblock-station-photo-2026-10-30.md). Its 12 is out of the photo."
         },
         "/catalog/field/afterWin": {
           "status": "assumed",
@@ -780,9 +790,9 @@
           "note": "13 easy hops and the hard hops 2-2 to 5-5; 1-1, 1-2, 5-6 and 6-6 are the horn singles."
         },
         "/catalog/hop13/pays": {
-          "status": "reported",
-          "source": "IB (game screen)",
-          "note": "16 for 1 on an easy hop and 31 for 1 on a hard hop, as the screen shows."
+          "status": "verified",
+          "source": "IB (game screen); USER photo 2026-10-30",
+          "note": "16 for 1 on an easy hop and 31 for 1 on a hard hop, as the screen shows: the player's station prints \"31 FOR 1 • HOPPING HARD WAYS\" over 2-2 to 5-5 and \"16 FOR 1 • HOP BETS\" over the 13 easy hops (research interblock-station-photo-2026-10-30.md)."
         },
         "/catalog/hop13/afterWin": {
           "status": "assumed",
@@ -794,9 +804,9 @@
           "note": "13 easy hops and the hard hops 2-2 to 5-5; 1-1, 1-2, 5-6 and 6-6 are the horn singles."
         },
         "/catalog/hop14/pays": {
-          "status": "reported",
-          "source": "IB (game screen)",
-          "note": "16 for 1 on an easy hop and 31 for 1 on a hard hop, as the screen shows."
+          "status": "verified",
+          "source": "IB (game screen); USER photo 2026-10-30",
+          "note": "16 for 1 on an easy hop and 31 for 1 on a hard hop, as the screen shows: the player's station prints \"31 FOR 1 • HOPPING HARD WAYS\" over 2-2 to 5-5 and \"16 FOR 1 • HOP BETS\" over the 13 easy hops (research interblock-station-photo-2026-10-30.md)."
         },
         "/catalog/hop14/afterWin": {
           "status": "assumed",
@@ -808,9 +818,9 @@
           "note": "13 easy hops and the hard hops 2-2 to 5-5; 1-1, 1-2, 5-6 and 6-6 are the horn singles."
         },
         "/catalog/hop15/pays": {
-          "status": "reported",
-          "source": "IB (game screen)",
-          "note": "16 for 1 on an easy hop and 31 for 1 on a hard hop, as the screen shows."
+          "status": "verified",
+          "source": "IB (game screen); USER photo 2026-10-30",
+          "note": "16 for 1 on an easy hop and 31 for 1 on a hard hop, as the screen shows: the player's station prints \"31 FOR 1 • HOPPING HARD WAYS\" over 2-2 to 5-5 and \"16 FOR 1 • HOP BETS\" over the 13 easy hops (research interblock-station-photo-2026-10-30.md)."
         },
         "/catalog/hop15/afterWin": {
           "status": "assumed",
@@ -822,9 +832,9 @@
           "note": "13 easy hops and the hard hops 2-2 to 5-5; 1-1, 1-2, 5-6 and 6-6 are the horn singles."
         },
         "/catalog/hop16/pays": {
-          "status": "reported",
-          "source": "IB (game screen)",
-          "note": "16 for 1 on an easy hop and 31 for 1 on a hard hop, as the screen shows."
+          "status": "verified",
+          "source": "IB (game screen); USER photo 2026-10-30",
+          "note": "16 for 1 on an easy hop and 31 for 1 on a hard hop, as the screen shows: the player's station prints \"31 FOR 1 • HOPPING HARD WAYS\" over 2-2 to 5-5 and \"16 FOR 1 • HOP BETS\" over the 13 easy hops (research interblock-station-photo-2026-10-30.md)."
         },
         "/catalog/hop16/afterWin": {
           "status": "assumed",
@@ -836,9 +846,9 @@
           "note": "13 easy hops and the hard hops 2-2 to 5-5; 1-1, 1-2, 5-6 and 6-6 are the horn singles."
         },
         "/catalog/hop22/pays": {
-          "status": "reported",
-          "source": "IB (game screen)",
-          "note": "16 for 1 on an easy hop and 31 for 1 on a hard hop, as the screen shows."
+          "status": "verified",
+          "source": "IB (game screen); USER photo 2026-10-30",
+          "note": "16 for 1 on an easy hop and 31 for 1 on a hard hop, as the screen shows: the player's station prints \"31 FOR 1 • HOPPING HARD WAYS\" over 2-2 to 5-5 and \"16 FOR 1 • HOP BETS\" over the 13 easy hops (research interblock-station-photo-2026-10-30.md)."
         },
         "/catalog/hop22/afterWin": {
           "status": "assumed",
@@ -850,9 +860,9 @@
           "note": "13 easy hops and the hard hops 2-2 to 5-5; 1-1, 1-2, 5-6 and 6-6 are the horn singles."
         },
         "/catalog/hop23/pays": {
-          "status": "reported",
-          "source": "IB (game screen)",
-          "note": "16 for 1 on an easy hop and 31 for 1 on a hard hop, as the screen shows."
+          "status": "verified",
+          "source": "IB (game screen); USER photo 2026-10-30",
+          "note": "16 for 1 on an easy hop and 31 for 1 on a hard hop, as the screen shows: the player's station prints \"31 FOR 1 • HOPPING HARD WAYS\" over 2-2 to 5-5 and \"16 FOR 1 • HOP BETS\" over the 13 easy hops (research interblock-station-photo-2026-10-30.md)."
         },
         "/catalog/hop23/afterWin": {
           "status": "assumed",
@@ -864,9 +874,9 @@
           "note": "13 easy hops and the hard hops 2-2 to 5-5; 1-1, 1-2, 5-6 and 6-6 are the horn singles."
         },
         "/catalog/hop24/pays": {
-          "status": "reported",
-          "source": "IB (game screen)",
-          "note": "16 for 1 on an easy hop and 31 for 1 on a hard hop, as the screen shows."
+          "status": "verified",
+          "source": "IB (game screen); USER photo 2026-10-30",
+          "note": "16 for 1 on an easy hop and 31 for 1 on a hard hop, as the screen shows: the player's station prints \"31 FOR 1 • HOPPING HARD WAYS\" over 2-2 to 5-5 and \"16 FOR 1 • HOP BETS\" over the 13 easy hops (research interblock-station-photo-2026-10-30.md)."
         },
         "/catalog/hop24/afterWin": {
           "status": "assumed",
@@ -878,9 +888,9 @@
           "note": "13 easy hops and the hard hops 2-2 to 5-5; 1-1, 1-2, 5-6 and 6-6 are the horn singles."
         },
         "/catalog/hop25/pays": {
-          "status": "reported",
-          "source": "IB (game screen)",
-          "note": "16 for 1 on an easy hop and 31 for 1 on a hard hop, as the screen shows."
+          "status": "verified",
+          "source": "IB (game screen); USER photo 2026-10-30",
+          "note": "16 for 1 on an easy hop and 31 for 1 on a hard hop, as the screen shows: the player's station prints \"31 FOR 1 • HOPPING HARD WAYS\" over 2-2 to 5-5 and \"16 FOR 1 • HOP BETS\" over the 13 easy hops (research interblock-station-photo-2026-10-30.md)."
         },
         "/catalog/hop25/afterWin": {
           "status": "assumed",
@@ -892,9 +902,9 @@
           "note": "13 easy hops and the hard hops 2-2 to 5-5; 1-1, 1-2, 5-6 and 6-6 are the horn singles."
         },
         "/catalog/hop26/pays": {
-          "status": "reported",
-          "source": "IB (game screen)",
-          "note": "16 for 1 on an easy hop and 31 for 1 on a hard hop, as the screen shows."
+          "status": "verified",
+          "source": "IB (game screen); USER photo 2026-10-30",
+          "note": "16 for 1 on an easy hop and 31 for 1 on a hard hop, as the screen shows: the player's station prints \"31 FOR 1 • HOPPING HARD WAYS\" over 2-2 to 5-5 and \"16 FOR 1 • HOP BETS\" over the 13 easy hops (research interblock-station-photo-2026-10-30.md)."
         },
         "/catalog/hop26/afterWin": {
           "status": "assumed",
@@ -906,9 +916,9 @@
           "note": "13 easy hops and the hard hops 2-2 to 5-5; 1-1, 1-2, 5-6 and 6-6 are the horn singles."
         },
         "/catalog/hop33/pays": {
-          "status": "reported",
-          "source": "IB (game screen)",
-          "note": "16 for 1 on an easy hop and 31 for 1 on a hard hop, as the screen shows."
+          "status": "verified",
+          "source": "IB (game screen); USER photo 2026-10-30",
+          "note": "16 for 1 on an easy hop and 31 for 1 on a hard hop, as the screen shows: the player's station prints \"31 FOR 1 • HOPPING HARD WAYS\" over 2-2 to 5-5 and \"16 FOR 1 • HOP BETS\" over the 13 easy hops (research interblock-station-photo-2026-10-30.md)."
         },
         "/catalog/hop33/afterWin": {
           "status": "assumed",
@@ -920,9 +930,9 @@
           "note": "13 easy hops and the hard hops 2-2 to 5-5; 1-1, 1-2, 5-6 and 6-6 are the horn singles."
         },
         "/catalog/hop34/pays": {
-          "status": "reported",
-          "source": "IB (game screen)",
-          "note": "16 for 1 on an easy hop and 31 for 1 on a hard hop, as the screen shows."
+          "status": "verified",
+          "source": "IB (game screen); USER photo 2026-10-30",
+          "note": "16 for 1 on an easy hop and 31 for 1 on a hard hop, as the screen shows: the player's station prints \"31 FOR 1 • HOPPING HARD WAYS\" over 2-2 to 5-5 and \"16 FOR 1 • HOP BETS\" over the 13 easy hops (research interblock-station-photo-2026-10-30.md)."
         },
         "/catalog/hop34/afterWin": {
           "status": "assumed",
@@ -934,9 +944,9 @@
           "note": "13 easy hops and the hard hops 2-2 to 5-5; 1-1, 1-2, 5-6 and 6-6 are the horn singles."
         },
         "/catalog/hop35/pays": {
-          "status": "reported",
-          "source": "IB (game screen)",
-          "note": "16 for 1 on an easy hop and 31 for 1 on a hard hop, as the screen shows."
+          "status": "verified",
+          "source": "IB (game screen); USER photo 2026-10-30",
+          "note": "16 for 1 on an easy hop and 31 for 1 on a hard hop, as the screen shows: the player's station prints \"31 FOR 1 • HOPPING HARD WAYS\" over 2-2 to 5-5 and \"16 FOR 1 • HOP BETS\" over the 13 easy hops (research interblock-station-photo-2026-10-30.md)."
         },
         "/catalog/hop35/afterWin": {
           "status": "assumed",
@@ -948,9 +958,9 @@
           "note": "13 easy hops and the hard hops 2-2 to 5-5; 1-1, 1-2, 5-6 and 6-6 are the horn singles."
         },
         "/catalog/hop36/pays": {
-          "status": "reported",
-          "source": "IB (game screen)",
-          "note": "16 for 1 on an easy hop and 31 for 1 on a hard hop, as the screen shows."
+          "status": "verified",
+          "source": "IB (game screen); USER photo 2026-10-30",
+          "note": "16 for 1 on an easy hop and 31 for 1 on a hard hop, as the screen shows: the player's station prints \"31 FOR 1 • HOPPING HARD WAYS\" over 2-2 to 5-5 and \"16 FOR 1 • HOP BETS\" over the 13 easy hops (research interblock-station-photo-2026-10-30.md)."
         },
         "/catalog/hop36/afterWin": {
           "status": "assumed",
@@ -962,9 +972,9 @@
           "note": "13 easy hops and the hard hops 2-2 to 5-5; 1-1, 1-2, 5-6 and 6-6 are the horn singles."
         },
         "/catalog/hop44/pays": {
-          "status": "reported",
-          "source": "IB (game screen)",
-          "note": "16 for 1 on an easy hop and 31 for 1 on a hard hop, as the screen shows."
+          "status": "verified",
+          "source": "IB (game screen); USER photo 2026-10-30",
+          "note": "16 for 1 on an easy hop and 31 for 1 on a hard hop, as the screen shows: the player's station prints \"31 FOR 1 • HOPPING HARD WAYS\" over 2-2 to 5-5 and \"16 FOR 1 • HOP BETS\" over the 13 easy hops (research interblock-station-photo-2026-10-30.md)."
         },
         "/catalog/hop44/afterWin": {
           "status": "assumed",
@@ -976,9 +986,9 @@
           "note": "13 easy hops and the hard hops 2-2 to 5-5; 1-1, 1-2, 5-6 and 6-6 are the horn singles."
         },
         "/catalog/hop45/pays": {
-          "status": "reported",
-          "source": "IB (game screen)",
-          "note": "16 for 1 on an easy hop and 31 for 1 on a hard hop, as the screen shows."
+          "status": "verified",
+          "source": "IB (game screen); USER photo 2026-10-30",
+          "note": "16 for 1 on an easy hop and 31 for 1 on a hard hop, as the screen shows: the player's station prints \"31 FOR 1 • HOPPING HARD WAYS\" over 2-2 to 5-5 and \"16 FOR 1 • HOP BETS\" over the 13 easy hops (research interblock-station-photo-2026-10-30.md)."
         },
         "/catalog/hop45/afterWin": {
           "status": "assumed",
@@ -990,9 +1000,9 @@
           "note": "13 easy hops and the hard hops 2-2 to 5-5; 1-1, 1-2, 5-6 and 6-6 are the horn singles."
         },
         "/catalog/hop46/pays": {
-          "status": "reported",
-          "source": "IB (game screen)",
-          "note": "16 for 1 on an easy hop and 31 for 1 on a hard hop, as the screen shows."
+          "status": "verified",
+          "source": "IB (game screen); USER photo 2026-10-30",
+          "note": "16 for 1 on an easy hop and 31 for 1 on a hard hop, as the screen shows: the player's station prints \"31 FOR 1 • HOPPING HARD WAYS\" over 2-2 to 5-5 and \"16 FOR 1 • HOP BETS\" over the 13 easy hops (research interblock-station-photo-2026-10-30.md)."
         },
         "/catalog/hop46/afterWin": {
           "status": "assumed",
@@ -1004,9 +1014,9 @@
           "note": "13 easy hops and the hard hops 2-2 to 5-5; 1-1, 1-2, 5-6 and 6-6 are the horn singles."
         },
         "/catalog/hop55/pays": {
-          "status": "reported",
-          "source": "IB (game screen)",
-          "note": "16 for 1 on an easy hop and 31 for 1 on a hard hop, as the screen shows."
+          "status": "verified",
+          "source": "IB (game screen); USER photo 2026-10-30",
+          "note": "16 for 1 on an easy hop and 31 for 1 on a hard hop, as the screen shows: the player's station prints \"31 FOR 1 • HOPPING HARD WAYS\" over 2-2 to 5-5 and \"16 FOR 1 • HOP BETS\" over the 13 easy hops (research interblock-station-photo-2026-10-30.md)."
         },
         "/catalog/hop55/afterWin": {
           "status": "assumed",
@@ -1033,19 +1043,19 @@
           "note": "Low Rolls 2 to 6, High Rolls 8 to 12, Roll 'Em All all ten, before any 7; offered on every Interblock game, crapless included."
         },
         "/sideBets/luckyRollerLow/pays": {
-          "status": "reported",
-          "source": "IB §6.2 (game screen); VA",
-          "note": "30, 30 and 155 to 1: the screen shows Low 31, Roll 'Em All 156 and High 31 for 1 (rules spec §0.2 #10)."
+          "status": "verified",
+          "source": "IB §6.2 (game screen); VA; USER photo 2026-10-30",
+          "note": "30, 30 and 155 to 1: the screen shows Low 31, Roll 'Em All 156 and High 31 for 1 (rules spec §0.2 #10), as the player's own station prints them (research interblock-station-photo-2026-10-30.md)."
         },
         "/sideBets/luckyRollerHigh/pays": {
-          "status": "reported",
-          "source": "IB §6.2 (game screen); VA",
-          "note": "30, 30 and 155 to 1: the screen shows Low 31, Roll 'Em All 156 and High 31 for 1 (rules spec §0.2 #10)."
+          "status": "verified",
+          "source": "IB §6.2 (game screen); VA; USER photo 2026-10-30",
+          "note": "30, 30 and 155 to 1: the screen shows Low 31, Roll 'Em All 156 and High 31 for 1 (rules spec §0.2 #10), as the player's own station prints them (research interblock-station-photo-2026-10-30.md)."
         },
         "/sideBets/luckyRollerAll/pays": {
-          "status": "reported",
-          "source": "IB §6.2 (game screen); VA",
-          "note": "30, 30 and 155 to 1: the screen shows Low 31, Roll 'Em All 156 and High 31 for 1 (rules spec §0.2 #10)."
+          "status": "verified",
+          "source": "IB §6.2 (game screen); VA; USER photo 2026-10-30",
+          "note": "30, 30 and 155 to 1: the screen shows Low 31, Roll 'Em All 156 and High 31 for 1 (rules spec §0.2 #10), as the player's own station prints them (research interblock-station-photo-2026-10-30.md)."
         },
         "/sideBets/luckyRollerLow/placement": {
           "status": "verified",
@@ -1133,8 +1143,9 @@
           "note": "The Pass/Don't Pass vs Lay/Buy exclusion needs lay or don't pass, which crapless lacks."
         },
         "/payLabelStyle": {
-          "status": "assumed",
-          "note": "Display only: each ratio is shown as written, so props read \"for 1\" as on the screen."
+          "status": "reported",
+          "source": "USER photo 2026-10-30",
+          "note": "Display only: the player's station prints every pay it shows as \"N for M\" — place 9 \"12 FOR 5\", hops \"16 FOR 1\" and \"31 FOR 1\", Lucky Roller \"31 FOR 1\" and \"156 FOR 1\" (research interblock-station-photo-2026-10-30.md)."
         },
         "/flow/shooter": {
           "status": "verified",
@@ -1185,7 +1196,7 @@
         { "type": "place", "typeId": "pass", "amount": 500 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "b07ff53e4a536596"
+      "hashAfter": "b662e4230adc5b8b"
     },
     {
       "actions": [
@@ -1196,17 +1207,17 @@
         }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "27e5596a7ee5e750"
+      "hashAfter": "50929fc671de793d"
     },
     {
       "actions": [{ "type": "place", "typeId": "buy", "amount": 7500, "number": 8 }],
       "roll": { "type": "roll" },
-      "hashAfter": "2b8550262622e501"
+      "hashAfter": "c6d983e33076aed0"
     },
     {
       "actions": [{ "type": "setAmount", "betId": "b5", "amount": 0 }],
       "roll": { "type": "roll" },
-      "hashAfter": "4f955902cd2c2737"
+      "hashAfter": "e61f2bf1a294d610"
     },
     {
       "actions": [
@@ -1214,7 +1225,7 @@
         { "type": "place", "typeId": "place", "amount": 1500, "number": 12 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "1f9c298f029102f0"
+      "hashAfter": "d9da93721bbc0f2f"
     },
     {
       "actions": [
@@ -1222,12 +1233,12 @@
         { "type": "place", "typeId": "pass", "amount": 1000 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "034679462b58ab09"
+      "hashAfter": "ba8dcb353b5d7dfe"
     },
     {
       "actions": [{ "type": "place", "typeId": "hop23", "amount": 300 }],
       "roll": { "type": "roll" },
-      "hashAfter": "a13d8c0378e6f6c6"
+      "hashAfter": "15c99076b6a8ca05"
     },
     {
       "actions": [
@@ -1236,7 +1247,7 @@
         { "type": "place", "typeId": "pass", "amount": 400 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "a0036a107bcda605"
+      "hashAfter": "3c63a84da3843b84"
     },
     {
       "actions": [
@@ -1244,7 +1255,7 @@
         { "type": "place", "typeId": "come", "amount": 100 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "399a246ac302abdd"
+      "hashAfter": "eb3434e0334037bc"
     },
     {
       "actions": [
@@ -1254,7 +1265,7 @@
         { "type": "place", "typeId": "pass", "amount": 500 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "e8a0941eaab330bc"
+      "hashAfter": "1c5581ed592682cb"
     },
     {
       "actions": [
@@ -1262,7 +1273,7 @@
         { "type": "place", "typeId": "place", "amount": 1200, "number": 8 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "cb9dd1548aacc86f"
+      "hashAfter": "1a813650491f4076"
     },
     {
       "actions": [
@@ -1270,7 +1281,7 @@
         { "type": "setAmount", "betId": "b21", "amount": 2000 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "ab67d60ba6428b8d"
+      "hashAfter": "1ce5a297b3c1bb62"
     },
     {
       "actions": [
@@ -1279,7 +1290,7 @@
         { "type": "place", "typeId": "place", "amount": 1500, "number": 9 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "e6d620fcf762aaa7"
+      "hashAfter": "6b630452df708c7c"
     },
     {
       "actions": [
@@ -1287,7 +1298,7 @@
         { "type": "place", "typeId": "place", "amount": 600, "number": 6 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "631760c06da3f11d"
+      "hashAfter": "d5039763b8d3d8aa"
     },
     {
       "actions": [
@@ -1297,7 +1308,7 @@
         }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "4345bcd570606079"
+      "hashAfter": "bb9a99747b5bbc3e"
     },
     {
       "actions": [
@@ -1306,7 +1317,7 @@
         { "type": "place", "typeId": "pass", "amount": 400 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "63c5325e88681aa6"
+      "hashAfter": "119ad6dc76b0279b"
     },
     {
       "actions": [
@@ -1315,12 +1326,12 @@
         { "type": "batch", "actions": [{ "type": "setAmount", "betId": "b32", "amount": 800 }] }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "7ff468188b77c858"
+      "hashAfter": "1c2cb50d180183cd"
     },
     {
       "actions": [{ "type": "place", "typeId": "hop22", "amount": 100 }],
       "roll": { "type": "roll" },
-      "hashAfter": "970c5cb44835ca61"
+      "hashAfter": "5ceb64e51ab77472"
     },
     {
       "actions": [
@@ -1329,7 +1340,7 @@
         { "type": "place", "typeId": "pass", "amount": 300 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "883d5bc4db6f4d67"
+      "hashAfter": "064a495ca2c2ef24"
     },
     {
       "actions": [
@@ -1338,7 +1349,7 @@
         { "type": "setAmount", "betId": "b17", "amount": 800 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "c09c4a66f84a7580"
+      "hashAfter": "49218b57dab00a1b"
     },
     {
       "actions": [
@@ -1346,7 +1357,7 @@
         { "type": "place", "typeId": "passOdds", "amount": 500, "parentId": "b36" }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "55f0cedfed8cb0ea"
+      "hashAfter": "6fd9b8bd9d34ce9d"
     },
     {
       "actions": [
@@ -1354,7 +1365,7 @@
         { "type": "place", "typeId": "hop23", "amount": 100 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "07e538a9da5a6f83"
+      "hashAfter": "ef86bfa43fd9122c"
     },
     {
       "actions": [
@@ -1362,7 +1373,7 @@
         { "type": "setAmount", "betId": "b28", "amount": 2500 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "331e5259658930de"
+      "hashAfter": "791bc56f19dacc6d"
     },
     {
       "actions": [
@@ -1373,7 +1384,7 @@
         }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "c004d0c9c543bcb3"
+      "hashAfter": "d2bd1392b8271e0e"
     },
     {
       "actions": [
@@ -1381,7 +1392,7 @@
         { "type": "place", "typeId": "pass", "amount": 300 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "6a59740525aedad0"
+      "hashAfter": "a41f041c249f0e27"
     },
     {
       "actions": [
@@ -1389,7 +1400,7 @@
         { "type": "place", "typeId": "passOdds", "amount": 600, "parentId": "b43" }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "830107a78d5c59dc"
+      "hashAfter": "dbd5cd85ae0e6ee5"
     },
     {
       "actions": [
@@ -1397,12 +1408,12 @@
         { "type": "place", "typeId": "hop26", "amount": 300 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "fc91bca639d918f3"
+      "hashAfter": "c2c901baaca88830"
     },
     {
       "actions": [{ "type": "place", "typeId": "come", "amount": 1000 }],
       "roll": { "type": "roll" },
-      "hashAfter": "6a0183a51a644edb"
+      "hashAfter": "465d176f8bbafadc"
     },
     {
       "actions": [
@@ -1410,7 +1421,7 @@
         { "type": "place", "typeId": "comeOdds", "amount": 500, "parentId": "b47" }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "ed4080cf3ff2db5c"
+      "hashAfter": "31d6390159339695"
     },
     {
       "actions": [
@@ -1419,7 +1430,7 @@
         { "type": "setGlobalWorking", "off": true }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "d05de2b6db55e897"
+      "hashAfter": "d82ef446307e2862"
     },
     {
       "actions": [
@@ -1430,12 +1441,12 @@
         { "type": "setAmount", "betId": "b51", "amount": 0 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "64fdd5b93fcd3fb1"
+      "hashAfter": "365656482d1f4cc0"
     },
     {
       "actions": [{ "type": "setAmount", "betId": "b45", "amount": 400 }],
       "roll": { "type": "roll" },
-      "hashAfter": "1ff297dd1dd2e88e"
+      "hashAfter": "2a3b75b37483e5b1"
     },
     {
       "actions": [
@@ -1443,12 +1454,12 @@
         { "type": "place", "typeId": "place", "amount": 500, "number": 11 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "ba5f2513097b7a2c"
+      "hashAfter": "546702a5b729e36f"
     },
     {
       "actions": [{ "type": "place", "typeId": "place", "amount": 1800, "number": 6 }],
       "roll": { "type": "roll" },
-      "hashAfter": "e868275c3ac66674"
+      "hashAfter": "1e551e9e7433e067"
     },
     {
       "actions": [
@@ -1460,7 +1471,7 @@
         { "type": "setAmount", "betId": "b55", "amount": 5000 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "500a17ad121e7fb1"
+      "hashAfter": "33fe40245d2ad216"
     },
     {
       "actions": [
@@ -1468,7 +1479,7 @@
         { "type": "setAmount", "betId": "b45", "amount": 600 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "54ec0f0e4186596c"
+      "hashAfter": "64de8d643171e28b"
     },
     {
       "actions": [
@@ -1483,7 +1494,7 @@
         }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "9c1f67b534c695cd"
+      "hashAfter": "3519a3cdf6513990"
     },
     {
       "actions": [
@@ -1491,12 +1502,12 @@
         { "type": "place", "typeId": "pass", "amount": 500 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "a1f4276c5de010af"
+      "hashAfter": "c2f44791219e2a2e"
     },
     {
       "actions": [{ "type": "setAmount", "betId": "b57", "amount": 0 }],
       "roll": { "type": "roll" },
-      "hashAfter": "3cdb8c6400d67d03"
+      "hashAfter": "15b9e2eb95ce42da"
     },
     {
       "actions": [
@@ -1504,7 +1515,7 @@
         { "type": "place", "typeId": "place", "amount": 1000, "number": 5 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "f80152101e9614fe"
+      "hashAfter": "2eedfbe8e228d9af"
     },
     {
       "actions": [
@@ -1514,7 +1525,7 @@
         }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "458c7310456021ff"
+      "hashAfter": "1188c10e8b2626ec"
     },
     {
       "actions": [
@@ -1523,27 +1534,27 @@
         { "type": "setAmount", "betId": "b60", "amount": 2500 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "fbb7c1f408801db7"
+      "hashAfter": "671636b37fc847cc"
     },
     {
       "actions": [{ "type": "place", "typeId": "hard", "amount": 400, "number": 4 }],
       "roll": { "type": "roll" },
-      "hashAfter": "6e0bb3456a234492"
+      "hashAfter": "eab7aaf71b111b49"
     },
     {
       "actions": [{ "type": "setAmount", "betId": "b62", "amount": 0 }],
       "roll": { "type": "roll" },
-      "hashAfter": "4350aff608afd08b"
+      "hashAfter": "ddc8884214872d7e"
     },
     {
       "actions": [{ "type": "place", "typeId": "come", "amount": 500 }],
       "roll": { "type": "roll" },
-      "hashAfter": "fd403df94b9fa60f"
+      "hashAfter": "2cfac1d0e58523e8"
     },
     {
       "actions": [{ "type": "setAmount", "betId": "b60", "amount": 0 }],
       "roll": { "type": "roll" },
-      "hashAfter": "72d6cd83ee64f775"
+      "hashAfter": "03439efea7a91e44"
     },
     {
       "actions": [
@@ -1551,7 +1562,7 @@
         { "type": "place", "typeId": "hard", "amount": 300, "number": 6 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "b19f7617aceedb4f"
+      "hashAfter": "b6903f6e36f5f6ac"
     },
     {
       "actions": [
@@ -1562,7 +1573,7 @@
         { "type": "place", "typeId": "come", "amount": 2000 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "df96534604e1dcd2"
+      "hashAfter": "9b848dd54c5fb279"
     },
     {
       "actions": [
@@ -1578,12 +1589,12 @@
         { "type": "place", "typeId": "pass", "amount": 500 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "8661f42d6bd1c164"
+      "hashAfter": "a254c7cae6614029"
     },
     {
       "actions": [{ "type": "place", "typeId": "come", "amount": 1000 }],
       "roll": { "type": "roll" },
-      "hashAfter": "b798a9621ff46841"
+      "hashAfter": "342a82646fab1468"
     },
     {
       "actions": [
@@ -1591,22 +1602,22 @@
         { "type": "setAmount", "betId": "b66", "amount": 0 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "514122e6a7f7db9d"
+      "hashAfter": "efb80a2089b4c18a"
     },
     {
       "actions": [{ "type": "place", "typeId": "place", "amount": 1000, "number": 11 }],
       "roll": { "type": "roll" },
-      "hashAfter": "1bd0eb9105f52c1d"
+      "hashAfter": "53152e8186160486"
     },
     {
       "actions": [{ "type": "place", "typeId": "buy", "amount": 5000, "number": 12 }],
       "roll": { "type": "roll" },
-      "hashAfter": "074629d49bdf08fd"
+      "hashAfter": "0ecb5c3c571e5280"
     },
     {
       "actions": [{ "type": "setAmount", "betId": "b63", "amount": 1900 }],
       "roll": { "type": "roll" },
-      "hashAfter": "5c35fe964ce347ca"
+      "hashAfter": "dc12a7d4f5a65835"
     },
     {
       "actions": [
@@ -1624,7 +1635,7 @@
         }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "03ee195074eaf909"
+      "hashAfter": "857696ba4a721ed0"
     },
     {
       "actions": [
@@ -1632,12 +1643,12 @@
         { "type": "place", "typeId": "place", "amount": 1000, "number": 4 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "f55897571ae1fcd2"
+      "hashAfter": "ede64bdc031eed93"
     },
     {
       "actions": [{ "type": "place", "typeId": "buy", "amount": 5000, "number": 3 }],
       "roll": { "type": "roll" },
-      "hashAfter": "a0c44e67cb3fae5c"
+      "hashAfter": "c1b44276066c36db"
     },
     {
       "actions": [
@@ -1649,7 +1660,7 @@
         { "type": "place", "typeId": "come", "amount": 1000 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "9347033683c1767c"
+      "hashAfter": "cfdc5ba1f927c797"
     },
     {
       "actions": [
@@ -1658,7 +1669,7 @@
         { "type": "setAmount", "betId": "b63", "amount": 3900 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "59839f0fdabca358"
+      "hashAfter": "873122447e602229"
     },
     {
       "actions": [
@@ -1666,17 +1677,17 @@
         { "type": "place", "typeId": "come", "amount": 1500 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "b79c6691342cc8be"
+      "hashAfter": "5f2b9bb06b68f409"
     },
     {
       "actions": [{ "type": "place", "typeId": "hop13", "amount": 200 }],
       "roll": { "type": "roll" },
-      "hashAfter": "f9bab14264ed2f70"
+      "hashAfter": "e32cb29f67791651"
     },
     {
       "actions": [{ "type": "place", "typeId": "hard", "amount": 200, "number": 10 }],
       "roll": { "type": "roll" },
-      "hashAfter": "f3a6f16a96afb58d"
+      "hashAfter": "fb569413deb47dd8"
     },
     {
       "actions": [
@@ -1688,7 +1699,7 @@
         { "type": "place", "typeId": "come", "amount": 1500 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "9c1d63d1438b7551"
+      "hashAfter": "9b5f28b99700db86"
     },
     {
       "actions": [
@@ -1696,7 +1707,7 @@
         { "type": "place", "typeId": "pass", "amount": 200 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "ff4aa54da80e4a5e"
+      "hashAfter": "b0d10ed47f7f827f"
     },
     {
       "actions": [
@@ -1704,7 +1715,7 @@
         { "type": "place", "typeId": "come", "amount": 300 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "620adf0b5383ebfe"
+      "hashAfter": "272d00a1890cdc9b"
     },
     {
       "actions": [
@@ -1712,7 +1723,7 @@
         { "type": "place", "typeId": "pass", "amount": 500 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "8722a20443a0b2f6"
+      "hashAfter": "d6884083fa538e9d"
     },
     {
       "actions": [
@@ -1722,7 +1733,7 @@
         }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "eccc698574f5ee2e"
+      "hashAfter": "af6a9b73f9fa5193"
     },
     {
       "actions": [
@@ -1744,17 +1755,17 @@
         { "type": "place", "typeId": "pass", "amount": 500 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "061c1c50e6baf09e"
+      "hashAfter": "087a99b9c1c68b9d"
     },
     {
       "actions": [{ "type": "place", "typeId": "passOdds", "amount": 1000, "parentId": "b92" }],
       "roll": { "type": "roll" },
-      "hashAfter": "0053a9adabcc2907"
+      "hashAfter": "6e26cab7cf77e316"
     },
     {
       "actions": [{ "type": "place", "typeId": "place", "amount": 1000, "number": 3 }],
       "roll": { "type": "roll" },
-      "hashAfter": "6eb9dff48b7132d6"
+      "hashAfter": "7b48db260de54deb"
     },
     {
       "actions": [
@@ -1762,7 +1773,7 @@
         { "type": "place", "typeId": "come", "amount": 1500 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "50a16a093c192192"
+      "hashAfter": "4cc415575dba7a1b"
     },
     {
       "actions": [
@@ -1774,12 +1785,12 @@
         { "type": "place", "typeId": "come", "amount": 1000 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "04b829f89a633a24"
+      "hashAfter": "3818ae31a952dc93"
     },
     {
       "actions": [{ "type": "place", "typeId": "buy", "amount": 7500, "number": 5 }],
       "roll": { "type": "roll" },
-      "hashAfter": "85e0cbc9e407212f"
+      "hashAfter": "8d8f9658157d3038"
     },
     {
       "actions": [
@@ -1789,7 +1800,7 @@
         }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "85a8a79038c0118b"
+      "hashAfter": "c90323169c6336b8"
     },
     {
       "actions": [
@@ -1797,7 +1808,7 @@
         { "type": "place", "typeId": "pass", "amount": 500 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "166ef2038d915dd4"
+      "hashAfter": "215d5235944ff63b"
     },
     {
       "actions": [
@@ -1807,7 +1818,7 @@
         { "type": "setAmount", "betId": "b102", "amount": 0 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "c3886495cd543b36"
+      "hashAfter": "7723233139ab93ed"
     },
     {
       "actions": [
@@ -1815,12 +1826,12 @@
         { "type": "place", "typeId": "come", "amount": 2000 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "ef53c1bbd73108ca"
+      "hashAfter": "a4baf6d6397d7795"
     },
     {
       "actions": [{ "type": "place", "typeId": "come", "amount": 1500 }],
       "roll": { "type": "roll" },
-      "hashAfter": "90cf0831d38514e4"
+      "hashAfter": "20c95acc734f208d"
     },
     {
       "actions": [
@@ -1828,7 +1839,7 @@
         { "type": "place", "typeId": "come", "amount": 1500 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "dba99462fccbd459"
+      "hashAfter": "1e7fff2459fce0f4"
     },
     {
       "actions": [
@@ -1845,7 +1856,7 @@
         { "type": "setGlobalWorking", "off": true }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "38c5f334b94b08ca"
+      "hashAfter": "9256de81ef777deb"
     },
     {
       "actions": [
@@ -1862,7 +1873,7 @@
         { "type": "place", "typeId": "buy", "amount": 2500, "number": 10 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "14743ddd05cb20dd"
+      "hashAfter": "829d4937266eaa74"
     },
     {
       "actions": [
@@ -1870,12 +1881,12 @@
         { "type": "place", "typeId": "place", "amount": 1000, "number": 10 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "8700e2a3026c03d5"
+      "hashAfter": "c6bca31a0fcd0cba"
     },
     {
       "actions": [{ "type": "place", "typeId": "buy", "amount": 7500, "number": 12 }],
       "roll": { "type": "roll" },
-      "hashAfter": "639873ee4c853bdb"
+      "hashAfter": "b047b03fbb0502a8"
     },
     {
       "actions": [
@@ -1883,12 +1894,12 @@
         { "type": "place", "typeId": "comeOdds", "amount": 500, "parentId": "b108" }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "687b38e0c25bfc1a"
+      "hashAfter": "13390b548b70861f"
     },
     {
       "actions": [{ "type": "place", "typeId": "hop25", "amount": 200 }],
       "roll": { "type": "roll" },
-      "hashAfter": "adb1b8658ee968c0"
+      "hashAfter": "f97e2be6393182c9"
     },
     {
       "actions": [
@@ -1896,22 +1907,22 @@
         { "type": "place", "typeId": "hop33", "amount": 100 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "38f6296264d9583c"
+      "hashAfter": "cf352982889673a9"
     },
     {
       "actions": [{ "type": "setAmount", "betId": "b109", "amount": 0 }],
       "roll": { "type": "roll" },
-      "hashAfter": "eb3d32e0fbe6227e"
+      "hashAfter": "8aa7ade268b0664b"
     },
     {
       "actions": [{ "type": "setAmount", "betId": "b107", "amount": 2000 }],
       "roll": { "type": "roll" },
-      "hashAfter": "f65d24b0722f9705"
+      "hashAfter": "f66a7fef4d743dd0"
     },
     {
       "actions": [{ "type": "place", "typeId": "come", "amount": 1000 }],
       "roll": { "type": "roll" },
-      "hashAfter": "e00d926d55f27d5d"
+      "hashAfter": "a893a5bc415b21e6"
     },
     {
       "actions": [
@@ -1919,17 +1930,17 @@
         { "type": "place", "typeId": "pass", "amount": 500 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "0a9703a003ca38ff"
+      "hashAfter": "3766a9c39a097e6a"
     },
     {
       "actions": [{ "type": "setAmount", "betId": "b113", "amount": 10000 }],
       "roll": { "type": "roll" },
-      "hashAfter": "6ef690707ac2d080"
+      "hashAfter": "f8398e4fd368f8e9"
     },
     {
       "actions": [{ "type": "place", "typeId": "hop24", "amount": 100 }],
       "roll": { "type": "roll" },
-      "hashAfter": "f8f24463e83552f6"
+      "hashAfter": "a22d79984875d2d5"
     },
     {
       "actions": [
@@ -1937,12 +1948,12 @@
         { "type": "batch", "actions": [{ "type": "place", "typeId": "hop24", "amount": 100 }] }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "87e96e57faf71988"
+      "hashAfter": "fcd4e6b384a6d4a7"
     },
     {
       "actions": [{ "type": "setAmount", "betId": "b119", "amount": 7500 }],
       "roll": { "type": "roll" },
-      "hashAfter": "6185538af2754c58"
+      "hashAfter": "d1fa83dd78ea8771"
     },
     {
       "actions": [
@@ -1951,7 +1962,7 @@
         { "type": "place", "typeId": "passOdds", "amount": 1000, "parentId": "b120" }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "a4c91778280efde8"
+      "hashAfter": "a2cb699e33eeaa05"
     },
     {
       "actions": [
@@ -1959,7 +1970,7 @@
         { "type": "place", "typeId": "buy", "amount": 7500, "number": 5 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "3cb982b42b8ee30f"
+      "hashAfter": "ce23628226579f20"
     },
     {
       "actions": [
@@ -1968,12 +1979,12 @@
         { "type": "place", "typeId": "pass", "amount": 500 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "e083eca82d7e82ea"
+      "hashAfter": "9a082e7731873ecf"
     },
     {
       "actions": [{ "type": "place", "typeId": "place", "amount": 500, "number": 2 }],
       "roll": { "type": "roll" },
-      "hashAfter": "fbe22f66c20349b2"
+      "hashAfter": "df19ec2636013ff7"
     },
     {
       "actions": [
@@ -1982,7 +1993,7 @@
         { "type": "setGlobalWorking", "off": true }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "2bf89f6ff54cc90c"
+      "hashAfter": "b4dd192175bd2e1f"
     },
     {
       "actions": [
@@ -1990,7 +2001,7 @@
         { "type": "place", "typeId": "come", "amount": 2000 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "91d29af8e39dcc8d"
+      "hashAfter": "3a19a92eca74d4be"
     },
     {
       "actions": [
@@ -1998,17 +2009,17 @@
         { "type": "place", "typeId": "comeOdds", "amount": 500, "parentId": "b133" }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "478520d637e3a1e9"
+      "hashAfter": "e899de9162d0034c"
     },
     {
       "actions": [{ "type": "place", "typeId": "hop25", "amount": 100 }],
       "roll": { "type": "roll" },
-      "hashAfter": "004d596c8c485ddb"
+      "hashAfter": "b3523c6bb6a41c48"
     },
     {
       "actions": [{ "type": "place", "typeId": "passOdds", "amount": 1000, "parentId": "b128" }],
       "roll": { "type": "roll" },
-      "hashAfter": "3ad9f75e78d2a55e"
+      "hashAfter": "1d3dcaa322ccd6b1"
     },
     {
       "actions": [
@@ -2017,12 +2028,12 @@
         { "type": "setAmount", "betId": "b138", "amount": 1000 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "6230156d9af8d5bf"
+      "hashAfter": "976ae3da4ab61a86"
     },
     {
       "actions": [{ "type": "place", "typeId": "come", "amount": 1500 }],
       "roll": { "type": "roll" },
-      "hashAfter": "4262101ba1e4e6a3"
+      "hashAfter": "97589620bcce748a"
     },
     {
       "actions": [
@@ -2038,7 +2049,7 @@
         { "type": "setAmount", "betId": "b140", "amount": 6000 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "2f43d7d70c38be9d"
+      "hashAfter": "39b5ba00223790c8"
     },
     {
       "actions": [
@@ -2046,7 +2057,7 @@
         { "type": "setAmount", "betId": "b128", "amount": 1000 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "aaf5b051490d1f95"
+      "hashAfter": "e86cdb74a590c39a"
     },
     {
       "actions": [
@@ -2063,12 +2074,12 @@
         }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "edad39677fd23c42"
+      "hashAfter": "6b5018b54d6151e9"
     },
     {
       "actions": [{ "type": "setAmount", "betId": "b129", "amount": 0 }],
       "roll": { "type": "roll" },
-      "hashAfter": "837a236518ed182c"
+      "hashAfter": "e91f3ae940991ec9"
     },
     {
       "actions": [
@@ -2077,7 +2088,7 @@
         { "type": "place", "typeId": "come", "amount": 2000 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "1ae74fb82ad1c114"
+      "hashAfter": "645aa45ccf87d3f5"
     },
     {
       "actions": [
@@ -2086,7 +2097,7 @@
         { "type": "place", "typeId": "pass", "amount": 500 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "081a64e8a82fc415"
+      "hashAfter": "ee3a76ded2ffe254"
     },
     {
       "actions": [
@@ -2112,7 +2123,7 @@
         { "type": "place", "typeId": "hard", "amount": 100, "number": 6 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "01a3c1fbbda222b7"
+      "hashAfter": "2572011025cb90b0"
     },
     {
       "actions": [
@@ -2120,7 +2131,7 @@
         { "type": "place", "typeId": "hard", "amount": 200, "number": 4 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "b9cb8fa6a076ab63"
+      "hashAfter": "a92d13362a2991fe"
     },
     {
       "actions": [
@@ -2128,12 +2139,12 @@
         { "type": "setAmount", "betId": "b137", "amount": 1300 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "e2055106041dc0c0"
+      "hashAfter": "e24ef4ef2b91ba05"
     },
     {
       "actions": [{ "type": "place", "typeId": "field", "amount": 300 }],
       "roll": { "type": "roll" },
-      "hashAfter": "aa82fa5278edd14e"
+      "hashAfter": "335060645e6b86c3"
     },
     {
       "actions": [
@@ -2141,7 +2152,7 @@
         { "type": "batch", "actions": [{ "type": "place", "typeId": "field", "amount": 300 }] }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "ce6c7beb7c749605"
+      "hashAfter": "2b898dab450529f8"
     },
     {
       "actions": [
@@ -2149,7 +2160,7 @@
         { "type": "place", "typeId": "come", "amount": 2000 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "1abeee9c2878043c"
+      "hashAfter": "6a4501fdfa169427"
     },
     {
       "actions": [
@@ -2158,7 +2169,7 @@
         { "type": "setAmount", "betId": "b155", "amount": 1500 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "a93c1a49f0555287"
+      "hashAfter": "dc9b9197931c43e8"
     },
     {
       "actions": [
@@ -2173,7 +2184,7 @@
         }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "cf5463b356bdf22b"
+      "hashAfter": "c502ad89738ef7c0"
     },
     {
       "actions": [
@@ -2181,7 +2192,7 @@
         { "type": "place", "typeId": "pass", "amount": 500 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "126a5863430af592"
+      "hashAfter": "b9aece5b5d86fa87"
     },
     {
       "actions": [
@@ -2189,7 +2200,7 @@
         { "type": "place", "typeId": "horn", "amount": 300 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "ccd10eb36cd83bdf"
+      "hashAfter": "78d41aa53a4b77ae"
     },
     {
       "actions": [
@@ -2203,7 +2214,7 @@
         { "type": "place", "typeId": "hop22", "amount": 100 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "03254c0c8acac6e4"
+      "hashAfter": "086afc0f9ee4de03"
     },
     {
       "actions": [
@@ -2212,19 +2223,19 @@
         { "type": "place", "typeId": "hop15", "amount": 300 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "67eda9a11f116d40"
+      "hashAfter": "cb80d527fb8ddb65"
     },
     {
       "actions": [
         { "type": "batch", "actions": [{ "type": "setAmount", "betId": "b150", "amount": 1600 }] }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "dbd830c7654f1504"
+      "hashAfter": "91b7bf8e85a31d17"
     },
     {
       "actions": [{ "type": "place", "typeId": "hard", "amount": 500, "number": 6 }],
       "roll": { "type": "roll" },
-      "hashAfter": "414a8bea9908912e"
+      "hashAfter": "2882bcc73a2a300f"
     },
     {
       "actions": [
@@ -2232,17 +2243,17 @@
         { "type": "place", "typeId": "come", "amount": 1500 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "1e29e8c7fd1754f0"
+      "hashAfter": "3237b0fadd60f60b"
     },
     {
       "actions": [{ "type": "place", "typeId": "pass", "amount": 1500 }],
       "roll": { "type": "roll" },
-      "hashAfter": "1f42655684be45b3"
+      "hashAfter": "98c1013f9731c7e8"
     },
     {
       "actions": [{ "type": "place", "typeId": "place", "amount": 500, "number": 5 }],
       "roll": { "type": "roll" },
-      "hashAfter": "76484838db317a07"
+      "hashAfter": "1bbdcbdd68274b52"
     },
     {
       "actions": [
@@ -2250,24 +2261,24 @@
         { "type": "place", "typeId": "e", "amount": 200 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "0d5b05c7100ebb1f"
+      "hashAfter": "645d095ce60ae086"
     },
     {
       "actions": [{ "type": "setAmount", "betId": "b171", "amount": 2500 }],
       "roll": { "type": "roll" },
-      "hashAfter": "0c91bcc22d5ff2da"
+      "hashAfter": "f2f7b11905afb86d"
     },
     {
       "actions": [
         { "type": "batch", "actions": [{ "type": "setAmount", "betId": "b173", "amount": 7300 }] }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "8b8372153cfdab8a"
+      "hashAfter": "91f5142f0f4d9a51"
     },
     {
       "actions": [{ "type": "place", "typeId": "come", "amount": 2000 }],
       "roll": { "type": "roll" },
-      "hashAfter": "2fd0c92af8e0bc11"
+      "hashAfter": "3c0c790e53f4d9da"
     },
     {
       "actions": [
@@ -2275,7 +2286,7 @@
         { "type": "place", "typeId": "pass", "amount": 500 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "6aeb1eb84875f0ee"
+      "hashAfter": "c512ce5901f12831"
     },
     {
       "actions": [
@@ -2283,7 +2294,7 @@
         { "type": "setGlobalWorking", "off": true }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "200cdf7e9d021311"
+      "hashAfter": "4e91e6a3fc8ed668"
     },
     {
       "actions": [
@@ -2293,7 +2304,7 @@
         }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "2edea8e41f204490"
+      "hashAfter": "4b3f0604b3d82d47"
     },
     {
       "actions": [
@@ -2301,7 +2312,7 @@
         { "type": "place", "typeId": "hop44", "amount": 200 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "83fdceb6ff4b2ff9"
+      "hashAfter": "75c53afbcc794e04"
     },
     {
       "actions": [
@@ -2309,7 +2320,7 @@
         { "type": "place", "typeId": "place", "amount": 500, "number": 12 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "4e82b40275314d96"
+      "hashAfter": "b3fe95438cfbedf3"
     },
     {
       "actions": [
@@ -2318,12 +2329,12 @@
         { "type": "place", "typeId": "place", "amount": 500, "number": 10 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "95a6a93ec3ee7f0f"
+      "hashAfter": "74779a8e2e644c00"
     },
     {
       "actions": [{ "type": "place", "typeId": "pass", "amount": 2000 }],
       "roll": { "type": "roll" },
-      "hashAfter": "1f40405659515517"
+      "hashAfter": "e5e9f551c2823b26"
     },
     {
       "actions": [
@@ -2332,12 +2343,12 @@
         { "type": "setAmount", "betId": "b188", "amount": 0 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "db3cab08f0e864ab"
+      "hashAfter": "3e79dfbefaa302f0"
     },
     {
       "actions": [{ "type": "place", "typeId": "hop34", "amount": 100 }],
       "roll": { "type": "roll" },
-      "hashAfter": "30693941b4bfed9c"
+      "hashAfter": "fdc99b9b48cf48ad"
     },
     {
       "actions": [
@@ -2345,7 +2356,7 @@
         { "type": "batch", "actions": [{ "type": "place", "typeId": "hop34", "amount": 100 }] }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "00e5fc95efc8f84e"
+      "hashAfter": "1bc7f7067ea63fc5"
     },
     {
       "actions": [
@@ -2353,7 +2364,7 @@
         { "type": "place", "typeId": "pass", "amount": 200 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "7f810c92d8aa03f6"
+      "hashAfter": "91c9e82a3b16cca9"
     },
     {
       "actions": [
@@ -2361,7 +2372,7 @@
         { "type": "place", "typeId": "come", "amount": 300 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "b2e39f371ea63326"
+      "hashAfter": "f38d0501b215f1dd"
     },
     {
       "actions": [
@@ -2370,7 +2381,7 @@
         { "type": "setGlobalWorking", "off": true }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "857d29f6f36450c5"
+      "hashAfter": "5a78caf8f1db1d12"
     },
     {
       "actions": [
@@ -2378,7 +2389,7 @@
         { "type": "place", "typeId": "pass", "amount": 500 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "ed08ba12832f0578"
+      "hashAfter": "74785cecaf0f5769"
     },
     {
       "actions": [
@@ -2386,7 +2397,7 @@
         { "type": "place", "typeId": "buy", "amount": 2500, "number": 8 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "3fa06827be36627a"
+      "hashAfter": "7ca509ceb6edda8b"
     },
     {
       "actions": [
@@ -2401,12 +2412,12 @@
         { "type": "place", "typeId": "come", "amount": 500 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "228cad8079838f81"
+      "hashAfter": "d8ac3e12549970c2"
     },
     {
       "actions": [{ "type": "place", "typeId": "place", "amount": 1500, "number": 9 }],
       "roll": { "type": "roll" },
-      "hashAfter": "29a0b595f6d633fb"
+      "hashAfter": "a2d46334726a431e"
     },
     {
       "actions": [
@@ -2414,7 +2425,7 @@
         { "type": "place", "typeId": "pass", "amount": 500 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "0d036e0dd6b8df22"
+      "hashAfter": "bd091cd5487934b1"
     },
     {
       "actions": [
@@ -2422,7 +2433,7 @@
         { "type": "place", "typeId": "hard", "amount": 400, "number": 4 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "e9be6b0e42c5035f"
+      "hashAfter": "bbc9900261059850"
     },
     {
       "actions": [
@@ -2430,7 +2441,7 @@
         { "type": "place", "typeId": "c", "amount": 300 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "a3575fb285002770"
+      "hashAfter": "c59969d229b390a3"
     },
     {
       "actions": [
@@ -2438,12 +2449,12 @@
         { "type": "place", "typeId": "buy", "amount": 7500, "number": 10 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "755283ddeb38da31"
+      "hashAfter": "3962cd4932de1358"
     },
     {
       "actions": [{ "type": "place", "typeId": "buy", "amount": 7500, "number": 4 }],
       "roll": { "type": "roll" },
-      "hashAfter": "16563785cdd95f2e"
+      "hashAfter": "af61abf5bf705787"
     },
     {
       "actions": [
@@ -2454,7 +2465,7 @@
         { "type": "place", "typeId": "pass", "amount": 500 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "9f22810066bfafb3"
+      "hashAfter": "00bb76a300efd254"
     },
     {
       "actions": [
@@ -2462,7 +2473,7 @@
         { "type": "place", "typeId": "come", "amount": 1000 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "af8aafe589ec384c"
+      "hashAfter": "b394606be856bc21"
     },
     {
       "actions": [
@@ -2471,7 +2482,7 @@
         { "type": "place", "typeId": "pass", "amount": 500 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "91e035d1d6669e92"
+      "hashAfter": "72db9b4a7e7f8d0f"
     },
     {
       "actions": [
@@ -2491,12 +2502,12 @@
         { "type": "place", "typeId": "pass", "amount": 500 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "f3da313ffc120a4d"
+      "hashAfter": "d41acd3aae41b1a8"
     },
     {
       "actions": [{ "type": "place", "typeId": "field", "amount": 200 }],
       "roll": { "type": "roll" },
-      "hashAfter": "9413805236acd8ba"
+      "hashAfter": "e82cf9274767df97"
     },
     {
       "actions": [
@@ -2508,7 +2519,7 @@
         }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "0dedacb60c7ac33a"
+      "hashAfter": "b9ab0a3812180413"
     },
     {
       "actions": [
@@ -2519,12 +2530,12 @@
         }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "898f5fc3604d09b2"
+      "hashAfter": "fc82e48388e0a629"
     },
     {
       "actions": [{ "type": "place", "typeId": "place", "amount": 1000, "number": 12 }],
       "roll": { "type": "roll" },
-      "hashAfter": "2dafb6f4f949b57a"
+      "hashAfter": "af5f44bdcff7aaed"
     },
     {
       "actions": [
@@ -2532,7 +2543,7 @@
         { "type": "place", "typeId": "pass", "amount": 500 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "530ab98beb16f95d"
+      "hashAfter": "4382cae50bee2210"
     },
     {
       "actions": [
@@ -2540,7 +2551,7 @@
         { "type": "place", "typeId": "buy", "amount": 5000, "number": 6 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "52a5cd2ca6506cb8"
+      "hashAfter": "b87405e6e2d1d467"
     },
     {
       "actions": [
@@ -2548,7 +2559,7 @@
         { "type": "place", "typeId": "place", "amount": 1800, "number": 6 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "951fe5b08be7eef9"
+      "hashAfter": "4392561a499e98d2"
     },
     {
       "actions": [
@@ -2556,17 +2567,17 @@
         { "type": "place", "typeId": "come", "amount": 2000 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "5d5dfc7a7f1e01ea"
+      "hashAfter": "65bda3d7ccab1cf9"
     },
     {
       "actions": [{ "type": "place", "typeId": "buy", "amount": 5000, "number": 4 }],
       "roll": { "type": "roll" },
-      "hashAfter": "e83317581d82895f"
+      "hashAfter": "cecd58c3836b96e6"
     },
     {
       "actions": [{ "type": "place", "typeId": "hop24", "amount": 100 }],
       "roll": { "type": "roll" },
-      "hashAfter": "27df6afde320fcd6"
+      "hashAfter": "83c0465a139e0b1f"
     },
     {
       "actions": [
@@ -2574,7 +2585,7 @@
         { "type": "batch", "actions": [{ "type": "setAmount", "betId": "b227", "amount": 10700 }] }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "f31268b628fd8297"
+      "hashAfter": "bb8cc5f4b54bb66e"
     },
     {
       "actions": [
@@ -2582,12 +2593,12 @@
         { "type": "place", "typeId": "pass", "amount": 200 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "0a437cb82b846930"
+      "hashAfter": "47ff90219f7437c1"
     },
     {
       "actions": [{ "type": "place", "typeId": "place", "amount": 1000, "number": 5 }],
       "roll": { "type": "roll" },
-      "hashAfter": "34ba80857bb2af56"
+      "hashAfter": "770b5442f5fd9de5"
     },
     {
       "actions": [
@@ -2595,7 +2606,7 @@
         { "type": "place", "typeId": "come", "amount": 2000 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "8ef4ba92f528b8ea"
+      "hashAfter": "6be6e61621483641"
     },
     {
       "actions": [
@@ -2606,7 +2617,7 @@
         }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "ffd2cb223d625225"
+      "hashAfter": "a9c129600c5c75d4"
     },
     {
       "actions": [
@@ -2614,12 +2625,12 @@
         { "type": "place", "typeId": "come", "amount": 500 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "47f5524a4be03f05"
+      "hashAfter": "b0db1ecc10e22ef0"
     },
     {
       "actions": [{ "type": "place", "typeId": "hop33", "amount": 200 }],
       "roll": { "type": "roll" },
-      "hashAfter": "e19a820f09409f3c"
+      "hashAfter": "8aff6ead51bb38ed"
     },
     {
       "actions": [
@@ -2629,7 +2640,7 @@
         { "type": "place", "typeId": "buy", "amount": 7500, "number": 2 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "f766ba4accd8d6c0"
+      "hashAfter": "6657980a81c6b79b"
     },
     {
       "actions": [
@@ -2637,7 +2648,7 @@
         { "type": "setGlobalWorking", "off": null }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "9679ca4ff8e3a51c"
+      "hashAfter": "5f90d291d21c277d"
     },
     {
       "actions": [
@@ -2645,12 +2656,12 @@
         { "type": "place", "typeId": "buy", "amount": 5000, "number": 6 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "03065d7bf41e4783"
+      "hashAfter": "f540ac7867f54dd2"
     },
     {
       "actions": [{ "type": "place", "typeId": "place", "amount": 500, "number": 4 }],
       "roll": { "type": "roll" },
-      "hashAfter": "554b8c99d35be691"
+      "hashAfter": "4320642fc442ebba"
     },
     {
       "actions": [
@@ -2666,7 +2677,7 @@
         }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "57fc15633f090aea"
+      "hashAfter": "8380b653a0aa698d"
     },
     {
       "actions": [
@@ -2674,7 +2685,7 @@
         { "type": "place", "typeId": "hard", "amount": 100, "number": 10 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "d1edc2f3b7c9613f"
+      "hashAfter": "6ca14ba38af7b6c0"
     },
     {
       "actions": [
@@ -2682,7 +2693,7 @@
         { "type": "place", "typeId": "comeOdds", "amount": 500, "parentId": "b245" }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "744e03237130c26d"
+      "hashAfter": "26443e71d0bab84e"
     },
     {
       "actions": [
@@ -2690,12 +2701,12 @@
         { "type": "place", "typeId": "pass", "amount": 300 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "ef67fd6ccf31f9c0"
+      "hashAfter": "53a28b8aec8ca8f5"
     },
     {
       "actions": [{ "type": "place", "typeId": "come", "amount": 1000 }],
       "roll": { "type": "roll" },
-      "hashAfter": "e6c38d90458eaa22"
+      "hashAfter": "3bbf6f01ca40c2dd"
     },
     {
       "actions": [
@@ -2707,7 +2718,7 @@
         { "type": "place", "typeId": "come", "amount": 2000 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "9929b4c2d0ac4f83"
+      "hashAfter": "ee93a215b3fd3204"
     },
     {
       "actions": [
@@ -2717,7 +2728,7 @@
         }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "494ccb8f71cbb95f"
+      "hashAfter": "943e844f5563b908"
     },
     {
       "actions": [
@@ -2725,12 +2736,12 @@
         { "type": "setAmount", "betId": "b255", "amount": 12500 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "882f721b3c4f0046"
+      "hashAfter": "73bad65960adbfe9"
     },
     {
       "actions": [{ "type": "place", "typeId": "hard", "amount": 500, "number": 10 }],
       "roll": { "type": "roll" },
-      "hashAfter": "0bb3c458b95ee6ca"
+      "hashAfter": "48059cb6e7dbe4a9"
     },
     {
       "actions": [
@@ -2741,17 +2752,17 @@
         { "type": "place", "typeId": "buy", "amount": 5000, "number": 6 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "51c9ca63c42f7c42"
+      "hashAfter": "1203ba1038d745a7"
     },
     {
       "actions": [{ "type": "place", "typeId": "buy", "amount": 2500, "number": 9 }],
       "roll": { "type": "roll" },
-      "hashAfter": "f66a17c8fd43df52"
+      "hashAfter": "2dc6a3bd385a32ab"
     },
     {
       "actions": [{ "type": "place", "typeId": "come", "amount": 1500 }],
       "roll": { "type": "roll" },
-      "hashAfter": "7a4cafc6f7575660"
+      "hashAfter": "f11a0082c2d4dbf7"
     },
     {
       "actions": [
@@ -2767,17 +2778,17 @@
         }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "c7e1de9371618651"
+      "hashAfter": "0a1b53a11ccfd592"
     },
     {
       "actions": [{ "type": "place", "typeId": "pass", "amount": 1000 }],
       "roll": { "type": "roll" },
-      "hashAfter": "2d871bbbf10230b4"
+      "hashAfter": "7122168a389e8767"
     },
     {
       "actions": [{ "type": "place", "typeId": "hop55", "amount": 100 }],
       "roll": { "type": "roll" },
-      "hashAfter": "b286ac104983ecfa"
+      "hashAfter": "6df55d10c67064c1"
     },
     {
       "actions": [
@@ -2786,7 +2797,7 @@
         { "type": "place", "typeId": "pass", "amount": 500 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "333c783fede5e75a"
+      "hashAfter": "131d1e3020186319"
     },
     {
       "actions": [
@@ -2796,12 +2807,12 @@
         }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "51c1534eb2acdcb0"
+      "hashAfter": "a54daf6c02fc09df"
     },
     {
       "actions": [{ "type": "place", "typeId": "buy", "amount": 7500, "number": 5 }],
       "roll": { "type": "roll" },
-      "hashAfter": "745f416fdc49b028"
+      "hashAfter": "14164b0aec4416bd"
     },
     {
       "actions": [
@@ -2809,7 +2820,7 @@
         { "type": "place", "typeId": "come", "amount": 1000 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "860d68ae80353c88"
+      "hashAfter": "a83e46cd848beb4b"
     },
     {
       "actions": [
@@ -2817,7 +2828,7 @@
         { "type": "place", "typeId": "pass", "amount": 500 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "fe9e4f36995c5956"
+      "hashAfter": "d0562fda078b7edd"
     },
     {
       "actions": [
@@ -2828,9 +2839,9 @@
         { "type": "place", "typeId": "hard", "amount": 500, "number": 10 }
       ],
       "roll": { "type": "roll" },
-      "hashAfter": "ce8fb0bdae681f77"
+      "hashAfter": "8f1aa84f7baeca3a"
     }
   ],
   "pending": [],
-  "finalStateHash": "ce8fb0bdae681f77"
+  "finalStateHash": "8f1aa84f7baeca3a"
 }

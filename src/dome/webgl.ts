@@ -1,14 +1,17 @@
 /**
  * WebGL availability (plan §7 Quality and fallbacks), decided in the initial bundle before the
  * three/R3F chunk is fetched: a device without WebGL never downloads it. The probe asks for a
- * context the way the renderer will — `failIfMajorPerformanceCaveat` on, so a software rasteriser
- * falls back to 2D rather than crawl — and releases it at once. The e2e builds pass `?force3d=1`
- * (plan §6 test hooks) to accept Chromium's SwiftShader and keep the drawn buffer for pixel
- * checks; production ignores the parameter. The quality tiers live in quality.ts.
+ * context the way the renderer will and releases it at once. A software rasteriser is accepted
+ * (`failIfMajorPerformanceCaveat` off), in the probe and the renderer alike: browsers flag it
+ * inconsistently anyway (Chromium's SwiftShader passed with the flag on, M10 audit), and cost is
+ * the quality tiers' job (quality.ts) — a device that cannot hold the frame rate drops to a
+ * cheaper tier after a throw or two — while 2D stays for a browser with no WebGL at all or one
+ * that loses its context. The e2e builds pass `?force3d=1` (plan §6 test hooks) to keep the drawn
+ * buffer for pixel checks and pin the medium tier; production ignores the parameter.
  */
 
 export interface WebGLOptions {
-  /** Refuse a context the browser flags as slow (software rendering). */
+  /** Refuse a context the browser flags as slow (software rendering): never, see above. */
   readonly failIfMajorPerformanceCaveat: boolean
   /** Keep the drawn buffer after compositing, so tests can read pixels back. */
   readonly preserveDrawingBuffer: boolean
@@ -22,7 +25,7 @@ export function force3d(search: string = typeof location === 'undefined' ? '' : 
 
 export function webglOptions(forced: boolean = force3d()): WebGLOptions {
   return {
-    failIfMajorPerformanceCaveat: !forced,
+    failIfMajorPerformanceCaveat: false,
     preserveDrawingBuffer: forced,
   }
 }

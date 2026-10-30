@@ -2,6 +2,7 @@ import fc from 'fast-check'
 import { describe, expect, it } from 'vitest'
 import { PRESETS, PRESET_IDS } from '../../src/engine/config/presets/index.ts'
 import type { MachineConfigInput } from '../../src/engine/config/schema.ts'
+import { liftMinimums } from '../properties/machineVariants.ts'
 import { factsFrom, type MachineFacts } from './machineFacts.ts'
 import { refMaxOdds } from './referenceRules.ts'
 import {
@@ -610,11 +611,15 @@ describe('wagered and rebetBlocked in the snapshot (rules spec §0.1, §0.2 #5)'
 })
 
 describe('re-collected vig is judged after all of the roll payouts (rules spec §4.3, §4.5)', () => {
-  /** The live table, starting with `bankroll` cents: its lays pay whole dollars, $1 vig minimum. */
+  /**
+   * The live table, starting with `bankroll` cents: its lays pay whole dollars, $1 vig minimum.
+   * Its posted "lay must win $20" (M12) is lifted, so the $1 lays these cases use are taken.
+   */
   const live = (bankroll: number) =>
     session(
       edited('traditionalLive345', (input) => {
         input.money.startingBankroll = bankroll
+        liftMinimums(input, ['lay'])
       }),
     )
 

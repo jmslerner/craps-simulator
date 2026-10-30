@@ -8,6 +8,7 @@ import { effectiveWorking } from '../../src/engine/bets/working.ts'
 import type { Action } from '../../src/engine/table/actions.ts'
 import { applyAction, validateAction } from '../../src/engine/table/reducer.ts'
 import { heldOffOf, newTable, type TableState } from '../../src/engine/table/state.ts'
+import type { BetId } from '../../src/engine/bets/types.ts'
 import {
   ExactError,
   analyzeBet,
@@ -27,6 +28,7 @@ import {
   type CatalogRow,
 } from '../../src/exact/index.ts'
 import { adviseSpot, type Advice, type CoachInput } from '../../src/coach/advisors/index.ts'
+import { sideBetProgress, type SideBetProgress } from '../../src/coach/sideBetProgress.ts'
 import { paysExactlyAt } from '../../src/coach/advisors/exactness.ts'
 import { adviceLine } from '../../src/coach/advisors/render.ts'
 import { zoneBadges } from '../../src/coach/badges.ts'
@@ -53,6 +55,8 @@ import {
   putBet,
   type CfBet,
 } from '../oracle/closedForm.ts'
+import { collectSetByChain, sideBetClosedForm } from '../oracle/sideBetEdges.ts'
+import { sideBetMachineFrom, type SideBetMachine } from '../oracle/sideBets.ts'
 
 /**
  * The coach audit harness (plan §5.8, §10 M9c): random sessions, replayed through the coach in
@@ -77,6 +81,12 @@ import {
  *    the oracle's per-working-roll edges and the round's phase shares price every standing bet;
  *    and pins `analyzeExisting`'s equity of every do-side line bet on a number against the rules
  *    spec's §3.1 table (flat × 2w/(w+6)).
+ * 7. (M11 audit) side bets: one side-bet catalog row per session, with its badge and sheet row,
+ *    against the independent side-bet oracle (tests/oracle/sideBetEdges.ts, read per resolved
+ *    wager: a push that leaves the bet up decides nothing, rules spec §0.1, §6.3); and a side-bet
+ *    session per preset that offers them, every side bet placed as its window opens, whose
+ *    `sideBetProgress` numbers are all recomputed from their source at every state, with a fresh
+ *    bet's chances and length and a Lucky Roller's at any progress held to the oracle.
  *
  * Every failure lands in `discrepancies` as one line; the suites assert the list is empty.
  */
@@ -109,6 +119,14 @@ export interface AuditReport {
   layoutOracleChecks: number
   /** Do-side line bets on a number whose equity was pinned to the §3.1 table. */
   equityChecks: number
+  /** Side-bet catalog rows (with their badge and sheet row) priced against the side-bet oracle. */
+  sideRowOracleChecks: number
+  /** Side bets on a table whose `sideBetProgress` was audited. */
+  sideProgressChecks: number
+  /** Those checks by side-bet type, so a suite can see every type was reached. */
+  readonly sideProgressByType: Record<string, number>
+  /** Of those, the ones held to the side-bet oracle (fresh bets; Lucky Rollers at any progress). */
+  sideProgressOracleChecks: number
   readonly discrepancies: string[]
 }
 
@@ -134,6 +152,10 @@ export function runCoachAudit(options: AuditOptions): AuditReport {
     rowOracleChecks: 0,
     layoutOracleChecks: 0,
     equityChecks: 0,
+    sideRowOracleChecks: 0,
+    sideProgressChecks: 0,
+    sideProgressByType: {},
+    sideProgressOracleChecks: 0,
     discrepancies: [],
   }
   const configs = new Map<string, MachineConfig>()
@@ -145,13 +167,18 @@ export function runCoachAudit(options: AuditOptions): AuditReport {
     const cfg = compileConfig(PRESETS[preset])
     const facts = factsFrom(cfg.input)
     const oracle = oracleEdges(facts)
+    const sides = sideBetMachineFrom(cfg.input)
     for (let session = 0; session < options.sessions; session += 1) {
       const next = lcg(options.seed + session * 7919 + preset.length * 104729)
       const seed = `${preset}-${options.seed}-${session}`
-      auditCatalogRow(cfg, facts, next, report, (message) =>
-        report.discrepancies.push(`${cfg.id} session ${seed}: ${message}`),
-      )
+      const flag = (message: string) =>
+        report.discrepancies.push(`${cfg.id} session ${seed}: ${message}`)
+      auditCatalogRow(cfg, facts, next, report, flag)
+      auditSideBetRow(cfg, sides, session, report, flag)
       auditSession(cfg, facts, configs, oracle, seed, next, options, report)
+      if (cfg.sideBets.size > 0) {
+        auditSideBetSession(cfg, sides, configs, `${seed}-side`, options, report)
+      }
     }
   }
   return report
@@ -709,11 +736,322 @@ function recompute(
     case 'sevenPreview':
       // Audited whole by auditSeven (totals, OFF honesty); the step numbers mirror those parts.
       return undefined
+    case 'sideBetProgress': {
+      // A side bet's progress numbers (M11): the call replayed on the table it was made on.
+      if (state === null) return null
+      const progress = sideBetProgress(args['betId'] as BetId, state, onCfg)
+      if (progress === null) return null
+      return sideBetField(progress, onCfg, args['field'] as string)
+    }
     case 'takeDownValue':
     case 'analyzeExisting':
       return undefined // inspector-only sources; the e2e hook equality covers them
     default:
       return null
+  }
+}
+
+/** The value of one `sideBetProgress` source field, read off a recomputed progress. */
+function sideBetField(
+  progress: SideBetProgress,
+  cfg: MachineConfig,
+  field: string,
+): Fraction | number | null {
+  const { stage } = progress
+  switch (field) {
+    case 'assuredCash':
+      return progress.assured.cash.exact
+    case 'assuredChance':
+      return progress.assured.chance.exact
+    case 'nextTierCash':
+      return progress.nextTier?.cash.exact ?? null
+    case 'nextTierChance':
+      return progress.nextTier?.chance.exact ?? null
+    case 'pWin':
+      return progress.pWin.exact
+    case 'expectedRolls':
+      return progress.expectedRolls.exact
+    case 'remaining':
+      return stage.kind === 'collectSet' ? Fraction.of(stage.remaining.length) : null
+    case 'made':
+      return stage.kind === 'uniquePointsMade' ? Fraction.of(stage.made.length) : null
+    case 'counted':
+      return stage.kind === 'uniquePointsMade' ? Fraction.of(stage.counted) : null
+    case 'payAt': {
+      const type = cfg.sideBets.get(progress.spec.typeId)
+      return type?.family === 'uniquePointsMade' && type.payImmediatelyAt !== null
+        ? Fraction.of(type.payImmediatelyAt)
+        : null
+    }
+    case 'rolls':
+      return stage.kind === 'handLength' ? Fraction.of(stage.rolls) : null
+    case 'hits':
+      return stage.kind === 'pointRun' ? Fraction.of(stage.hits.length) : null
+    default:
+      return null
+  }
+}
+
+// --- M11 audit: side bets against the independent side-bet oracle ---
+
+/** The oracle's chances, rolls and edge of a side bet per resolved wager (see `perResolved`). */
+interface ResolvedWager {
+  readonly pWin: Fraction
+  readonly pLose: Fraction
+  readonly pPush: Fraction
+  readonly rolls: Fraction
+  readonly edge: Fraction
+  readonly edgePerWorkingRoll: Fraction
+}
+
+/**
+ * The closed form of a side bet read per resolved wager, as the trainer prices it (rules spec
+ * §0.1, §6.3; EXACT_VERSION 3): the outcomes that leave the bet up (the Lucky Shooter's come-out
+ * push, `stays`) decide nothing, so the chances are renormalised over the others and the edge is the
+ * loss over the stakes of the decisions that end the bet. A bet no outcome leaves up reads as the
+ * closed form prints it. Null where the oracle has no closed form (`endsOn: sevenOut`).
+ */
+function perResolved(
+  sides: SideBetMachine,
+  typeId: string,
+  stake: number,
+  exactPay = false,
+): ResolvedWager | null {
+  const rule = sides.rules.get(typeId)
+  if (rule === undefined) return null
+  const bet = exactPay
+    ? sideBetClosedForm(rule, sides, stake, null)
+    : sideBetClosedForm(rule, sides, stake)
+  if (bet === null) return null
+  const closed = cfAnalyze(bet)
+  const stays = Fraction.sum(bet.outcomes.filter((o) => o.stays).map((o) => o.p))
+  const ends = Fraction.ONE.sub(stays)
+  const chance = (kind: 'win' | 'lose' | 'push') =>
+    Fraction.sum(bet.outcomes.filter((o) => !o.stays && o.kind === kind).map((o) => o.p)).div(ends)
+  return {
+    pWin: chance('win'),
+    pLose: chance('lose'),
+    pPush: chance('push'),
+    rolls: closed.workingRollsPerDecision.div(ends),
+    edge: closed.loss.div(closed.risked.sub(closed.decisions.mul(stays).mul(bet.stake))),
+    edgePerWorkingRoll: closed.edgePerWorkingRoll,
+  }
+}
+
+/**
+ * One side-bet catalog row per session (the preset's side bets in turn), with the zone badge and
+ * the cheat-sheet row the UI renders for it, against the side-bet oracle per resolved wager.
+ */
+function auditSideBetRow(
+  cfg: MachineConfig,
+  sides: SideBetMachine,
+  session: number,
+  report: AuditReport,
+  flag: (message: string) => void,
+): void {
+  const typeIds = [...cfg.sideBets.keys()]
+  const typeId = typeIds[session % Math.max(1, typeIds.length)]
+  if (typeId === undefined) return
+  const spec: BetSpec = { typeId, number: null }
+  let row: CatalogRow
+  try {
+    row = catalogRow(spec, cfg)
+  } catch (error) {
+    flag(`side-bet catalog row ${typeId} threw ${String(error)}`)
+    return
+  }
+  const paid = perResolved(sides, typeId, row.amount)
+  const nominal = perResolved(sides, typeId, row.amount, true)
+  if (paid === null || nominal === null) return
+  report.sideRowOracleChecks += 1
+  const where = `side-bet catalog row ${typeId} at ${row.amount}`
+  const pairs: readonly [string, Fraction, Fraction][] = [
+    ['edge', row.edge, paid.edge],
+    ['nominalEdge', row.nominalEdge, nominal.edge],
+    ['pWin', row.pWin, paid.pWin],
+    ['pLose', row.pLose, paid.pLose],
+    ['pPush', row.pPush, paid.pPush],
+    ['edgePerWorkingRoll', row.edgePerWorkingRoll, paid.edgePerWorkingRoll],
+    ['expectedRolls', row.expectedRolls, paid.rolls],
+  ]
+  for (const [name, ours, theirs] of pairs) {
+    if (!ours.equals(theirs)) {
+      flag(`${where}: ${name} ${ours.toString()} but the side-bet oracle says ${theirs.toString()}`)
+    }
+  }
+  const badge = zoneBadges(cfg).find((b) => b.typeId === typeId)
+  const shown = badge?.edge.exact
+  if (!(shown instanceof Fraction) || !shown.equals(paid.edge)) {
+    flag(`${where}: the zone badge shows ${String(shown)}, the oracle ${paid.edge.toString()}`)
+  } else if (badge?.grade !== gradeOf(paid.edge)) {
+    flag(`${where}: the badge grades ${String(badge?.grade)}, not ${gradeOf(paid.edge)}`)
+  }
+  const sheetRow = sheetFromRows(catalogTable(cfg), cfg).rows.find(
+    (r) => r.key === badgeKey(typeId, null),
+  )
+  const sheetEdge = sheetRow?.edge.exact
+  if (!(sheetEdge instanceof Fraction) || !sheetEdge.equals(paid.edge)) {
+    flag(`${where}: the sheet row shows ${String(sheetEdge)}, the oracle ${paid.edge.toString()}`)
+  }
+  const chance = sheetRow?.detail.parts.find(
+    (part) => typeof part !== 'string' && !('style' in part) && part.kind === 'probability',
+  )
+  if (
+    chance === undefined ||
+    typeof chance === 'string' ||
+    'style' in chance ||
+    !(chance.exact instanceof Fraction) ||
+    !chance.exact.equals(paid.pWin)
+  ) {
+    flag(`${where}: the sheet row's chance is not the oracle's ${paid.pWin.toString()}`)
+  }
+}
+
+/**
+ * A side-bet session (M11 audit): a random session in which every side bet goes up at its
+ * smallest stake whenever its window opens (with the main game's minimum and the Hot Shooter's
+ * qualifier met on the pass line), rolled from the table's RNG. At every state each side bet's
+ * `sideBetProgress` is audited: every number it shows recomputed from its source, and a fresh
+ * bet's chances and length — or a Lucky Roller's at any progress — held to the side-bet oracle.
+ */
+function auditSideBetSession(
+  cfg: MachineConfig,
+  sides: SideBetMachine,
+  configs: ReadonlyMap<string, MachineConfig>,
+  seed: string,
+  options: AuditOptions,
+  report: AuditReport,
+): void {
+  // The main-game stake a come-out needs: the round's minimum and any side bet's qualifier (the
+  // Hot Shooter's 3 credits), so the side bets can go up at a new hand and the dice roll.
+  const qualifier = [...cfg.sideBets.values()].reduce(
+    (most, side) => (side.family === 'handLength' ? Math.max(most, side.qualifyingBet) : most),
+    cfg.limits.minTotal?.amount ?? 0,
+  )
+  let state = newTable(cfg, seed)
+  for (let step = 0; step < options.actions; step += 1) {
+    const main = state.bets.some((bet) => !cfg.sideBets.has(bet.typeId))
+    if (state.round.phase.kind === 'comeOut' && !main) {
+      const pass = legalBets(state, cfg).find(
+        (spot) => spot.typeId === 'pass' && spot.canAdd === null,
+      )
+      if (pass !== undefined) {
+        state = placeAt(state, 'pass', cents(Math.max(pass.minAdd, qualifier)), cfg) ?? state
+      }
+    }
+    for (const spot of legalBets(state, cfg, { sideBets: true })) {
+      if (!cfg.sideBets.has(spot.typeId) || spot.canAdd !== null || spot.betId !== null) continue
+      state = placeAt(state, spot.typeId, spot.minAdd, cfg) ?? state
+    }
+    const where = `${cfg.id} side-bet session ${seed} roll ${state.round.rollIndex}`
+    const flag = (message: string) => report.discrepancies.push(`${where}: ${message}`)
+    if (step % options.adviceEvery === 0) {
+      for (const bet of state.bets) {
+        if (cfg.sideBets.has(bet.typeId))
+          auditSideBetProgress(cfg, sides, configs, state, bet.id, report, flag)
+      }
+    }
+    let rolled = applyAction(state, { type: 'roll' }, cfg)
+    if (!rolled.ok) {
+      // The round's minimum or a side bet's qualifier: put the main game's line bet up to it.
+      const pass = legalBets(state, cfg).find(
+        (spot) => spot.typeId === 'pass' && spot.canAdd === null,
+      )
+      const short = rolled.rejection.details['short']
+      const amount =
+        typeof short === 'number' && pass !== undefined ? Math.max(short, pass.minAdd) : null
+      const topped = amount === null ? null : placeAt(state, 'pass', cents(amount), cfg)
+      if (topped === null) return
+      state = topped
+      rolled = applyAction(state, { type: 'roll' }, cfg)
+      if (!rolled.ok) return
+    }
+    state = rolled.state
+  }
+}
+
+/** The table after a `place` of `amount` on `typeId`, or null when the table refuses it. */
+function placeAt(state: TableState, typeId: string, amount: Cents, cfg: MachineConfig) {
+  const placed = applyAction(state, { type: 'place', typeId, amount }, cfg)
+  return placed.ok ? placed.state : null
+}
+
+/** One side bet's progress on `state`: numbers from their source, and the oracle where it reaches. */
+function auditSideBetProgress(
+  cfg: MachineConfig,
+  sides: SideBetMachine,
+  configs: ReadonlyMap<string, MachineConfig>,
+  state: TableState,
+  betId: BetId,
+  report: AuditReport,
+  flag: (message: string) => void,
+): void {
+  let progress: SideBetProgress | null
+  try {
+    progress = sideBetProgress(betId, state, cfg)
+  } catch (error) {
+    flag(`sideBetProgress(${betId}) threw ${String(error)}`)
+    return
+  }
+  const bet = state.bets.find((b) => b.id === betId)
+  if (progress === null || bet === undefined) {
+    flag(`sideBetProgress(${betId}) found no side bet`)
+    return
+  }
+  report.sideProgressChecks += 1
+  report.sideProgressByType[bet.typeId] = (report.sideProgressByType[bet.typeId] ?? 0) + 1
+  const tag = (message: string) => flag(`${bet.typeId} progress ${bet.progress}: ${message}`)
+  const numbers: [string, CoachNumber][] = [
+    ['assuredCash', progress.assured.cash],
+    ['assuredChance', progress.assured.chance],
+    ['pWin', progress.pWin],
+    ['expectedRolls', progress.expectedRolls],
+  ]
+  if (progress.nextTier !== null) {
+    numbers.push(
+      ['nextTierCash', progress.nextTier.cash],
+      ['nextTierChance', progress.nextTier.chance],
+    )
+  }
+  for (const line of progress.lines) {
+    for (const part of line.parts) {
+      if (typeof part === 'string') continue
+      const number = 'style' in part ? part.n : part
+      if (number.source.fn === 'sideBetProgress') numbers.push([line.id, number])
+    }
+  }
+  for (const [name, number] of numbers) {
+    auditNumber(cfg, configs, null, { state }, name, number, report, tag)
+  }
+  // The independent leg: a fresh bet at its typical start, and a Lucky Roller (any 7 ends it) at
+  // any progress, whose chance is the oracle's for the targets it still needs before a 7.
+  const type = cfg.sideBets.get(bet.typeId)
+  let expected: { readonly pWin: Fraction; readonly rolls: Fraction } | null = null
+  if (
+    type?.family === 'collectSet' &&
+    type.endsOn === 'anySeven' &&
+    progress.stage.kind === 'collectSet'
+  ) {
+    const chain =
+      progress.stage.remaining.length === 0 ? null : collectSetByChain(progress.stage.remaining)
+    expected = chain === null ? null : { pWin: chain.pWin, rolls: chain.expectedRolls }
+  } else if (
+    bet.progress === 0 &&
+    state.round.phase.kind === 'comeOut' &&
+    state.round.hand.rolls === 0
+  ) {
+    const fresh = perResolved(sides, bet.typeId, bet.amount)
+    expected = fresh === null ? null : { pWin: fresh.pWin, rolls: fresh.rolls }
+  }
+  if (expected === null) return
+  report.sideProgressOracleChecks += 1
+  const pWin = progress.pWin.exact
+  const rolls = progress.expectedRolls.exact
+  if (!(pWin instanceof Fraction) || !pWin.equals(expected.pWin)) {
+    tag(`pWin ${String(pWin)} but the side-bet oracle says ${expected.pWin.toString()}`)
+  }
+  if (!(rolls instanceof Fraction) || !rolls.equals(expected.rolls)) {
+    tag(`expected rolls ${String(rolls)} but the side-bet oracle says ${expected.rolls.toString()}`)
   }
 }
 

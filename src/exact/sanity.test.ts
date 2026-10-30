@@ -4,7 +4,17 @@ import { PRESETS, PRESET_IDS, type PresetId } from '../engine/config/presets/ind
 import { pruneProvenance } from '../engine/config/provenance.ts'
 import type { MachineConfigInput, RoundingRule } from '../engine/config/schema.ts'
 import { distribution } from './price.ts'
-import { HIGH_EDGE, PLAYER_ADVANTAGE, PLAYER_EVEN, sanityCheck, sweepAmounts } from './sanity.ts'
+import {
+  HIGH_EDGE,
+  NOT_FREE,
+  PAY_DROPS,
+  PLAYER_ADVANTAGE,
+  PLAYER_EVEN,
+  checkBet,
+  payDrops,
+  sanityCheck,
+  sweepAmounts,
+} from './sanity.ts'
 import { typicalStart } from './start.ts'
 
 function variant(id: PresetId, edit: (input: MachineConfigInput) => void): MachineConfig {
@@ -131,6 +141,103 @@ describe('sanityCheck', () => {
     ])
   })
 
+  it('warns about a side-bet pay table that pays less for more progress (M11 audit)', () => {
+    // The pay tables are read from the config alone (`payDrops`); `checkBet` adds the warnings to
+    // a side bet's issues (checked once below, on the small Lucky Shooter chain).
+    const drops = (cfg: MachineConfig, typeId: string) => {
+      const side = cfg.sideBets.get(typeId)
+      if (side === undefined) throw new Error(`no ${typeId}`)
+      return payDrops({ typeId, number: null }, side, []).map((issue) => [
+        issue.severity,
+        issue.code,
+        issue.message,
+      ])
+    }
+    // The audit's crapless Fire Bet: table A written for six points, ten counted; a seventh point
+    // turns 999 to 1 into a loss.
+    const fire = (payImmediatelyAt: number | null) =>
+      variant('craplessBubble', (input) => {
+        input.sideBets.fire = {
+          family: 'uniquePointsMade',
+          label: 'Fire Bet',
+          countedPoints: [2, 3, 4, 5, 6, 8, 9, 10, 11, 12],
+          payTable: { '4': '24 to 1', '5': '249 to 1', '6': '999 to 1' },
+          payImmediatelyAt,
+          placement: 'newHand',
+        }
+      })
+    expect(drops(fire(null), 'fire')).toEqual([
+      ['warning', 'payDrops', `${PAY_DROPS}: 7 points made loses, but 6 points made pays 999 to 1`],
+    ])
+    // Paid at once on the sixth point, the table never drops: the bet cannot go further.
+    expect(drops(fire(6), 'fire')).toEqual([])
+    // A Hot Shooter tier below the one before it.
+    const hot = variant('traditionalBubble', (input) => {
+      const hsj = input.sideBets.hotShooter
+      if (hsj?.family !== 'handLength') throw new Error('no Hot Shooter')
+      hsj.tiers = hsj.tiers.map((tier) =>
+        tier.minRolls === 45 ? { ...tier, pays: '10 for 1' } : tier,
+      )
+    })
+    expect(drops(hot, 'hotShooter')).toEqual([
+      ['warning', 'payDrops', `${PAY_DROPS}: 45 rolls pays 10 for 1, but 40 rolls pays 12 for 1`],
+    ])
+    // A Lucky Shooter whose top award is below its 5-hit pay, through `checkBet`.
+    const shooter = variant('strictBubble', (input) => {
+      const ls = input.sideBets.luckyShooter
+      if (ls?.family !== 'pointRun') throw new Error('no Lucky Shooter')
+      ls.topAward = '50 for 1'
+    })
+    expect(
+      checkBet({ typeId: 'luckyShooter', number: null }, shooter)
+        .filter((issue) => issue.code === 'payDrops')
+        .map((issue) => [
+          issue.severity,
+          issue.message,
+          issue.paths.includes('/sideBets/luckyShooter/topAward'),
+        ]),
+    ).toEqual([
+      [
+        'warning',
+        `${PAY_DROPS}: every hit and then the point pays 50 for 1, but 5 hits pays 100 for 1`,
+        true,
+      ],
+    ])
+    // Every preset's tables rise.
+    for (const id of PRESET_IDS) {
+      const cfg = compileConfig(PRESETS[id])
+      for (const typeId of cfg.sideBets.keys()) {
+        expect(drops(cfg, typeId), `${id} ${typeId}`).toEqual([])
+      }
+    }
+  }, 60_000)
+
+  it('flags odds paid below true odds as not free: 2/12 at 11:2 cost 1/14, 7.14% (plan §10 M12)', () => {
+    const cfg = variant('craplessBubble', (input) => {
+      const odds = input.catalog.passOdds
+      if (odds?.family !== 'odds') throw new Error('no pass odds')
+      odds.pays = { ...odds.pays, '2': '11:2', '12': '11:2' }
+    })
+    const issues = sanityCheck(cfg)
+    expect(summary(cfg)).toEqual([
+      'warning notFree passOdds 2 100 1/14',
+      'warning notFree passOdds 12 100 1/14',
+    ])
+    expect(issues[0]?.message).toBe(NOT_FREE)
+    expect(issues[0]?.edge?.formatPercent(2)).toBe('7.14')
+    expect(issues[0]?.paths).toContain('/catalog/passOdds/pays/2')
+    // A warning, not an error: a machine may pay it, and the editor saves it with the flag shown.
+    expect(issues.every((issue) => issue.severity === 'warning')).toBe(true)
+    // Lay odds paid short are not free either: 1:3 on the 4 instead of 1:2 wins 2/3 of the time
+    // a third of the stake, 2/9 − 1/3 = −1/9 a dollar, priced at its exact $3 unit.
+    const lay = variant('strictBubble', (input) => {
+      const odds = input.catalog.dontPassOdds
+      if (odds?.family !== 'odds') throw new Error("no don't pass odds")
+      odds.pays = { ...odds.pays, '4': '1:3' }
+    })
+    expect(summary(lay)).toEqual(['warning notFree dontPassOdds 4 300 1/9'])
+  })
+
   it('warns about an edge above 40%', () => {
     const cfg = variant('craplessBubble', (input) => {
       const seven = input.catalog.any7
@@ -147,12 +254,21 @@ describe('sanityCheck', () => {
 
 describe('sweepAmounts', () => {
   it('covers a rounding period from the minimum, from where a minimum vig stops binding, and the maximum', () => {
-    const live = compileConfig(PRESETS.traditionalLive345)
+    // The live lay without its posted minimum (M12: a lay must win $20): a $1 lay pays the $1
+    // minimum vig, which stops binding at $40.
+    const small = variant('traditionalLive345', (input) => {
+      delete input.limits.perType?.['lay']
+    })
     const lay4 = { typeId: 'lay', number: 4 } as const
-    const labels = distribution(lay4, typicalStart(lay4, live), 'decision', live).labels
-    const amounts = sweepAmounts(lay4, labels, live)
+    const labels = distribution(lay4, typicalStart(lay4, small), 'decision', small).labels
+    const amounts = sweepAmounts(lay4, labels, small)
     expect(amounts[0]).toBe(100)
     expect(amounts).toContain(4_000)
     expect(amounts.at(-1)).toBe(500_000)
+    // As posted, the sweep starts at the $40 minimum on 4, where the vig is already 5%.
+    const live = compileConfig(PRESETS.traditionalLive345)
+    const posted = sweepAmounts(lay4, labels, live)
+    expect(posted[0]).toBe(4_000)
+    expect(posted.at(-1)).toBe(500_000)
   })
 })

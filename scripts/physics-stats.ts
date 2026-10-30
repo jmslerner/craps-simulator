@@ -2,12 +2,25 @@
  * Tuning report for the headless dice physics: `node scripts/physics-stats.ts --seeds 300`.
  *
  * Plays sessions the way the app will: each throw starts from the previous throw's rest poses, and
- * each session starts from synthesizeRest. Each throw is planned in snap mode for seeded dice, as
- * the dome will play it. Edit src/physics/core/params.ts and rerun to tune.
+ * each session starts from synthesizeRest. Each throw is planned for seeded dice twice: in snap
+ * mode (M10a's single-frame switch, the fallback) and in handoff mode, which is how the dome
+ * plays it (M10b: the blend over a clear, fast-spinning window). The framing rows read the rests
+ * through the dome's camera (src/dome/camera.ts) on the 358×224 desktop canvas: where the read
+ * framing puts the top faces, and where M10a's fixed station camera would have. Edit
+ * src/physics/core/params.ts and rerun to tune.
  */
 import { parseArgs } from 'node:util'
+import {
+  projectPoint,
+  readFraming,
+  reservedZones,
+  topFaceCorners,
+  type CameraPose,
+  type CanvasSize,
+} from '../src/dome/camera.ts'
 import { Fraction } from '../src/engine/core/rational.ts'
 import { DIE_FACES, type DieFace } from '../src/physics/core/cube.ts'
+import { slowestTurn } from '../src/physics/core/handoff.ts'
 import { DEFAULT_PARAMS } from '../src/physics/core/params.ts'
 import { buildPlaybackPlan, synthesizeRest, type PlaybackPlan } from '../src/physics/core/plan.ts'
 import { createPrng, deriveSeed } from '../src/physics/core/prng.ts'
@@ -43,7 +56,10 @@ const OPTIONS = {
 interface Sample {
   readonly index: number
   readonly result: ThrowResult
+  /** Planned in snap mode. */
   readonly plan: PlaybackPlan
+  /** The same recording and dice planned in handoff mode, as the dome plays it. */
+  readonly handoff: PlaybackPlan
   readonly ms: number
 }
 
@@ -85,13 +101,10 @@ async function main(args: string[]): Promise<number> {
     const result = simulateThrow(seed, rest)
     const ms = performance.now() - began
     // From the rest the throw started from: the one asked for, unless it could not start one.
-    const plan = buildPlaybackPlan(
-      result.recording,
-      { d1: roll(), d2: roll() },
-      result.rest,
-      'snap',
-    )
-    samples.push({ index, result, plan, ms })
+    const dice = { d1: roll(), d2: roll() }
+    const plan = buildPlaybackPlan(result.recording, dice, result.rest, 'snap')
+    const handoff = buildPlaybackPlan(result.recording, dice, result.rest, 'handoff')
+    samples.push({ index, result, plan, handoff, ms })
     rest = plan.rest
   }
   report(samples, chain, options.verbose)
@@ -162,6 +175,69 @@ function report(samples: readonly Sample[], chain: number, verbose: boolean): vo
   const hidden = switches.filter((change) => change.hidden).length
   const turnRates = sorted(switches.map((change) => change.turnRate))
 
+  // The handoff (the dome's mode): of the dice that change face, how many blend over a window,
+  // how many fall back to a hidden snap, and how many to the soft cut; the windows' lengths and
+  // the slowest turn inside them.
+  const changing = samples.flatMap(({ handoff }) =>
+    handoff.tracks.flatMap((track, die) =>
+      track.startOffset === track.endOffset
+        ? []
+        : [{ track, die: (die === 0 ? 0 : 1) as 0 | 1, handoff }],
+    ),
+  )
+  const blended = changing.filter(({ track }) => track.handoff !== null)
+  const snapped = changing.filter(({ track }) => track.handoff === null && track.hidden).length
+  const softCut = changing.filter(({ track }) => track.handoff === null && !track.hidden).length
+  const windowMs = sorted(
+    blended.map(({ track, handoff }) =>
+      track.handoff === null
+        ? 0
+        : ((track.handoff.to - track.handoff.from) / handoff.recording.frameRate) * 1000,
+    ),
+  )
+  const windowTurn = sorted(
+    blended.map(({ track, die, handoff }) =>
+      track.handoff === null ? Infinity : slowestTurn(handoff.recording, die, track.handoff),
+    ),
+  )
+
+  // Framing: the top faces at rest on the desktop canvas, by the dome's read framing and by
+  // M10a's station camera, against the overlays' reserved zones.
+  const framing = (cameraFor: (plan: PlaybackPlan) => CameraPose) => {
+    let off = 0
+    let covered = 0
+    const faces: number[] = []
+    for (const { handoff } of samples) {
+      const pose = cameraFor(handoff)
+      for (const { pose: body } of handoff.rest) {
+        const corners = topFaceCorners(body).map((corner) => projectPoint(pose, CANVAS, corner))
+        const xs = corners.map(([x]) => x)
+        const ys = corners.map(([, y]) => y)
+        const box = {
+          left: Math.min(...xs),
+          top: Math.min(...ys),
+          right: Math.max(...xs),
+          bottom: Math.max(...ys),
+        }
+        const outside =
+          box.left < 0 || box.top < 0 || box.right > CANVAS.width || box.bottom > CANVAS.height
+        if (outside) off++
+        else if (reservedZones(CANVAS).some((zone) => overlaps(box, zone))) covered++
+        let area = 0
+        corners.forEach(([x1, y1], k) => {
+          const [x2, y2] = corners[(k + 1) % corners.length] ?? [0, 0]
+          area += x1 * y2 - x2 * y1
+        })
+        faces.push(Math.sqrt(Math.abs(area) / 2))
+      }
+    }
+    const sizes = sorted(faces)
+    return (
+      `off canvas ${off}, under an overlay ${covered} of ${faces.length} top faces; ` +
+      `face p5 ${px(quantile(sizes, 0.05))}, p50 ${px(quantile(sizes, 0.5))}`
+    )
+  }
+
   // What the physics rolled, before the remap draws the engine's dice on top.
   const faces = new Map(DIE_FACES.map((face) => [face, 0]))
   for (const pose of samples.flatMap((sample) => sample.result.recording.finalPoses)) {
@@ -196,6 +272,18 @@ function report(samples: readonly Sample[], chain: number, verbose: boolean): vo
     ['touching something', `${pct(touchingSteps, steps)} of die-steps`],
     ['face snap hidden', `${hidden}/${switches.length} switches (${pct(hidden, switches.length)})`],
     ['  turn rate there', `min ${rate(turns[0])}, p5 ${rate(turns[1])}, p50 ${rate(turns[2])}`],
+    [
+      'handoff (dome)',
+      `${blended.length}/${changing.length} changing dice blend ` +
+        `(${pct(blended.length, changing.length)}), ${snapped} hidden snaps, ${softCut} soft cuts`,
+    ],
+    [
+      '  window',
+      `${ms(windowMs[0] ?? NaN)}–${ms(windowMs.at(-1) ?? NaN)} (p50 ${ms(quantile(windowMs, 0.5))}), ` +
+        `slowest turn min ${rate(windowTurn[0])}, p50 ${rate(quantile(windowTurn, 0.5))}`,
+    ],
+    ['framing, read (dome)', framing((plan) => readFraming(restBodies(plan), CANVAS))],
+    ['framing, M10a station', framing(() => M10A_STATION)],
     ['natural top faces', [...faces].map(([face, k]) => `${face}:${k}`).join(' ')],
     ['  uniformity', `χ² ${chi2.toFixed(2)} on 5 dof (p = .05 at 11.07)`],
   ]
@@ -209,6 +297,22 @@ function report(samples: readonly Sample[], chain: number, verbose: boolean): vo
       console.log(`  throw ${index} attempt ${k} (${attempt.source}, seed ${attempt.seed}): ${why}`)
     })
   }
+}
+
+/** The desktop canvas (1440 px wide page, 360 px dome column, 1 px border), 16:10. */
+const CANVAS: CanvasSize = { width: 358, height: 223.75 }
+/** M10a's fixed station camera, for comparison: [0, 5.8, 8.6] looking at (0, 0.3, 0). */
+const M10A_STATION: CameraPose = { position: [0, 5.8, 8.6], target: [0, 0.3, 0] }
+
+function restBodies(plan: PlaybackPlan) {
+  return [plan.rest[0].pose, plan.rest[1].pose] as const
+}
+
+function overlaps(
+  a: { left: number; top: number; right: number; bottom: number },
+  b: { left: number; top: number; right: number; bottom: number },
+): boolean {
+  return a.right > b.left && a.left < b.right && a.bottom > b.top && a.top < b.bottom
 }
 
 function sorted(values: readonly number[]): number[] {
@@ -240,6 +344,7 @@ const sec = (s: number) => (Number.isFinite(s) ? `${s.toFixed(2)} s` : 'never')
 const ms = (value: number) => `${value.toFixed(1)} ms`
 const u = (value: number) => `${value.toFixed(3)} u`
 const hz = (value: number) => `${value.toFixed(0)} Hz`
+const px = (value: number) => `${value.toFixed(1)} px`
 const rate = (value = NaN) => `${value.toFixed(1)} rad/s`
 
 process.exitCode = await main(process.argv.slice(2))

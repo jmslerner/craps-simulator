@@ -68,9 +68,13 @@ describe('the cheat sheet', () => {
   it('says which options the machine sets that the trainer approximates', async () => {
     renderApp({ cfg: COMPILED_PRESETS.traditionalBubble })
     fireEvent.click(screen.getByRole('button', { name: /Cheat sheet/ }))
-    expect(await screen.findByTestId('sheet-not-modelled')).toHaveTextContent(
-      '/offBets/consumeCredit',
+    const note = await screen.findByTestId('sheet-not-modelled')
+    expect(note).toHaveTextContent(
+      'This machine also sets options the trainer approximates: its OFF bets use no credit, but ' +
+        'the trainer counts them against your credit; its shared dome rolls on its own timer, ' +
+        'but the trainer rolls only when you press ROLL.',
     )
+    expect(note).not.toHaveTextContent('/offBets')
   })
 
   it('is hidden when the coach is off, and stays on demand in quiet (plan §5.6)', async () => {

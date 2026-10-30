@@ -8,30 +8,52 @@ import type {
   MachineConfig,
   TableState,
 } from '../../engine/index.ts'
-import { layoutSpec, type NumberColumn, type ZoneSpec } from '../layout/layoutSpec.ts'
+import { Die } from '../dice2d/Die.tsx'
+import {
+  layoutSpec,
+  type LayoutSpec,
+  type NumberColumn,
+  type PropTab,
+  type ZoneSpec,
+} from '../layout/layoutSpec.ts'
 import { progressOf, type SideBetProgress } from '../layout/sideBetProgress.ts'
-import { selectLegalBets, selectShown } from '../state/gameStore.ts'
+import { pressActionsFor, selectLegalBets, selectShown } from '../state/gameStore.ts'
+import type { GameState } from '../state/gameStore.ts'
 import { selectSideBetSpots } from '../state/sideBetSpots.ts'
 import { spokenRatio } from './copy.ts'
 import { useGameState, useSettingsState, useStores, useUi, type SpotRef } from './context.tsx'
-import { ZoneButton, type ZoneView } from './ZoneButton.tsx'
+import { PHONE_QUERY, useMediaQuery } from './useMediaQuery.ts'
+import { ZoneButton, type ZoneSlot, type ZoneView } from './ZoneButton.tsx'
 
 /**
- * The betting layout (plan §6): the zones from `layoutSpec(cfg)` joined with the live `legalBets`
- * spots, in the responsive shape the plan sets — a row of ten columns from 960 px, the same row
- * with the panels below from 600 px, and a 2×5 grid with the props, hardways and side bets behind
- * tabs that open a bottom sheet under 600 px (the shapes are CSS; the tabs exist at every width
- * and CSS shows them only on phones). A tap places the selected chip — or takes the bet down in
- * REMOVE mode, or opens the inspector in INFO mode — and the engine answers every refusal through
- * the store's rejection, which shakes the zone and feeds the reason strip. A zone that cannot take
- * the tap is `aria-disabled`, never `disabled`: the tap still asks, so the machine's own refusal
- * is shown.
+ * The betting layout (plan §6), drawn as the player's Interblock station draws it (plan §0 #28):
+ * the zones from `layoutSpec(cfg)` joined with the live `legalBets` spots, laid out as the
+ * station's felt — the side bets in their box over the number row (in the station's order,
+ * `sideBox`: ROLL 'EM ALL between LOW and HIGH ROLLS), the HARDWAYS and HOP BETS tabs down the left
+ * (each tab with the total bet in it, as the station shows it; the hops in the station's columns
+ * by total), the C, C&E and E circles, the number row (BUY tab, number box, PLACE tab per point,
+ * the point puck on its box), and the wide COME, FIELD and PASS LINE bands with the PRESS button
+ * beside them. It renders the felt's
+ * sections as siblings, so the App's grid places them; on phones the number row folds to the 2×5
+ * grid and the prop tabs and side bets open bottom sheets (plan §6). A tap places the selected chip
+ * — or takes the bet down in REMOVE mode, or opens the inspector in INFO mode — and the engine
+ * answers every refusal through the store's rejection, which shakes the zone and feeds the reason
+ * strip. A zone that cannot take the tap is `aria-disabled`, never `disabled`: the tap still asks,
+ * so the machine's own refusal is shown.
  *
- * **Side bets (plan §10 M11):** the side-bet panel's zones join the side-bet spots
- * (`selectSideBetSpots`, `legalBets` with `{ sideBets: true }`), so they carry the machine's real
- * limits and refusals — the placement window, the lock after the first roll — and light the
+ * **Side bets (plan §10 M11):** the side-bet zones join the side-bet spots (`selectSideBetSpots`,
+ * `legalBets` with `{ sideBets: true }`), so they carry the machine's real limits and refusals —
+ * the placement window, the lock after the first roll, drawn as a lock on the chip — and light the
  * numbers the bet has collected from the engine's `BetInstance.progress` (`progressOf`).
+ *
+ * **PRESS (plan §0 #12, #28):** the station's PRESS button presses every bet that won on the last
+ * roll by what it won — the trainer's own per-bet press (`pressActionsFor`, the engine's
+ * `pressBet` over `winsOf` the last roll), all of them in one batch the engine checks whole. It
+ * shows where the machine lists Press among its group buttons. ACROSS is not offered: the rules
+ * spec names the numbers it covers but not what it stakes on each.
  */
+
+type TabId = PropTab['id'] | 'side'
 
 export function TableGrid() {
   const { game } = useStores()
@@ -42,7 +64,9 @@ export function TableGrid() {
   const sideLegal = useGameState(selectSideBetSpots)
   const selectedChip = useSettingsState((state) => state.selectedChip)
   const rack = useSettingsState((state) => state.chips)
-  const [sheet, setSheet] = useState<'props' | 'hardways' | 'side' | null>(null)
+  const phone = useMediaQuery(PHONE_QUERY, false)
+  const [activeTab, setActiveTab] = useState<TabId | null>(null)
+  const [sheet, setSheet] = useState<TabId | null>(null)
   // Every spot the layout can show: the main game's, then the side bets' (M11).
   const legal = useMemo(
     () =>
@@ -75,108 +99,202 @@ export function TableGrid() {
     ui.openInspector(spotOf(zone, joinZone(zone, legal, shown)))
   }
 
-  const zoneButton = (zone: ZoneSpec, compact = false) => (
+  const zoneButton = (zone: ZoneSpec, slot: ZoneSlot, showPay = true) => (
     <ZoneButton
       key={zone.key}
       view={viewOf(zone, legal, shown, cfg, ui.mode === 'remove')}
       onTap={() => act(zone)}
       onInspect={() => inspect(zone)}
-      compact={compact}
+      slot={slot}
+      showPay={showPay}
     />
   )
 
-  const panels = {
-    props: (
-      <div className="panel-zones" data-testid="panel-props">
-        {spec.props.map((zone) => zoneButton(zone))}
+  // The tabs: the station's HARDWAYS and HOP BETS, and on phones the side bets as a third.
+  const tabs: readonly { readonly id: TabId; readonly title: string }[] = [
+    ...spec.propTabs.map((tab) => ({ id: tab.id, title: tab.title })),
+    ...(phone && spec.sideBets.length > 0 ? [{ id: 'side' as const, title: 'Side bets' }] : []),
+  ]
+  const firstTab = tabs[0]?.id ?? null
+  const inline =
+    activeTab !== null && tabs.some((tab) => tab.id === activeTab) ? activeTab : firstTab
+  const tabTotal = (id: TabId): Cents => betTotal(shown, tabTypes(spec, id))
+  const panelFor = (id: TabId, slot: 'inline' | 'sheet') =>
+    id === 'side' ? (
+      <div className="panel-zones side-zones" data-testid="panel-side">
+        {spec.sideBox.map((zone) => zoneButton(zone, 'sheet'))}
       </div>
-    ),
-    hardways: (
-      <div className="panel-zones" data-testid="panel-hardways">
-        {spec.hardways.map((zone) => zoneButton(zone))}
-      </div>
-    ),
-    side: (
-      <div className="panel-zones" data-testid="panel-side">
-        {spec.sideBets.length === 0 ? (
-          <p className="panel-empty">No side bets on this machine.</p>
-        ) : (
-          spec.sideBets.map((zone) => zoneButton(zone))
-        )}
-      </div>
-    ),
-  }
+    ) : (
+      <PropTabPanel
+        tab={spec.propTabs.find((tab) => tab.id === id)}
+        render={(zone, showPay) =>
+          zoneButton(
+            zone,
+            zone.dice !== null ? 'hop' : slot === 'sheet' ? 'sheet' : 'prop',
+            showPay,
+          )
+        }
+      />
+    )
 
   const point = shown.round.phase.kind === 'point' ? shown.round.phase.point : null
 
   return (
-    <section className="table" aria-label="Betting layout">
-      <div className="felt-head">
-        <p className="section-label">Place · Buy · Come numbers</p>
-        <p className="round-chip" data-testid="round-chip">
-          {point === null ? 'Come-out roll' : `Point is ${point}`}
-        </p>
-      </div>
-      <div className="table-numbers" data-testid="table-numbers">
-        {spec.numbers.map((column) => (
-          <NumberColumnView
-            key={column.number}
-            column={column}
-            point={point}
-            render={(zone) => zoneButton(zone, true)}
-          />
-        ))}
-      </div>
-      <div className="table-bars">
-        {spec.center.map((zone) => zoneButton(zone))}
-        {spec.lines.map((zone) => zoneButton(zone))}
-      </div>
-
-      <div className="table-tabs" role="tablist" aria-label="More bets">
-        {(['props', 'hardways', 'side'] as const).map((name) => (
-          <button
-            key={name}
-            type="button"
-            role="tab"
-            aria-selected={sheet === name}
-            className="table-tab"
-            onClick={() => setSheet(sheet === name ? null : name)}
-          >
-            {name === 'props' ? 'Props' : name === 'hardways' ? 'Hardways' : 'Side bets'}
-          </button>
-        ))}
-      </div>
-
-      <div className="table-panels">
-        <section className="panel" aria-label="Props">
-          <h3 className="panel-title">Props</h3>
-          {panels.props}
+    <>
+      {spec.sideBets.length > 0 && (
+        <section className="felt-side" aria-label="Side bets" data-felt="side">
+          <span className="side-emblem" aria-hidden="true">
+            <Die face={5} variant="white" />
+            <Die face={4} variant="white" />
+          </span>
+          <div className="side-zones" data-count={spec.sideBox.length}>
+            {spec.sideBox.map((zone) => zoneButton(zone, 'side'))}
+          </div>
         </section>
-        <section className="panel" aria-label="Hardways">
-          <h3 className="panel-title">Hardways</h3>
-          {panels.hardways}
-        </section>
-        <section className="panel" aria-label="Side bets">
-          <h3 className="panel-title">Side bets</h3>
-          {panels.side}
-        </section>
-      </div>
+      )}
 
-      {sheet !== null && (
+      {tabs.length > 0 && (
+        <section className="felt-props" aria-label="Proposition bets" data-felt="props">
+          <div className="prop-tabs" role="tablist" aria-label="Proposition bets">
+            {tabs.map((tab) => {
+              const selected = phone ? sheet === tab.id : inline === tab.id
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  role="tab"
+                  id={`prop-tab-${tab.id}`}
+                  aria-selected={selected}
+                  aria-controls={!phone && selected ? `prop-panel-${tab.id}` : undefined}
+                  className="prop-tab"
+                  data-tab={tab.id}
+                  onClick={() => {
+                    if (phone) setSheet(sheet === tab.id ? null : tab.id)
+                    else setActiveTab(tab.id)
+                  }}
+                >
+                  <span className="prop-tab-name">{tab.title}</span>{' '}
+                  <span className="prop-tab-total">{formatCents(tabTotal(tab.id))}</span>
+                </button>
+              )
+            })}
+          </div>
+          {!phone && inline !== null && (
+            <div
+              className="prop-panel"
+              role="tabpanel"
+              id={`prop-panel-${inline}`}
+              aria-labelledby={`prop-tab-${inline}`}
+            >
+              {panelFor(inline, 'inline')}
+            </div>
+          )}
+        </section>
+      )}
+
+      {spec.circles !== null && (
+        <div className="felt-circles" role="group" aria-label="C and E" data-felt="circles">
+          {spec.circles.map((zone) => zoneButton(zone, 'circle'))}
+        </div>
+      )}
+
+      <section className="felt-numbers" aria-label="Numbers" data-felt="numbers">
+        <div
+          className="table-numbers"
+          data-testid="table-numbers"
+          // The row's length comes from the ruleset; phones fold it into two rows (plan §6).
+          style={
+            {
+              '--num-count': spec.numbers.length,
+              '--num-half': Math.ceil(spec.numbers.length / 2),
+            } as React.CSSProperties
+          }
+        >
+          {spec.numbers.map((column) => (
+            <NumberColumnView
+              key={column.number}
+              column={column}
+              point={point}
+              render={(zone, slot) => zoneButton(zone, slot)}
+            />
+          ))}
+        </div>
+      </section>
+
+      <section className="felt-bands" aria-label="Line bets" data-felt="bands">
+        <GroupButtons />
+        <div className="bands">
+          {spec.bands.map((band) => (
+            <div key={band.map((zone) => zone.key).join(' ')} className="band">
+              {band.map((zone) => zoneButton(zone, 'band'))}
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {phone && sheet !== null && tabs.some((tab) => tab.id === sheet) && (
         <div className="bottom-sheet" role="region" aria-label="More bets">
           <div className="bottom-sheet-head">
-            <h3 className="panel-title">
-              {sheet === 'props' ? 'Props' : sheet === 'hardways' ? 'Hardways' : 'Side bets'}
-            </h3>
+            <h3 className="panel-title">{tabs.find((tab) => tab.id === sheet)?.title}</h3>
             <button type="button" className="sheet-close" onClick={() => setSheet(null)}>
               Close
             </button>
           </div>
-          {panels[sheet]}
+          {panelFor(sheet, 'sheet')}
         </div>
       )}
-    </section>
+    </>
   )
+}
+
+/** One prop tab's sections: each section's heading prints the pay its buttons share. */
+function PropTabPanel({
+  tab,
+  render,
+}: {
+  tab: PropTab | undefined
+  render(zone: ZoneSpec, showPay: boolean): React.ReactNode
+}) {
+  if (tab === undefined) return null
+  return (
+    <div className={`panel-zones prop-sections tab-${tab.id}`} data-testid={`panel-${tab.id}`}>
+      {tab.sections.map((section) => (
+        <div key={section.id} className={`prop-section section-${section.id}`}>
+          {section.title !== null && (
+            <p className="prop-section-head" aria-hidden="true">
+              {section.pay !== null && <span className="psh-pay">{section.pay}</span>}
+              <span className="psh-title">{section.title}</span>
+              {section.pay !== null && <span className="psh-pay">{section.pay}</span>}
+            </p>
+          )}
+          {section.columns === null ? (
+            <div className="prop-buttons">
+              {section.zones.map((zone) => render(zone, section.pay === null))}
+            </div>
+          ) : (
+            // The station's hop columns: under 7, the 7s, over 7 (`PropSection.columns`), the dice
+            // drawn on each button's outer side and above the pair in a middle column.
+            <div className="hop-columns" data-columns={section.columns.length}>
+              {section.columns.map((column, index, all) => (
+                <div
+                  key={column[0]?.key ?? index}
+                  className={`hop-col ${hopSide(index, all.length)}`}
+                >
+                  {column.map((zone) => render(zone, section.pay === null))}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+/** Where a hop column stands: its dice face outwards at the edges, above the pair in the middle. */
+function hopSide(index: number, count: number): string {
+  if (index === 0) return 'hop-col-left'
+  return index === count - 1 ? 'hop-col-right' : 'hop-col-mid'
 }
 
 function NumberColumnView({
@@ -186,15 +304,27 @@ function NumberColumnView({
 }: {
   column: NumberColumn
   point: number | null
-  render(zone: ZoneSpec): React.ReactNode
+  render(zone: ZoneSpec, slot: ZoneSlot): React.ReactNode
 }) {
   const on = point === column.number
   // SIX and NINE are words on the felt, set a size smaller than the numerals.
   const word = !/^\d+$/.test(column.name)
+  // The station's column: BUY (and LAY) tabs above the number box, PLACE tabs below it; the come
+  // spots are the box itself.
+  const top = column.cells.filter((cell) => cell.kind === 'buy' || cell.kind === 'lay')
+  const box = column.cells.filter((cell) => cell.kind === 'comeSpot')
+  const bottom = column.cells.filter(
+    (cell) => cell.kind !== 'buy' && cell.kind !== 'lay' && cell.kind !== 'comeSpot',
+  )
   return (
     <div className={on ? 'number-column is-point' : 'number-column'} data-number={column.number}>
-      <div className="number-head">
-        <span className={word ? 'num-label word' : 'num-label'}>{column.name}</span>
+      {top.length > 0 && (
+        <div className="num-tabs num-tabs-top">{top.map((z) => render(z, 'tab'))}</div>
+      )}
+      <div className={box.length > 1 ? 'num-box num-box-split' : 'num-box'}>
+        <span className={word ? 'num-label word' : 'num-label'} aria-hidden="true">
+          {column.name}
+        </span>
         {on && (
           <>
             <span className="puck puck-on" aria-hidden="true">
@@ -203,10 +333,65 @@ function NumberColumnView({
             <span className="sr-only">the point</span>
           </>
         )}
+        {box.map((cell) => render(cell, 'box'))}
       </div>
-      {column.cells.map((cell) => render(cell))}
+      {bottom.length > 0 && (
+        <div className="num-tabs num-tabs-bottom">{bottom.map((z) => render(z, 'tab'))}</div>
+      )}
     </div>
   )
+}
+
+/**
+ * The station's PRESS button: every bet the last roll paid, pressed by what it won, as one batch
+ * (the trainer's per-bet press, `pressActionsFor`). Disabled when nothing won or nothing can be
+ * pressed; shown only where the machine lists Press among its group buttons.
+ */
+function GroupButtons() {
+  const { game } = useStores()
+  const ui = useUi()
+  const offered = useGameState(
+    (state) => state.cfg?.flow.groupButtons.buttons.includes('press') ?? false,
+  )
+  const state = useGameState((s) => s)
+  const press = useMemo(() => pressAll(state), [state])
+  if (!offered) return null
+  return (
+    <div className="group-buttons" role="group" aria-label="Group bets">
+      <button
+        type="button"
+        className="felt-pill"
+        disabled={press.length === 0}
+        title="Press every bet the last roll paid, by what it won"
+        onClick={() => {
+          const result = game
+            .getState()
+            .dispatch({ type: 'batch', actions: [...press] }, 'control:press')
+          if (result.ok) ui.announce('Pressed the winning bets.')
+        }}
+      >
+        Press
+      </button>
+    </div>
+  )
+}
+
+/** Every press the last roll's wins allow, bet by bet, flattened into one list. */
+function pressAll(state: GameState): readonly Action[] {
+  const bets = state.view?.shown.bets ?? []
+  return bets.flatMap((bet) => pressActionsFor(state, bet.id))
+}
+
+/** The type ids a tab's zones bet on, for its total. */
+function tabTypes(spec: LayoutSpec, id: TabId): ReadonlySet<string> {
+  if (id === 'side') return new Set(spec.sideBets.map((zone) => zone.typeId))
+  const tab = spec.propTabs.find((candidate) => candidate.id === id)
+  return new Set(tab?.sections.flatMap((section) => section.zones.map((zone) => zone.typeId)))
+}
+
+/** What the table holds on a set of types: the station's "$0.00" on each tab. */
+function betTotal(shown: TableState, types: ReadonlySet<string>): Cents {
+  return cents(shown.bets.reduce((sum, bet) => (types.has(bet.typeId) ? sum + bet.amount : sum), 0))
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -315,6 +500,8 @@ function viewOf(
   // A side bet's progress comes straight off the bet (M11); an empty spot shows its track unlit.
   const side = zone.kind === 'sideBet' ? (cfg.sideBets.get(zone.typeId) ?? null) : null
   const progress = side === null || join.bet === null ? null : progressOf(side, join.bet.progress)
+  // The station locks a side bet's chip once it can no longer come down (the engine's answer).
+  const locked = side !== null && join.bet !== null && (join.spot?.canRemove ?? null) !== null
   return {
     zone,
     amount: join.amount,
@@ -323,20 +510,20 @@ function viewOf(
     blocked,
     puck,
     progress,
-    ariaLabel: zoneAria(zone, join, off, progress),
+    locked,
+    ariaLabel: zoneAria(zone, join, progress),
   }
 }
 
 /**
- * "Place 6, $12.00, pays 7 to 6" — never a house-edge claim before M9 (plan §6). A side bet adds
- * its progress in words: "Low Rolls, $1.00, pays 31 for 1, 2 and 4 rolled, needs 3, 5 and 6".
+ * "Place 6, $12.00, pays 7 to 6": the machine's facts about the zone in words, every visible part
+ * of the zone said once (M14: the zone's other visible text is `aria-hidden`, so the name holds
+ * everything the zone shows). The field says what it covers, a composite its parts, and a side
+ * bet what loses it or its top pay, then its progress: "Low Rolls, $1.00, pays 31 for 1, any 7
+ * loses, 2 and 4 rolled, needs 3, 5 and 6". `ZoneButton` adds the coach's edge badge, the point
+ * and "off for this roll" after these.
  */
-function zoneAria(
-  zone: ZoneSpec,
-  join: ZoneJoin,
-  off: boolean,
-  progress: SideBetProgress | null,
-): string {
+function zoneAria(zone: ZoneSpec, join: ZoneJoin, progress: SideBetProgress | null): string {
   // A label that already names its number (Hard 8) is not doubled.
   const name =
     zone.number === null || zone.label.includes(String(zone.number))
@@ -350,9 +537,17 @@ function zoneAria(
   }
   if (zone.payLabel !== null) parts.push(`pays ${spokenRatio(zone.payLabel)}`)
   if (zone.badge !== null) parts.push(zone.badge)
+  if (zone.detail !== null) parts.push(detailWords(zone))
   if (progress !== null) parts.push(progress.words)
-  if (off) parts.push('off for this roll')
   return parts.join(', ')
+}
+
+/** A zone's detail line in words: the field's totals are what it covers; ratios are spoken. */
+function detailWords(zone: ZoneSpec): string {
+  const detail = zone.detail ?? ''
+  if (zone.kind === 'field') return `covers ${detail}`
+  if (zone.kind === 'composite') return `splits into ${detail.split(' · ').join(', ')}`
+  return spokenRatio(detail)
 }
 
 /** The chip in hand: the setting when the rack holds it, else the machine's smallest chip. */

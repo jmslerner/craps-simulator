@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { craplessBubble, traditionalBubble } from '../../src/engine/config/presets/index.ts'
 import type { CommissionInput, MachineConfigInput } from '../../src/engine/config/schema.ts'
+import { withoutPostedMinimums } from '../properties/machineVariants.ts'
 import { scenario } from './dsl.ts'
 import { numberPlay } from './numberPlay.ts'
 
@@ -173,8 +174,9 @@ describe('re-collecting up-front vig from a winner that stays up (`rearm`, plan 
   it('the re-collection is judged after the whole roll: the roll’s other payouts pay it (§4.5) [V HAR-PA]', () => {
     // A $1 lay on 4 wins 50¢, paid as $0 at a live table, and owes its $1 vig again. The credit is
     // $0 when the lay settles, but the Any 7 pays $25 on the same roll, so the vig comes out of
-    // that and the lay stays up.
-    scenario('traditionalLive345')
+    // that and the lay stays up. (Since M12 the live preset posts "lay must win $20", so the $1 lay
+    // plays on a copy without that minimum.)
+    scenario(withoutPostedMinimums('traditionalLive345', ['lay']))
       .expectProvenance('/catalog/lay/commission/rearm', 'verified')
       .place('lay', 100, { number: 4 })
       .place('any7', 500)
@@ -195,7 +197,7 @@ describe('re-collecting up-front vig from a winner that stays up (`rearm`, plan 
   })
 
   it('credit that exactly covers the re-collection pays it, and the bet stays up [V HAR-PA]', () => {
-    const s = scenario('traditionalLive345')
+    const s = scenario(withoutPostedMinimums('traditionalLive345', ['lay']))
       .place('lay', 100, { number: 4 })
       .place('place', 49_700, { number: 6 })
       .expectBankroll(100)
@@ -251,7 +253,8 @@ describe('live tables: vig floored to the dollar, $1 minimum, refunded on take-d
   })
 
   it('buy 4 on the win [R WOO-B]: $25 nets $49; a $10 buy pays the $1 minimum up front', () => {
-    scenario('traditionalLive345')
+    // HAR-PA's minimum buy is $20 (M12), so the $10 buy plays on a copy without that minimum.
+    scenario(withoutPostedMinimums('traditionalLive345', ['buy']))
       .expectProvenance('/catalog/buy/commissionByNumber', 'reported')
       .place('pass', 1_000)
       .roll(3, 3)

@@ -3,9 +3,16 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="theme-color" content="#0b1517" />
+    <meta name="theme-color" content="#060b08" />
+    <!-- Dark from the first frame: form controls and scrollbars match before the CSS arrives. -->
+    <meta name="color-scheme" content="dark" />
+    <meta
+      name="description"
+      content="Practise electronic bubble craps, crapless and traditional, with a live coach and 3D dice. Runs in current Chrome, Edge, Safari and Firefox."
+    />
     <title>Bubble Craps Trainer</title>
-    <!-- The three faces that paint above the fold; all self-hosted (OFL) so M14 can work offline. -->
+    <!-- The faces that paint above the fold — Barlow 700 letters the whole machine felt (plan §0
+         #28) — all self-hosted (OFL), no font CDN at run time. -->
     <link rel="preload" href="/fonts/limelight-400.woff2" as="font" type="font/woff2" crossorigin />
     <link
       rel="preload"
@@ -16,9 +23,14 @@
     />
     <link rel="preload" href="/fonts/barlow-400.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="preload" href="/fonts/barlow-600.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/fonts/barlow-700.woff2" as="font" type="font/woff2" crossorigin />
   </head>
   <body>
-    <div id="root"></div>
+    <!-- React replaces this on mount; a browser below the supported floor (docs/manual-checks.md,
+         "Supported browsers") never mounts and keeps showing it. -->
+    <div id="root">
+      <p>Loading… This trainer needs Chrome or Edge 111+, Safari 16.4+ or Firefox 114+.</p>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

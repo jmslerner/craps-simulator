@@ -12,6 +12,13 @@ export const SETTINGS_KEY = 'bct:v1:settings'
 export type DiceMode = 'instant' | '2d' | '3d'
 export type GameSpeed = 'normal' | 'fast'
 export type CoachMode = 'off' | 'hints' | 'full'
+/** The 3D dome's quality pin (dome/quality.ts): a tier, or auto (device class, then measured). */
+export type DomeQuality = 'auto' | 'high' | 'medium' | 'low'
+/**
+ * The Coach drawer (plan §0 #28): `auto` docks it open on a viewport at least 1400 px wide and
+ * keeps it collapsed below that; `open` and `closed` are the player's own choice, kept at every width.
+ */
+export type CoachDrawer = 'auto' | 'open' | 'closed'
 
 export interface Settings {
   readonly schemaVersion: 1
@@ -19,6 +26,10 @@ export interface Settings {
   readonly chips: readonly number[] | null
   /** The chip in hand, in cents; null selects the machine's smallest chip. */
   readonly selectedChip: number | null
+  /**
+   * 3D by default (plan §0 #27): the dome, which falls back to 2D by itself without WebGL. A saved
+   * choice is kept: only a missing or junk value takes the default.
+   */
   readonly diceMode: DiceMode
   readonly speed: GameSpeed
   /** Overrides the system reduced-motion preference; null follows the system. */
@@ -31,19 +42,28 @@ export interface Settings {
   readonly guideEnabled: boolean
   /** The coach's mode (plan §5.6): 'off' | 'hints' (quiet) | 'full' (coach, the default). */
   readonly coachMode: CoachMode
+  /**
+   * The player's 3D quality pin. The tier the frame monitor measured for this device stays in the
+   * dome's own key (`bct:v1:dome-quality`): it describes the device, not the player.
+   */
+  readonly domeQuality: DomeQuality
+  /** The Coach drawer: open or collapsed by the player, or `auto` by the viewport's width. */
+  readonly coachDrawer: CoachDrawer
 }
 
 export const DEFAULT_SETTINGS: Settings = Object.freeze({
   schemaVersion: 1,
   chips: null,
   selectedChip: null,
-  diceMode: '2d',
+  diceMode: '3d',
   speed: 'normal',
   reducedMotion: null,
   startingBankroll: null,
   machineId: null,
   guideEnabled: true,
   coachMode: 'full',
+  domeQuality: 'auto',
+  coachDrawer: 'auto',
 })
 
 // Each field falls back to its own default, so one bad field never discards the rest.
@@ -59,7 +79,20 @@ const SettingsSchema = z.object({
   machineId: z.string().min(1).nullable().catch(null),
   guideEnabled: z.boolean().catch(true),
   coachMode: z.enum(['off', 'hints', 'full']).catch(DEFAULT_SETTINGS.coachMode),
+  domeQuality: z.enum(['auto', 'high', 'medium', 'low']).catch(DEFAULT_SETTINGS.domeQuality),
+  // Added with the machine design (plan §0 #28): settings stored before it take the default.
+  coachDrawer: z.enum(['auto', 'open', 'closed']).catch(DEFAULT_SETTINGS.coachDrawer),
 })
+
+/**
+ * Settings read from any JSON value, field by field as a load reads them (M12: a settings file the
+ * player imports): a junk field takes its default, and anything that is not an object takes the
+ * defaults whole. Never throws.
+ */
+export function parseSettings(value: unknown): Settings {
+  const parsed = SettingsSchema.safeParse(value)
+  return parsed.success ? parsed.data : DEFAULT_SETTINGS
+}
 
 /**
  * The stored settings, or the defaults: missing storage, bad JSON and junk fields all land on

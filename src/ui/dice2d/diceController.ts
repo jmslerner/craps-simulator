@@ -32,6 +32,8 @@ export interface Dice2DController {
   readonly store: StoreApi<Dice2DSnapshot>
   /** The `DiceView` the roll flow drives; `mode` decides whether `play` animates at all. */
   view(mode: 'instant' | '2d', timings?: Dice2DTimings): DiceView
+  /** Back to no dice ("Press ROLL to throw"): a new game has no roll to show. */
+  reset(): void
 }
 
 export function createDice2D(): Dice2DController {
@@ -79,6 +81,7 @@ export function createDice2D(): Dice2DController {
       play: (request, signal) => play(request, signal, timings),
       showRest: rest,
     }),
+    reset: () => store.setState({ state: 'idle', faces: null }),
   }
 }
 

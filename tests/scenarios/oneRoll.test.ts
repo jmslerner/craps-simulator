@@ -215,16 +215,19 @@ const OFFER: Readonly<
     { field: NetByTotal; hops: 'all' | 'interblock'; ok: [string, ProvenanceStatus][] }
   >
 > = {
+  // The player's station photo (plan §0 #28) adds a second source for the hop pays ("16 FOR 1",
+  // "31 FOR 1") and for the field's 2 ("PAYS DOUBLE").
   craplessBubble: {
     field: FIELD_2_2,
     hops: 'interblock',
     ok: [
       ['/catalog/field', 'verified'],
       ['/catalog/field/pays', 'reported'],
+      ['/catalog/field/pays/2', 'verified'],
       ['/catalog/any7/pays', 'reported'],
       ['/catalog/snakeEyes', 'verified'],
       ['/catalog/hop13', 'verified'],
-      ['/catalog/hop13/pays', 'reported'],
+      ['/catalog/hop13/pays', 'verified'],
       ['/catalog/hop55', 'verified'],
       ['/catalog/hop55/afterWin', 'assumed'],
     ],
@@ -236,10 +239,11 @@ const OFFER: Readonly<
     ok: [
       ['/catalog/field', 'verified'],
       ['/catalog/field/pays', 'reported'],
+      ['/catalog/field/pays/2', 'verified'],
       ['/catalog/any7/pays', 'reported'],
       ['/catalog/snakeEyes', 'verified'],
       ['/catalog/hop13', 'verified'],
-      ['/catalog/hop13/pays', 'reported'],
+      ['/catalog/hop13/pays', 'verified'],
       ['/catalog/hop55', 'verified'],
       ['/catalog/hop55/afterWin', 'assumed'],
     ],

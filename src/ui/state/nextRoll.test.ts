@@ -322,6 +322,29 @@ describe('a table the machine will not roll', () => {
     expect(seven?.net).toBe(0)
   })
 
+  it('a side bet the roll moves on advances, never "no action" (M11 audit)', () => {
+    // Crapless come-out: pass $5 and Low Rolls $1. The 2–6 set a point and collect a total for
+    // Low Rolls; any 7 loses it; 8–12 do nothing to it.
+    let session = testSession('next-roll-low-rolls')
+    session = bet(session, { type: 'place', typeId: 'pass', amount: cents(500) })
+    session = bet(session, { type: 'place', typeId: 'luckyRollerLow', amount: cents(100) })
+    const preview = nextRollPreview(session, CRAPLESS)
+    const low = needOf(preview, 'luckyRollerLow')
+    expect(low.advancesOn.map((n) => n.total)).toStrictEqual([2, 3, 4, 5, 6])
+    expect(low.losesOn.map((n) => n.total)).toStrictEqual([7])
+    expect(low.winsOn).toStrictEqual([])
+    const four = rowOf(preview, 4).bets.find((b) => b.typeId === 'luckyRollerLow')
+    expect(four?.fate).toBe('progress')
+    expect(four?.net).toBe(0)
+    expect(four?.progress).toBe(1 << 4)
+    expect(rowOf(preview, 4).outcomes[0]?.progress).toStrictEqual([
+      { type: 'betProgress', betId: four?.betId, progress: 1 << 4 },
+    ])
+    expect(rowOf(preview, 9).bets.find((b) => b.typeId === 'luckyRollerLow')?.fate).toBe('none')
+    // The pass line moves on nothing: its own needs are untouched.
+    expect(needOf(preview, 'pass').advancesOn).toStrictEqual([])
+  })
+
   it('carries the refusal, no rows and no needs, as validateAction says', () => {
     const session = testSession('next-roll-empty')
     const preview = nextRollPreview(session, CRAPLESS)
@@ -417,6 +440,10 @@ function expectWellFormed(preview: NextRollPreview, state: TableState): void {
       .filter((row) => row.outcomes.some((o) => o.bets[index]?.fate === 'win'))
       .map((row) => row.total)
     expect([...new Set(need.winsOn.map((n) => n.total))]).toStrictEqual(winningTotals)
+    const advancingTotals = preview.rows
+      .filter((row) => row.outcomes.some((o) => o.bets[index]?.fate === 'progress'))
+      .map((row) => row.total)
+    expect([...new Set(need.advancesOn.map((n) => n.total))]).toStrictEqual(advancingTotals)
     if (!need.working) {
       expect(need.winsOn).toStrictEqual([])
       expect(need.losesOn).toStrictEqual([])
@@ -448,6 +475,8 @@ function expectHonest(
   expect(predicted.roundEvent).toStrictEqual(actual.roundEvent)
   expect(predicted.endedHand).toBe(actual.endedHand)
   expect(predicted.items).toStrictEqual(actual.items)
+  expect(predicted.progress).toStrictEqual(actual.progress)
+  const progressed = new Map(actual.progress.map((item) => [item.betId, item.progress] as const))
   const resolved = new Map(
     actual.items.flatMap((item) =>
       item.type === 'betResolved' ? [[item.trace.betId, item.trace] as const] : [],
@@ -468,6 +497,11 @@ function expectHonest(
     } else if (traveled.has(bet.betId)) {
       expect(bet.fate).toBe('travel')
       expect(bet.travelTo).toBe(traveled.get(bet.betId))
+    } else if (progressed.has(bet.betId)) {
+      // A side bet moved on (M11): the predicted progress is the engine's.
+      expect(bet.fate).toBe('progress')
+      expect(bet.progress).toBe(progressed.get(bet.betId))
+      expect(bet.net).toBe(0)
     } else {
       expect(['none', 'off']).toContain(bet.fate)
       expect(bet.net).toBe(0)
@@ -479,6 +513,10 @@ interface Driven {
   rolls: number
   splits: number
   refusals: number
+  /** Rolls on which a side bet was predicted to move on (M11). */
+  advances: number
+  /** Side bets placed (M11). */
+  sideBets: number
 }
 
 /** A `place` on a spot, at `amount` when the table takes it and at the spot's unit otherwise. */
@@ -521,9 +559,9 @@ function topUp(
 
 /**
  * A random session driven through the real session API with fast-check's choices: bets on legal
- * spots (hardways and hops among them) at one to five units, the ON/OFF switches, deposits and
- * rolls. Before every roll the panel predicts, then the dice come from the RNG and the prediction
- * is checked against them in every particular.
+ * spots (hardways, hops and the machine's side bets among them) at one to five units, the ON/OFF
+ * switches, deposits and rolls. Before every roll the panel predicts, then the dice come from the
+ * RNG and the prediction is checked against them in every particular.
  */
 function drive(cfg: MachineConfig, choices: readonly number[], counts: Driven): void {
   let session: WindowedSession = testSession(
@@ -534,11 +572,19 @@ function drive(cfg: MachineConfig, choices: readonly number[], counts: Driven): 
     const kind = choice % 6
     const pick = Math.trunc(choice / 6)
     if (kind <= 1) {
-      const spots = legalBets(session.state, cfg).filter((spot) => spot.canAdd === null)
-      const spot = spots[pick % Math.max(spots.length, 1)]
+      const spots = legalBets(session.state, cfg, { sideBets: true }).filter(
+        (spot) => spot.canAdd === null,
+      )
+      // Side bets are a handful among up to a hundred spots, open only in their windows: give
+      // them a share of the taps whenever one is open.
+      const sides = spots.filter((spot) => cfg.sideBets.has(spot.typeId))
+      const pool = sides.length > 0 && pick % 3 === 0 ? sides : spots
+      const spot = pool[Math.trunc(pick / 3) % Math.max(pool.length, 1)]
       if (spot === undefined) continue
       const units = 1 + (pick % 5)
+      const before = session.state.bets.length
       session = placeOn(session, spot, cents(Math.min(spot.minAdd * units, spot.maxAdd)), cfg)
+      if (cfg.sideBets.has(spot.typeId) && session.state.bets.length > before) counts.sideBets += 1
     } else if (kind === 2) {
       const sub = pick % 4
       const target = session.state.bets[pick % Math.max(session.state.bets.length, 1)]
@@ -575,6 +621,7 @@ function drive(cfg: MachineConfig, choices: readonly number[], counts: Driven): 
       const played = roll(session, undefined, cfg) // the dice come from the session's RNG
       expectHonest(preview, before, played)
       counts.rolls += 1
+      if (played.events.some((event) => event.type === 'betProgress')) counts.advances += 1
       if (preview.rows.some((row) => row.hardSplit !== undefined)) counts.splits += 1
       session = played.session
     }
@@ -586,13 +633,14 @@ describe('property: rolling the dice the panel predicts gives exactly the predic
     CRAPLESS,
     COMPILED_PRESETS.traditionalBubble,
     COMPILED_PRESETS.strictBubble,
+    COMPILED_PRESETS.traditionalLive345,
   ]
   for (const cfg of machines) {
     it(
       `holds on ${cfg.id} over random sessions (fast-check seed 20261028)`,
       { timeout: 30_000 },
       () => {
-        const counts: Driven = { rolls: 0, splits: 0, refusals: 0 }
+        const counts: Driven = { rolls: 0, splits: 0, refusals: 0, advances: 0, sideBets: 0 }
         fc.assert(
           fc.property(
             fc.array(fc.nat({ max: 100_000 }), { minLength: 6, maxLength: 30 }),
@@ -600,11 +648,14 @@ describe('property: rolling the dice the panel predicts gives exactly the predic
           ),
           { seed: 20261028, numRuns: 50 },
         )
-        // Not vacuous: real rolls were checked, refusals among them, and some tables carried a
-        // hard/easy split.
+        // Not vacuous: real rolls were checked, refusals among them (the live table has no round
+        // minimum, so none there), some tables carried a hard/easy split, and side bets went up
+        // and moved on.
         expect(counts.rolls).toBeGreaterThan(150)
-        expect(counts.refusals).toBeGreaterThan(0)
+        if (cfg.limits.minTotal !== null) expect(counts.refusals).toBeGreaterThan(0)
         expect(counts.splits).toBeGreaterThan(0)
+        expect(counts.sideBets).toBeGreaterThan(0)
+        expect(counts.advances).toBeGreaterThan(0)
       },
     )
   }

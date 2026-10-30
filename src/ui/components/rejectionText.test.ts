@@ -155,6 +155,29 @@ describe('rejectionText', () => {
     ).toBe('Hot Shooter Jackpot needs a qualifying bet on the main game first.')
   })
 
+  it('says side bets do not count toward the round minimum, and why a dome would roll on (M11)', () => {
+    // The engine adds the side bets' stakes to a round-minimum refusal (`sideBets`).
+    const trad = COMPILED_PRESETS.traditionalBubble
+    const details = { scope: 'totalRound', min: 300, total: 0, short: 300, sideBets: 100 }
+    expect(rejectionText({ code: 'BELOW_MIN_TOTAL', details }, trad)).toBe(
+      'BETS ARE NOT VALID YET! Must bet $3.00 (3 credits) more to roll. Side bets don’t count ' +
+        'toward it. A community dome would roll on regardless; the trainer rolls only once your ' +
+        'main-game bets meet the minimum.',
+    )
+    // A single-shooter machine only says the side bets do not count.
+    expect(
+      rejectionText(
+        {
+          code: 'BELOW_MIN_TOTAL',
+          details: { scope: 'totalRound', min: 500, total: 0, short: 500, sideBets: 100 },
+        },
+        cfg,
+      ),
+    ).toBe(
+      'BETS ARE NOT VALID YET! Must bet $5.00 (5 credits) more to roll. Side bets don’t count toward it.',
+    )
+  })
+
   it('names the bet with the machine label, not the type id', () => {
     const line = rejectionText({ code: 'CONTRACT_BET', details: SAMPLES.CONTRACT_BET }, cfg)
     expect(line).toContain('Pass Line')

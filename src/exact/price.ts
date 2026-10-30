@@ -57,6 +57,12 @@ import { startKey } from './start.ts'
  * The analysis code's own version: part of every cache key, for caches that outlive a session.
  *
  * History:
+ * - 3: the M11 side-bet audit. A side bet is one wager settled once: a settlement that leaves it
+ *   up (the Lucky Shooter's come-out 7 or 11) is no decision of it (`decidesWager`, rules spec
+ *   §0.1, §6.3), so its edge, chances and rolls are per resolved wager — the Lucky Shooter's
+ *   table D edge is 159317/1469664 (10.840%, graded awful and ranked after Big 6/8 and Hard 6/8,
+ *   §8.1 rank 24) where it was 8.4314% per come-out roll. The Hot Shooter's chain counts the
+ *   hand's rolls (ENGINE_VERSION 4), lumped where every further roll settles alike.
  * - 2: M9 fix:exact (M5/M6 audit). `combinedEdge` with `'max'` odds clamps each number's odds to
  *   what the table accepts (per-bet maximum, table maximum, increment), so it never prices odds
  *   the machine refuses; the amount risked leaves out the stake of odds returned unplayed (push
@@ -66,7 +72,7 @@ import { startKey } from './start.ts'
  *   π-weighted starts; `workingShare` follows the machine's after-roll re-enables.
  * - 1: M6.
  */
-export const EXACT_VERSION = 2
+export const EXACT_VERSION = 3
 
 /** `rounded`: as the machine pays. `exact`: no rounding anywhere, commission minimums kept. */
 export type PriceMode = 'rounded' | 'exact'

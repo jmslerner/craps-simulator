@@ -67,7 +67,8 @@ import { canToggle, effectiveWorking } from './working.ts'
  * 'ledger'`); scripted dice must be an object with two faces from 1 to 6.
  *
  * Validators never change anything. A valid `place` or `setAmount` comes back as a `BetChange` for
- * the reducer to apply.
+ * the reducer to apply. A new bet starts with the progress its family gives a bet placed now
+ * (`initialProgress`; 0 for all but the Hot Shooter Jackpot, whose count is the hand's).
  */
 
 /** A valid change to one bet: the reducer applies exactly this. */
@@ -139,7 +140,9 @@ export function validatePlace(
           amount,
           vigHeld: cents(0),
           working: null,
-          progress: 0,
+          // A Hot Shooter carries the hand's rolls so far (rules spec §2.6); every other bet
+          // starts with none.
+          progress: family.initialProgress?.(state, type) ?? 0,
           placedAtRoll: state.round.rollIndex,
         }
       : { ...before, amount }

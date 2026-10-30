@@ -84,7 +84,8 @@ describe('DiceDome', () => {
     expect(load).toHaveBeenCalledTimes(1)
     const view = screen.getByTestId('dice-view')
     expect(screen.getAllByTestId('dice-view')).toHaveLength(1)
-    expect(view).toHaveAttribute('data-mode', '3d')
+    // The renderer attaches in the chunk's effect, after the canvas is in the document.
+    await waitFor(() => expect(view).toHaveAttribute('data-mode', '3d'))
     expect(view).toHaveAttribute('data-state', 'idle')
     expect(view).toHaveAttribute('data-dice', '')
     expect(view).toHaveAttribute('data-ready', 'false')
@@ -104,6 +105,46 @@ describe('DiceDome', () => {
     expect(view).toHaveAttribute('data-shown', 'rest')
   })
 
+  it('lists data-dice in the engine’s d1-d2 order, whichever body shows d1', async () => {
+    const { controller } = controllerWith(true)
+    const load = vi.fn(async () => ({ default: FakeDome }))
+    render(<DiceDome controller={controller} nextSeed={7} load={load} />)
+    await waitFor(() => expect(screen.getByTestId('fake-canvas')).toBeInTheDocument())
+    const view = screen.getByTestId('dice-view')
+    act(() => controller.view().showRest(makeRoll(2, 6)))
+    expect(view).toHaveAttribute('data-dice', '2-6')
+    // The same rest now shows 6-2: body 1 draws d1, and the list still starts with d1.
+    act(() => controller.view().showRest(makeRoll(6, 2)))
+    expect(controller.store.getState()).toMatchObject({ faces: [2, 6], d1Body: 1 })
+    expect(view).toHaveAttribute('data-dice', '6-2')
+  })
+
+  it('says “Press ROLL to throw” while idle, like the 2D view, and not once a roll shows', async () => {
+    const { controller } = controllerWith(true)
+    const load = vi.fn(async () => ({ default: FakeDome }))
+    render(<DiceDome controller={controller} nextSeed={7} load={load} />)
+    await waitFor(() => expect(screen.getByTestId('fake-canvas')).toBeInTheDocument())
+    expect(screen.getByText('Press ROLL to throw')).toBeInTheDocument()
+    expect(screen.getByTestId('dice-view')).toHaveAttribute('data-dice', '')
+    act(() => controller.view().showRest(makeRoll(1, 4)))
+    expect(screen.queryByText('Press ROLL to throw')).toBeNull()
+    act(() => controller.reset())
+    expect(screen.getByText('Press ROLL to throw')).toBeInTheDocument()
+    expect(screen.getByTestId('dice-view')).toHaveAttribute('data-state', 'idle')
+    expect(screen.getByTestId('dice-view')).toHaveAttribute('data-dice', '')
+  })
+
+  it('stops asking for throws once it unmounts (2D mode): a snap there prefetches nothing', async () => {
+    const { controller, requests } = controllerWith(true)
+    const load = vi.fn(async () => ({ default: FakeDome }))
+    const { unmount } = render(<DiceDome controller={controller} nextSeed={7} load={load} />)
+    await waitFor(() => expect(requests.filter((r) => r.kind === 'throw')).toHaveLength(1))
+    unmount()
+    act(() => controller.view().showRest(makeRoll(5, 6)))
+    expect(requests.filter((r) => r.kind === 'throw')).toHaveLength(1)
+    expect(controller.store.getState().ready).toBe(false)
+  })
+
   it('asks the worker for a new seed when the next roll changes', async () => {
     const { controller, requests } = controllerWith(true)
     const load = vi.fn(async () => ({ default: FakeDome }))
@@ -121,7 +162,7 @@ describe('DiceDome', () => {
     const load = vi.fn(async () => ({ default: FakeDome }))
     render(<DiceDome controller={controller} nextSeed={3} load={load} />)
     await waitFor(() => expect(screen.getByTestId('fake-canvas')).toBeInTheDocument())
-    expect(screen.getByTestId('dice-view')).toHaveAttribute('data-mode', '3d')
+    await waitFor(() => expect(screen.getByTestId('dice-view')).toHaveAttribute('data-mode', '3d'))
 
     act(() => controller.contextLost())
     const view = screen.getByTestId('dice-view')
@@ -138,7 +179,7 @@ describe('DiceDome', () => {
     // The chunk is already loaded: no second fetch, the renderer mounts and attaches again.
     await waitFor(() => expect(screen.getByTestId('fake-canvas')).toBeInTheDocument())
     expect(load).toHaveBeenCalledTimes(1)
-    expect(screen.getByTestId('dice-view')).toHaveAttribute('data-mode', '3d')
+    await waitFor(() => expect(screen.getByTestId('dice-view')).toHaveAttribute('data-mode', '3d'))
     expect(screen.queryByTestId('dome-toast')).toBeNull()
     expect(controller.view().mode).toBe('3d')
   })

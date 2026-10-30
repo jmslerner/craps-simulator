@@ -256,4 +256,18 @@ describe('the Next roll panel', () => {
     expect(rowFor(7).getAttribute('data-net')).toBe('500')
     expect(screen.getAllByTestId('next-roll-need')).toHaveLength(1)
   })
+
+  it('shows a side bet the roll moves on as advancing, never "no action" (M11 audit)', () => {
+    const app = renderPanel({ seed: 'next-roll-panel-side' })
+    app.run((state) => {
+      state.dispatch({ type: 'place', typeId: 'pass', amount: cents(500) })
+      state.dispatch({ type: 'place', typeId: 'luckyRollerLow', amount: cents(100) })
+    })
+    const low = needFor('Low Rolls $1')
+    expect(chipTexts(low, 'advance')).toEqual(['2', '3', '4', '5', '6'])
+    expect(chipTexts(low, 'lose')).toEqual(['7'])
+    expect(low).not.toHaveTextContent('no action on this roll')
+    expect(rowFor(4).querySelector('.twho')).toHaveTextContent('Low Rolls advances')
+    expect(rowFor(9).querySelector('.twho')).not.toHaveTextContent('Low Rolls')
+  })
 })

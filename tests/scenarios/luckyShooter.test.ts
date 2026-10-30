@@ -43,6 +43,17 @@ function fiveHits(s: Scenario): Scenario {
 }
 
 describe('Interblock Lucky Shooter on the strict machine [V IB §6.1; IBLS; PA623c]', () => {
+  it("takes 1 to 100 credits: $1 to $100 at the machine's $1 credit [V IBLS]", () => {
+    scenario('strictBubble')
+      .expectProvenance('/limits/perType/luckyShooter', 'verified')
+      .expectReject('ABOVE_MAX', (a) => a.place('luckyShooter', 10_100), {
+        typeId: 'luckyShooter',
+        max: 10_000,
+      })
+      .place('luckyShooter', 10_000)
+      .expectBets([['luckyShooter', null, 10_000]])
+  })
+
   it('a come-out 7 or 11 pushes and the bet stays; 2, 3 or 12 lose it [V; §0.2 #8]', () => {
     scenario('strictBubble')
       .expectProvenance('/sideBets/luckyShooter', 'verified')

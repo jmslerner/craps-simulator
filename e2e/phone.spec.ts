@@ -5,7 +5,9 @@ import { appUrl, chip, hookState, rollButton, zone } from './hooks.ts'
  * The §10 M8 phone spec, on the mobile projects only: no horizontal scroll at 375 px, every
  * visible zone at least 44×44 px, the bottom-sheet tabs open, and a bet placed and rolled end to
  * end by touch. The roll is unscripted — the engine's own seeded dice — because the assertions
- * here are about the surface, not the outcome.
+ * here are about the surface, not the outcome. Since the machine design (plan §0 #28) the tabs are
+ * the station's — HARDWAYS, HOP BETS — with the side bets as a third on phones, and the Coach
+ * drawer is a bottom sheet of its own.
  */
 
 const PHONES = new Set(['pixel7', 'iphone15'])
@@ -44,23 +46,42 @@ test.describe('phone layout at 375 px', () => {
     const onTable = await assertZoneBoxes(page.locator('[data-zone]'))
     expect(onTable).toBeGreaterThan(0)
 
-    // The props live behind a tab on phones; its zones must be touch targets too.
-    await page.getByRole('tab', { name: 'Props' }).tap()
+    // The props live behind the station's tabs on phones; their zones must be touch targets too.
     const sheet = page.locator('.bottom-sheet')
-    await expect(sheet).toBeVisible()
-    const inSheet = await assertZoneBoxes(sheet.locator('[data-zone]'))
-    expect(inSheet).toBeGreaterThan(0)
+    for (const name of ['Hardways', 'Hop bets', 'Side bets']) {
+      await page.getByRole('tab', { name }).tap()
+      await expect(sheet).toBeVisible()
+      const inSheet = await assertZoneBoxes(sheet.locator('[data-zone]'))
+      expect(inSheet, `the ${name} sheet`).toBeGreaterThan(0)
+      await sheet.locator('.sheet-close').tap()
+      await expect(sheet).toHaveCount(0)
+    }
   })
 
   test('the bottom-sheet tabs open', async ({ page }) => {
     const sheet = page.locator('.bottom-sheet')
-    for (const name of ['Props', 'Hardways', 'Side bets']) {
+    for (const name of ['Hardways', 'Hop bets', 'Side bets']) {
       await page.getByRole('tab', { name }).tap()
       await expect(sheet).toBeVisible()
       await expect(sheet.locator('.panel-title')).toHaveText(name)
+      await sheet.locator('.sheet-close').tap()
+      await expect(sheet).toHaveCount(0)
     }
-    await sheet.locator('.sheet-close').tap()
-    await expect(sheet).toHaveCount(0)
+  })
+
+  test('the Coach drawer opens as a bottom sheet and closes', async ({ page }) => {
+    const toggle = page.getByTestId('coach-toggle')
+    await expect(toggle).toHaveAttribute('aria-expanded', 'false')
+    await expect(page.getByTestId('next-step')).toBeHidden()
+    await toggle.tap()
+    await expect(page.getByTestId('next-step')).toBeVisible()
+    const overflow = await page.evaluate(
+      () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    )
+    expect(overflow, 'the open drawer scrolls the page sideways').toBeLessThanOrEqual(0)
+    await page.getByRole('button', { name: 'Close the coach' }).tap()
+    await expect(page.getByTestId('next-step')).toBeHidden()
+    await expect(toggle).toHaveAttribute('aria-expanded', 'false')
   })
 
   test('a bet is placed and rolled end to end by touch', async ({ page }) => {

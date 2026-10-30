@@ -71,9 +71,12 @@ test('a Lucky Roller bet lights its progress after each roll and settles with it
   await openSideBets(page)
   await expect(low().locator('.zone-track')).toHaveAttribute('data-lit', '2')
   await expect(low().locator('.pip-lit')).toHaveText(['2'])
-  await expect(low()).toHaveAttribute(
-    'aria-label',
-    'Low Rolls, $1.00, pays 31 for 1, 2 rolled, needs 3, 4, 5 and 6',
+  // The zone's name says everything it shows (M14), its coach badge included, word for word.
+  const badge = await page.evaluate(() => __CRAPS_TEST__?.analyze('luckyRollerLow') ?? null)
+  const coach =
+    badge === null ? '' : `, house edge ${badge.badge.replace('%', ' percent')}, ${badge.grade}`
+  await expect(low()).toHaveAccessibleName(
+    `Low Rolls, $1.00, pays 31 for 1, any 7 loses, 2 rolled, needs 3, 4, 5 and 6${coach}`,
   )
 
   // The engine's refusals, in words: a side bet is locked once the dice roll, and the Lucky

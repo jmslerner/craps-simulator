@@ -6,7 +6,15 @@ import type { DicePlayRequest } from '../ui/services/rollFlow.ts'
 import { handlePhysicsRequest } from '../workers/physicsHandler.ts'
 import type { Outgoing } from '../workers/physicsProtocol.ts'
 import { createPhysicsClient, type PhysicsTransport } from './physicsClient.ts'
-import { createDiceDome, WATCHDOG_FACTOR, WATCHDOG_SLACK_MS } from './domeController.ts'
+import { readFraming, samePose, THROW_SHOT } from './camera.ts'
+import {
+  createDiceDome,
+  NOMINAL_CANVAS,
+  WATCHDOG_FACTOR,
+  WATCHDOG_SLACK_MS,
+  type DomeInspection,
+} from './domeController.ts'
+import { CAMERA_OUT_MS, LEAD_IN_MS } from './playback.ts'
 import { MONITOR, QUALITY_KEY } from './quality.ts'
 
 /**
@@ -67,6 +75,20 @@ function drive(controller: ReturnType<typeof dome>['controller']): number {
     if (!controller.sample(now).playing) return frames
   }
   throw new Error('the throw never finished')
+}
+
+/**
+ * Samples the frame loop every 16 ms from `fromMs` up to `toMs` (the playback clock advances at
+ * most 50 ms a frame, so time has to be walked) and returns the last frame.
+ */
+function walk(
+  controller: ReturnType<typeof dome>['controller'],
+  fromMs: number,
+  toMs: number,
+): ReturnType<ReturnType<typeof dome>['controller']['sample']> {
+  let frame = controller.sample(fromMs)
+  for (let now = fromMs + 16; now <= toMs; now += 16) frame = controller.sample(now)
+  return frame
 }
 
 const sortedFaces = (faces: readonly [number, number] | null) =>
@@ -318,10 +340,7 @@ describe('the dice dome controller', () => {
     }
     expect(throws).toBeLessThanOrEqual(3)
     expect(controller.quality.getState()).toMatchObject({ tier: 'medium', measured: 'medium' })
-    expect(JSON.parse(storage.getItem(QUALITY_KEY) ?? '')).toStrictEqual({
-      override: 'auto',
-      measured: 'medium',
-    })
+    expect(JSON.parse(storage.getItem(QUALITY_KEY) ?? '')).toStrictEqual({ measured: 'medium' })
     expect(MONITOR.thresholdMs).toBe(22)
   })
 
@@ -426,6 +445,162 @@ describe('the dice dome controller', () => {
     expect(controller.view().mode).toBe('2d')
     controller.retry()
     expect(probe).toHaveBeenCalledTimes(2)
+  })
+
+  it('is idle before the first roll: no dice drawn, no faces, the camera on the throw shot', () => {
+    const { controller, renderer } = dome(lateTransport)
+    controller.attach(renderer)
+    expect(controller.store.getState()).toMatchObject({ state: 'idle', faces: null, shown: null })
+    const frame = controller.sample(1000)
+    expect(frame.visible).toBe(false)
+    expect(frame.playing).toBe(false)
+    expect(samePose(frame.camera, THROW_SHOT)).toBe(true)
+    // Nothing is read off undrawn dice.
+    controller.reportFaces([3, 4])
+    expect(controller.store.getState().faces).toBeNull()
+  })
+
+  it('brings the dice in as the first throw pops, and reads them up close at rest', async () => {
+    const { controller, renderer } = dome(lateTransport, 10)
+    controller.attach(renderer)
+    const played = controller.view().play(REQUEST, new AbortController().signal)
+    await vi.waitFor(() => expect(controller.store.getState().state).toBe('playing'))
+    // The first sample starts the clock; through the lead-in the dice are still not drawn.
+    expect(controller.sample(1000).visible).toBe(false)
+    expect(walk(controller, 1016, 1000 + LEAD_IN_MS - 16).visible).toBe(false)
+    const popping = walk(controller, 1000 + LEAD_IN_MS, 1000 + LEAD_IN_MS + 32)
+    expect(popping.visible).toBe(true)
+    // From idle the camera is already wide: it holds the throw shot while the dice fly.
+    expect(samePose(popping.camera, THROW_SHOT)).toBe(true)
+    drive(controller)
+    await played
+    const atRest = controller.sample(99_999)
+    expect(atRest.visible).toBe(true)
+    const rest = controller.rest
+    expect(samePose(atRest.camera, readFraming([rest[0].pose, rest[1].pose], NOMINAL_CANVAS))).toBe(
+      true,
+    )
+    // The read framing is solved for the canvas the renderer draws on.
+    const phone = { width: 359, height: 224.375 }
+    expect(
+      samePose(
+        controller.sample(100_000, phone).camera,
+        readFraming([rest[0].pose, rest[1].pose], phone),
+      ),
+    ).toBe(true)
+  })
+
+  it('throws wide from the last read framing and eases back to the new one as the dice settle', async () => {
+    const { controller, renderer } = dome(lateTransport, 10)
+    controller.attach(renderer)
+    controller.view().showRest(makeRoll(5, 5))
+    const before = controller.rest
+    const reading = readFraming([before[0].pose, before[1].pose], NOMINAL_CANVAS)
+    expect(samePose(controller.sample(500).camera, reading)).toBe(true)
+    const played = controller.view().play(REQUEST, new AbortController().signal)
+    await vi.waitFor(() => expect(controller.store.getState().state).toBe('playing'))
+    // The camera leaves the old read framing and reaches the throw shot as the throw gets going.
+    expect(samePose(controller.sample(1000).camera, reading)).toBe(true)
+    const moving = walk(controller, 1016, 1000 + CAMERA_OUT_MS / 2).camera
+    expect(samePose(moving, reading)).toBe(false)
+    expect(samePose(moving, THROW_SHOT)).toBe(false)
+    let now = 1000 + CAMERA_OUT_MS + 16
+    let last = walk(controller, 1000 + CAMERA_OUT_MS / 2 + 16, now)
+    expect(samePose(last.camera, THROW_SHOT)).toBe(true)
+    while (last.playing) {
+      now += 16
+      last = controller.sample(now)
+    }
+    await played
+    const after = controller.rest
+    expect(samePose(last.camera, readFraming([after[0].pose, after[1].pose], NOMINAL_CANVAS))).toBe(
+      true,
+    )
+  })
+
+  it('lists the faces in the engine’s order: which body shows d1', () => {
+    const { controller } = dome(lateTransport)
+    controller.view().showRest(makeRoll(3, 5))
+    expect(controller.store.getState()).toMatchObject({ faces: [3, 5], d1Body: 0 })
+    // The same pair the other way round keeps the rest: body 1 now shows d1.
+    const kept = controller.rest
+    controller.view().showRest(makeRoll(5, 3))
+    expect(controller.rest).toBe(kept)
+    expect(controller.store.getState()).toMatchObject({ faces: [3, 5], d1Body: 1 })
+    controller.view().showRest(makeRoll(2, 2))
+    expect(controller.store.getState()).toMatchObject({ faces: [2, 2], d1Body: 0 })
+  })
+
+  it('a played throw reports the body its plan put d1 on', async () => {
+    const { controller, renderer } = dome(lateTransport, 10)
+    controller.attach(renderer)
+    for (const dice of [makeRoll(4, 2), makeRoll(6, 1), makeRoll(2, 5), makeRoll(3, 6)]) {
+      const played = controller.view().play({ ...REQUEST, dice }, new AbortController().signal)
+      await vi.waitFor(() => expect(controller.store.getState().state).toBe('playing'))
+      drive(controller)
+      await played
+      const { faces, d1Body } = controller.store.getState()
+      expect(faces?.[d1Body]).toBe(dice.d1)
+      expect(faces?.[d1Body === 0 ? 1 : 0]).toBe(dice.d2)
+    }
+  })
+
+  it('reset goes back to idle for a new game: no dice drawn, the camera wide', () => {
+    const { controller, renderer } = dome(lateTransport)
+    controller.attach(renderer)
+    controller.view().showRest(makeRoll(6, 4))
+    expect(controller.sample(1000).visible).toBe(true)
+    controller.reset()
+    expect(controller.store.getState()).toMatchObject({
+      state: 'idle',
+      faces: null,
+      d1Body: 0,
+      shown: null,
+      handoff: 0,
+    })
+    const frame = controller.sample(2000)
+    expect(frame.visible).toBe(false)
+    expect(samePose(frame.camera, THROW_SHOT)).toBe(true)
+    expect(renderer.invalidate).toHaveBeenCalled()
+  })
+
+  it('counts every change to what it shows, so a renderer knows its last frame is current', async () => {
+    const { controller, renderer } = dome(lateTransport, 10)
+    controller.attach(renderer)
+    const seen = [controller.version]
+    expect(controller.sample(1000).version).toBe(controller.version)
+    controller.view().showRest(makeRoll(1, 2))
+    seen.push(controller.version)
+    const played = controller.view().play(REQUEST, new AbortController().signal)
+    await vi.waitFor(() => expect(controller.store.getState().state).toBe('playing'))
+    seen.push(controller.version)
+    drive(controller)
+    await played
+    seen.push(controller.version)
+    controller.reset()
+    seen.push(controller.version)
+    // Each step moved it on; sampling alone never does.
+    expect(new Set(seen).size).toBe(seen.length)
+    expect(controller.sample(99_999).version).toBe(controller.version)
+    expect(controller.version).toBe(seen.at(-1))
+  })
+
+  it('frames the throw shot for a canvas with no size yet', () => {
+    const { controller } = dome(lateTransport)
+    controller.view().showRest(makeRoll(2, 3))
+    expect(samePose(controller.sample(1000, { width: 0, height: 0 }).camera, THROW_SHOT)).toBe(true)
+  })
+
+  it('hands the live renderer’s scene to the readout, and nothing without one', () => {
+    const { controller } = dome(lateTransport)
+    expect(controller.inspect()).toBeNull()
+    const scene: DomeInspection = { dice: [{}, {}], camera: {}, canvas: {}, still: true }
+    const detach = controller.attach({ invalidate: () => undefined, inspect: () => scene })
+    expect(controller.inspect()).toBe(scene)
+    detach()
+    expect(controller.inspect()).toBeNull()
+    controller.attach({ invalidate: () => undefined })
+    expect(controller.inspect()).toBeNull()
   })
 
   it('probes WebGL once, and markUnavailable sends the view back to 2D for good', () => {

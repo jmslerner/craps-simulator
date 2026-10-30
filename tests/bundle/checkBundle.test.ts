@@ -30,6 +30,12 @@ describe('testHookOffences', () => {
     expect(found[0]).toContain('testHooks marker')
   })
 
+  it('flags the 3D readout hook, which only the e2e test hooks carry', () => {
+    const found = testHookOffences('assets/index-Ab12Cd.js', 'api={domeReadout:()=>r(d)};')
+    expect(found).toHaveLength(1)
+    expect(found[0]).toContain('domeReadout')
+  })
+
   it('does not flag the engine dice-key regex that every build carries legitimately', () => {
     const compileTs = 'const DICE_KEY=/^([1-6])-([1-6])$/;'
     expect(testHookOffences('assets/index-Ab12Cd.js', compileTs)).toHaveLength(0)

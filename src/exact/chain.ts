@@ -6,6 +6,7 @@ import {
   commissionRule,
   decideBet,
   effectiveWorking,
+  handLengthCount,
   heldOffOf,
   isDoubles,
   isSettled,
@@ -64,14 +65,16 @@ import { at, solveChain, type ChainSolution } from './solve.ts'
  *   carried from an earlier betting window (Shoot To Win's carried chips), so a state records all
  *   five. After any roll every bet is carried.
  * - **Side bets (M11).** A side bet's state is its own `progress` (the family's encoding: Lucky
- *   Roller's mask of targets rolled, the Fire Bet's mask of points made, the Hot Shooter's roll
- *   count, the Lucky Shooter's point and hits) beside the round's phase, so the chain's states go
- *   beyond (phase, point) exactly as far as the bet does. A bet already on the table starts from
- *   its progress (`StartContext.progress`). The projected round (`roundFor`) is kept consistent
- *   with those counts, and the one count that is unbounded — the Hot Shooter's rolls — is lumped
- *   at its top tier (`canonicalProgress`), where every further roll settles alike, so the chain is
+ *   Roller's mask of targets rolled, the Fire Bet's mask of points made, the Hot Shooter's count of
+ *   the hand's rolls, the Lucky Shooter's point and hits) beside the round's phase, so the chain's
+ *   states go beyond (phase, point) exactly as far as the bet does. A bet already on the table
+ *   starts from its progress (`StartContext.progress`). The projected round (`roundFor`) is kept
+ *   consistent with those counts, and the one count that is unbounded — the Hot Shooter's rolls —
+ *   is lumped where every further roll settles alike (`canonicalProgress`), so the chain is
  *   finite; the Monte Carlo sampler (src/sim) walks the same bets without lumping and is the
- *   cross-check.
+ *   cross-check. A side bet is one wager settled once (rules spec §6), so a settlement that leaves
+ *   it up — the Lucky Shooter's come-out 7 or 11 — is no decision of it (`decidesWager`): the
+ *   chain runs on through it with no label, and the bet's numbers are per resolved wager.
  */
 
 /** A bet to analyse: a type the machine offers and the number it is on. */
@@ -111,8 +114,8 @@ export interface StartContext {
   readonly held?: boolean
   /**
    * A side bet's progress so far (`BetInstance.progress`, in its family's encoding), for a bet
-   * already on the table; absent or 0 for a new bet. A bet with progress has rolled, so it must be
-   * `carried`.
+   * already on the table; absent or 0 for a new bet, except a Hot Shooter placed on a later
+   * come-out, which carries the hand's rolls from the moment it is placed (rules spec §2.6).
    */
   readonly progress?: number
 }
@@ -329,7 +332,9 @@ export function followsRound({ family, type }: ResolvedBet): boolean {
  * The table a group starts on for `spec` at `phase`: the subject (and, for odds, its parent on the
  * same number), with the start's working inputs and, for a side bet already on the table, its
  * progress. Throws `BAD_START` when the families' own invariants reject the table (a pass bet off
- * its point, say), or when a bet with progress is said to be new.
+ * its point, say). A side bet with progress may be new: a Hot Shooter placed on a later come-out
+ * starts with the hand's rolls (rules spec §2.6), and no side-bet decision reads whether the bet
+ * was carried.
  */
 export function startTable(
   group: Group,
@@ -339,12 +344,6 @@ export function startTable(
   cfg: MachineConfig,
 ): TableNode {
   const progress = start.progress ?? 0
-  if (progress !== 0 && !start.carried) {
-    throw new ExactError(
-      'BAD_START',
-      `${spec.typeId} has progress, so it has rolled: it is carried`,
-    )
-  }
   const placedAtRoll = start.carried ? 0 : 1
   const bets = group.slots.map((slot, index): BetInstance => {
     const isSubject = index === group.subject
@@ -504,12 +503,13 @@ export function rollOutcomes(
 
 /**
  * The canonical state of a bet after a roll. Only the Hot Shooter Jackpot's progress is unbounded:
- * it counts every roll of the hand, while its pay is fixed by the highest tier reached
- * (`/sideBets/<t>/tiers`), so every count from the top tier's `minRolls` on settles alike, under
- * every count definition (A adds the seven-out to the count before reading the tier, so a count at
- * the top tier is already there; B and C read the count as it is). Such a count is lumped at that
- * tier, which makes the chain finite (plan §11: a specialized projection, cross-checked by the
- * Monte Carlo sampler, which never lumps). Every other family's progress is a bounded mask.
+ * it is the hand's rolls so far, while its pay is fixed by the highest tier the count reaches at
+ * the seven-out (`/sideBets/<t>/tiers`), the count being the engine's own `handLengthCount` of
+ * the hand's `progress + 1` rolls. So from the first progress whose seven-out already counts to the
+ * top tier's `minRolls` — that `minRolls` itself under definitions A and B, one more under C,
+ * which leaves two of the hand's rolls out — every further roll settles alike, and such progress
+ * is lumped there, which makes the chain finite (plan §11: a specialized projection, cross-checked
+ * by the Monte Carlo sampler, which never lumps). Every other family's progress is a bounded mask.
  */
 export function canonicalProgress(
   { type }: ResolvedBet,
@@ -517,7 +517,9 @@ export function canonicalProgress(
 ): BetInstance | null {
   if (bet === null || type.family !== 'handLength') return bet
   const top = type.tiers.reduce((most, tier) => Math.max(most, tier.minRolls), 0)
-  return bet.progress > top ? { ...bet, progress: top } : bet
+  let lumpAt = top
+  while (handLengthCount(type, lumpAt + 1) < top) lumpAt += 1
+  return bet.progress > lumpAt ? { ...bet, progress: lumpAt } : bet
 }
 
 /** The decision of the bet `bet` backs, on this roll; `none` if it is not on the table. */
@@ -579,7 +581,8 @@ export function chainFrom(
     startNodes.set(node, sum === undefined ? weight : sum.add(weight))
   }
   const nodes: ChainNode[] = []
-  const subjectType = at(group.slots, group.subject).type
+  const subjectSlot = at(group.slots, group.subject)
+  const subjectType = subjectSlot.type
   for (let i = 0; i < tables.length; i++) {
     const table = at(tables, i)
     const working = workingOf(table, cfg)
@@ -588,7 +591,7 @@ export function chainFrom(
       const subject = at(outcome.next.bets, group.subject)
       const stepLabels: number[] = []
       let ends = subject === null
-      if (isSettled(decision)) {
+      if (isSettled(decision) && decidesWager(subjectSlot, subject)) {
         const label = labels.settle(decision)
         stepLabels.push(label.index)
         if (horizon === 'decision') ends = true
@@ -624,6 +627,31 @@ export function chainFrom(
     labels: labels.all,
     starts: [...startNodes].map(([node, weight]) => ({ node, weight })),
   }
+}
+
+/**
+ * Whether a settlement of the subject is a decision of its bet, given the bet the settlement
+ * leaves (`after`, null when it came down). Every main-game settlement is one, ties included (the
+ * don't pass bar, rules spec §0.1, §8.1 rank 2), and so is a winner left up for its next decision.
+ * A side bet, though, is one wager settled once (§6; the Hot Shooter's stake-back tier is its
+ * settlement, taking it down): a settlement that leaves it up — the Lucky Shooter's come-out 7 or
+ * 11, a push that "stays on the betting field" (§6.3, §0.2 #8) — moves no money and decides
+ * nothing, so it is no decision (§0.1: the Lucky Shooter's edge is per resolved wager, §6.3, §8.1
+ * rank 24, as the M11 audit settled it). Its chain runs on through such a roll as through one that
+ * changes nothing, and the Monte Carlo sampler (src/sim) reads the rule the same way.
+ */
+export function decidesWager(slot: ResolvedBet, after: BetInstance | null): boolean {
+  return after === null || !isSideFamily(slot.type.family)
+}
+
+/** The side-bet families (M11). */
+export function isSideFamily(family: BetType['family']): boolean {
+  return (
+    family === 'collectSet' ||
+    family === 'uniquePointsMade' ||
+    family === 'handLength' ||
+    family === 'pointRun'
+  )
 }
 
 /**
@@ -695,12 +723,11 @@ export function roundAt(phase: Phase): RoundState {
 /**
  * The projected round of a table holding `bets` (M11): `roundAt(phase)` when none of them has
  * progress, else a hand under way long enough for the counts on the bets — roll 1 + the largest
- * progress, so a Hot Shooter's rolls fit in the hand and in the rolls since its placement — in
- * which every point has been made, so a Fire Bet's points made are among the hand's. Decisions
- * read none of these counters (only the phase, the transition and the bet's own progress), so the
- * state key need not carry them; the families' invariants do read them, and must find them
- * consistent. New bets are placed at roll 1, which stays the first roll (a bet with progress has
- * rolled, so it is carried: `startTable`).
+ * progress, so a Hot Shooter's count of the hand's rolls fits in the hand — in which every point
+ * has been made, so a Fire Bet's points made are among the hand's. Decisions read none of these
+ * counters (only the phase, the transition and the bet's own progress), so the state key need not
+ * carry them; the families' invariants do read them, and must find them consistent. New bets are
+ * placed at roll 1, which stays the first roll.
  */
 export function roundFor(
   phase: Phase,

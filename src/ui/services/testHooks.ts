@@ -22,6 +22,7 @@ import type { GameState, ViewPhase } from '../state/gameStore.ts'
 import type { SessionHead } from '../../persistence/sessionRepo.ts'
 import { KEYS, safeGet } from '../../persistence/storage.ts'
 import type { DiceMode } from '../../persistence/settings.ts'
+import type { DiceDomeController } from '../../dome/domeController.ts'
 
 /**
  * The e2e test hooks (plan §6): `window.__CRAPS_TEST__` and the boot URL parameters. They exist
@@ -32,6 +33,12 @@ import type { DiceMode } from '../../persistence/settings.ts'
  *
  * Scripted dice go only through the store's queue, which `beginRoll` plays through
  * `rollWindow(ws, cfg, dice)` — the one scripted-dice door the engine has.
+ *
+ * `domeReadout` reads the 3D dice as drawn, independently of the remap tables the dome draws them
+ * with (plan §6 test hooks; M10 audit MINOR-2): for each die mesh it finds the geometry group whose
+ * averaged normal, turned by the mesh's world matrix, points most nearly up, counts the pips
+ * painted on that group's texture, and projects that face's corners with the scene camera's own
+ * matrices — never `AXIS_FACE`. The App registers its dome here (`registerDome`) in e2e builds.
  */
 
 export interface CrapsTestState {
@@ -78,6 +85,33 @@ export interface CrapsTestApi {
    * character for character. Null while no game is running or the spot has no badge.
    */
   analyze(typeId: string, number?: number | null): ZoneBadgeProbe | null
+  /** The 3D dice as drawn (see the module comment); null while no 3D renderer is live. */
+  domeReadout(): DomeReadout | null
+}
+
+/** One drawn die, read off its mesh. */
+export interface DieReadout {
+  /** Whether the mesh is drawn at all (the dome draws no dice before the first roll). */
+  readonly visible: boolean
+  /** The pips painted on the face whose normal points most nearly up. */
+  readonly face: number
+  /** How nearly that face points up: the cosine of its normal's angle from world up. */
+  readonly up: number
+  /** That face's four corners on the canvas, CSS pixels from its top-left corner. */
+  readonly corners: readonly (readonly [number, number])[]
+}
+
+/** The 3D dome as drawn: what the e2e checks against the engine and the overlays. */
+export interface DomeReadout {
+  readonly state: 'idle' | 'playing' | 'settled'
+  /** The last frame drawn was at rest: no throw playing and the camera arrived. */
+  readonly still: boolean
+  /** The body (mesh) drawing the engine's d1. */
+  readonly d1Body: 0 | 1
+  /** The canvas in CSS pixels. */
+  readonly canvas: { readonly width: number; readonly height: number }
+  /** Both dice, in body order. */
+  readonly dice: readonly [DieReadout, DieReadout]
 }
 
 declare global {
@@ -186,9 +220,235 @@ export function installTestHooks(
       const { cfg } = store.getState()
       return cfg === null ? null : analyzeZone(cfg, typeId, number)
     },
+    domeReadout: () => (registeredDome === null ? null : readDome(registeredDome)),
   }
   target.__CRAPS_TEST__ = api
   return true
+}
+
+let registeredDome: DiceDomeController | null = null
+
+/** The App's dome, for `domeReadout` (e2e builds only: the App calls this behind the mode check). */
+export function registerDome(dome: DiceDomeController): void {
+  registeredDome = dome
+}
+
+/** three's objects as the readout touches them; structural, so this module never imports three. */
+interface MatrixLike {
+  readonly elements: ArrayLike<number>
+}
+
+interface MeshLike {
+  readonly visible: boolean
+  readonly matrixWorld: MatrixLike
+  updateWorldMatrix(updateParents: boolean, updateChildren: boolean): void
+  readonly geometry: {
+    readonly groups: readonly {
+      readonly start: number
+      readonly count: number
+      readonly materialIndex?: number
+    }[]
+    readonly index: { readonly array: ArrayLike<number> } | null
+    readonly attributes: { readonly normal: { readonly array: ArrayLike<number> } }
+  }
+  readonly material: readonly { readonly map?: { readonly image?: unknown } | null }[]
+}
+
+interface ViewCameraLike {
+  readonly matrixWorldInverse: MatrixLike
+  readonly projectionMatrix: MatrixLike
+}
+
+interface CanvasElementLike {
+  readonly clientWidth: number
+  readonly clientHeight: number
+}
+
+interface PixelSource {
+  readonly width: number
+  readonly height: number
+  getContext(type: '2d'): {
+    getImageData(x: number, y: number, w: number, h: number): { readonly data: ArrayLike<number> }
+  } | null
+}
+
+type Vec3 = readonly [number, number, number]
+
+/** Reads the registered dome's drawn dice; null while no 3D renderer is live. */
+export function readDome(dome: DiceDomeController): DomeReadout | null {
+  const scene = dome.inspect()
+  if (scene === null) return null
+  const meshes = scene.dice as readonly [MeshLike, MeshLike]
+  const camera = scene.camera as ViewCameraLike
+  const canvas = scene.canvas as CanvasElementLike
+  const size = { width: canvas.clientWidth, height: canvas.clientHeight }
+  const { state, d1Body } = dome.store.getState()
+  return {
+    state,
+    still: scene.still,
+    d1Body,
+    canvas: size,
+    dice: [readDie(meshes[0], camera, size), readDie(meshes[1], camera, size)],
+  }
+}
+
+/** Pip counts by texture, so each is counted once. */
+const pipCache = new WeakMap<object, number>()
+
+function readDie(
+  mesh: MeshLike,
+  camera: ViewCameraLike,
+  size: { readonly width: number; readonly height: number },
+): DieReadout {
+  mesh.updateWorldMatrix(true, false)
+  const m = mesh.matrixWorld.elements
+  const turn = (v: Vec3): Vec3 => [
+    (m[0] ?? 0) * v[0] + (m[4] ?? 0) * v[1] + (m[8] ?? 0) * v[2],
+    (m[1] ?? 0) * v[0] + (m[5] ?? 0) * v[1] + (m[9] ?? 0) * v[2],
+    (m[2] ?? 0) * v[0] + (m[6] ?? 0) * v[1] + (m[10] ?? 0) * v[2],
+  ]
+  const groups = groupNormals(mesh.geometry)
+  let top = groups[0]
+  let up = -Infinity
+  for (const group of groups) {
+    const world = turn(group.normal)
+    const length = Math.hypot(world[0], world[1], world[2]) || 1
+    if (world[1] / length > up) {
+      up = world[1] / length
+      top = group
+    }
+  }
+  if (top === undefined) return { visible: mesh.visible, face: 0, up: 0, corners: [] }
+  const image = mesh.material[top.materialIndex]?.map?.image
+  const face = image === undefined ? 0 : pipsOn(image as PixelSource)
+  // The face's corners in the mesh's frame: its centre half an edge out along the normal, and
+  // half an edge along the two group normals that lie in its plane.
+  const n = top.normal
+  const inPlane = groups
+    .map((group) => group.normal)
+    .filter((normal) => Math.abs(normal[0] * n[0] + normal[1] * n[1] + normal[2] * n[2]) < 0.5)
+  const u = inPlane[0] ?? [1, 0, 0]
+  const v = inPlane.find(
+    (normal) => Math.abs(normal[0] * u[0] + normal[1] * u[1] + normal[2] * u[2]) < 0.5,
+  ) ?? [0, 0, 1]
+  const corners = [
+    [1, 1],
+    [1, -1],
+    [-1, -1],
+    [-1, 1],
+  ].map(([a = 0, b = 0]) => {
+    const local: Vec3 = [
+      0.5 * (n[0] + a * u[0] + b * v[0]),
+      0.5 * (n[1] + a * u[1] + b * v[1]),
+      0.5 * (n[2] + a * u[2] + b * v[2]),
+    ]
+    return toCanvas(camera, size, transform(m, local))
+  })
+  return { visible: mesh.visible, face, up, corners }
+}
+
+/** Each geometry group's material and its normals' average, unit length, in the mesh's frame. */
+function groupNormals(
+  geometry: MeshLike['geometry'],
+): readonly { readonly materialIndex: number; readonly normal: Vec3 }[] {
+  const normals = geometry.attributes.normal.array
+  const index = geometry.index?.array ?? null
+  return geometry.groups.map((group) => {
+    let x = 0
+    let y = 0
+    let z = 0
+    for (let k = group.start; k < group.start + group.count; k++) {
+      const vertex = index === null ? k : (index[k] ?? 0)
+      x += normals[3 * vertex] ?? 0
+      y += normals[3 * vertex + 1] ?? 0
+      z += normals[3 * vertex + 2] ?? 0
+    }
+    const length = Math.hypot(x, y, z) || 1
+    return { materialIndex: group.materialIndex ?? 0, normal: [x / length, y / length, z / length] }
+  })
+}
+
+/** A point through a column-major 4×4 matrix (w = 1). */
+function transform(m: ArrayLike<number>, p: Vec3): Vec3 {
+  const at = (k: number) => m[k] ?? 0
+  return [
+    at(0) * p[0] + at(4) * p[1] + at(8) * p[2] + at(12),
+    at(1) * p[0] + at(5) * p[1] + at(9) * p[2] + at(13),
+    at(2) * p[0] + at(6) * p[1] + at(10) * p[2] + at(14),
+  ]
+}
+
+/** A world point on the canvas, CSS pixels, through the camera's view and projection matrices. */
+function toCanvas(
+  camera: ViewCameraLike,
+  size: { readonly width: number; readonly height: number },
+  world: Vec3,
+): readonly [number, number] {
+  const view = transform(camera.matrixWorldInverse.elements, world)
+  const p = camera.projectionMatrix.elements
+  const at = (k: number) => p[k] ?? 0
+  const x = at(0) * view[0] + at(4) * view[1] + at(8) * view[2] + at(12)
+  const y = at(1) * view[0] + at(5) * view[1] + at(9) * view[2] + at(13)
+  const w = at(3) * view[0] + at(7) * view[1] + at(11) * view[2] + at(15)
+  return [((x / w + 1) / 2) * size.width, ((1 - y / w) / 2) * size.height]
+}
+
+/** The pips painted on a face texture, counted once per texture. */
+function pipsOn(image: PixelSource): number {
+  const cached = pipCache.get(image)
+  if (cached !== undefined) return cached
+  const context = typeof image.getContext === 'function' ? image.getContext('2d') : null
+  if (context === null) return 0
+  const { data } = context.getImageData(0, 0, image.width, image.height)
+  const count = countPips(data, image.width, image.height)
+  pipCache.set(image, count)
+  return count
+}
+
+/**
+ * Cream pips on a die face's RGBA pixels: the 4-connected bright, unsaturated blobs of at least
+ * `minArea` pixels (the red field and the pips' dark rims are never cream). Exported for its test.
+ */
+export function countPips(
+  data: ArrayLike<number>,
+  width: number,
+  height: number,
+  minArea = 100,
+): number {
+  const cream = new Uint8Array(width * height)
+  for (let i = 0; i < width * height; i++) {
+    const r = data[4 * i] ?? 0
+    const g = data[4 * i + 1] ?? 0
+    const b = data[4 * i + 2] ?? 0
+    cream[i] = r > 200 && g > 190 && b > 170 ? 1 : 0
+  }
+  let blobs = 0
+  const stack: number[] = []
+  for (let i = 0; i < width * height; i++) {
+    if (cream[i] !== 1) continue
+    let area = 0
+    cream[i] = 2
+    stack.push(i)
+    while (stack.length > 0) {
+      const p = stack.pop() ?? 0
+      area++
+      const x = p % width
+      const neighbours = [
+        x > 0 ? p - 1 : -1,
+        x < width - 1 ? p + 1 : -1,
+        p >= width ? p - width : -1,
+        p < width * (height - 1) ? p + width : -1,
+      ]
+      for (const q of neighbours) {
+        if (q >= 0 && cream[q] === 1) {
+          cream[q] = 2
+          stack.push(q)
+        }
+      }
+    }
+    if (area >= minArea) blobs++
+  }
+  return blobs
 }
 
 function parsePairs(pairs: readonly (readonly [number, number])[]): readonly Dice[] | null {

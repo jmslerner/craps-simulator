@@ -327,4 +327,31 @@ describe('takeDownAll', () => {
       batch(setAmount(1, 0), setAmount(2, 0)),
     )
   })
+
+  it('takes down a side bet that can still come down, and leaves one the dice have rolled on (M11 audit)', () => {
+    // The audit's repro (audit-m11/takedown.ts): pass $5 and a just-placed Low Rolls $1, which can
+    // still come down by hand.
+    const table = new Table().bet(place('pass', 500), place('luckyRollerLow', 100))
+    const fresh = takeDownAll(table.state, crapless)
+    expect(fresh).toStrictEqual(batch(setAmount(1, 0), setAmount(2, 0)))
+    table.run(fresh)
+    expect(table.state.bets).toEqual([])
+    // Once the dice roll the Lucky Roller is locked: Take down all leaves it, as any contract.
+    const rolled = new Table()
+      .bet(place('pass', 500), place('luckyRollerLow', 100))
+      .roll(1, 1)
+      .bet(placeOn('place', 6, 600))
+    const down = takeDownAll(rolled.state, crapless)
+    expect(down).toStrictEqual(batch(setAmount(3, 0)))
+    rolled.run(down)
+    expect(rolled.amounts()).toEqual({ 'pass@2': 500, 'luckyRollerLow@-': 100 })
+  })
+
+  it('Double Bet stays with the main game: a locked side bet never empties its batch', () => {
+    const table = new Table()
+      .bet(place('pass', 500), place('luckyRollerLow', 100))
+      .roll(1, 1)
+      .bet(placeOn('place', 6, 600))
+    expect(doubleBets(table.state, crapless)).toStrictEqual(batch(setAmount(3, 1_200)))
+  })
 })

@@ -4,10 +4,10 @@ import { isQualityChoice, TIER_ORDER } from './quality.ts'
 import './dome.css'
 
 /**
- * The player's quality pin (plan §7 Quality, M10b): a select in the dome's corner over the
- * controller's quality store. Auto follows the device class and the frame-time monitor and shows
- * the tier that gives; a pinned tier turns the monitor off. Shown only while WebGL works, since
- * it has nothing to set otherwise.
+ * The player's quality pin (plan §7 Quality, M10b): a select in the row under the dome over the
+ * controller's quality store, which keeps the pin in the settings (`domeQuality`). Auto follows
+ * the device class and the frame-time monitor and shows the tier that gives; a pinned tier turns
+ * the monitor off. Shown only while WebGL works, since it has nothing to set otherwise.
  */
 
 const LABELS: Readonly<Record<(typeof TIER_ORDER)[number], string>> = {

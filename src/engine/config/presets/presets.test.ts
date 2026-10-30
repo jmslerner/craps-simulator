@@ -220,7 +220,7 @@ describe('craplessBubble: the Interblock heads-up crapless machine', () => {
     expect(cfg.catalog.get('comeOdds')).toMatchObject({ comeOutDefault: 'off' })
   })
 
-  it('places 2/12 at 11:2, 3/11 at 11:4 and the rest at 9:5, 7:5 and 7:6, all [A]', () => {
+  it('places 2/12 at 11:2, 3/11 at 11:4 and the rest at 9:5, 7:5 and 7:6 [A]; 9 also [R]', () => {
     expect([2, 12].map((n) => net(cfg, 'place', n))).toEqual(['11:2', '11:2'])
     expect([3, 11].map((n) => net(cfg, 'place', n))).toEqual(['11:4', '11:4'])
     expect([4, 5, 6, 8, 9, 10].map((n) => net(cfg, 'place', n))).toEqual([
@@ -231,8 +231,11 @@ describe('craplessBubble: the Interblock heads-up crapless machine', () => {
       '7:5',
       '9:5',
     ])
-    // Interblock v2.5.1 removed its pay tables, so even the standard pays on 4 to 10 are assumed.
-    for (const n of cfg.ruleset.points) expect(status(`/catalog/place/pays/${n}`)).toBe('assumed')
+    // Interblock v2.5.1 removed its pay tables, so even the standard pays on 4 to 10 are assumed;
+    // only the 9 is seen on the player's own station ("PLACE 12 FOR 5", photo, plan §0 #28).
+    for (const n of cfg.ruleset.points) {
+      expect(status(`/catalog/place/pays/${n}`)).toBe(n === 9 ? 'reported' : 'assumed')
+    }
     expect(status('/catalog/place')).toBe('verified')
   })
 
@@ -281,7 +284,25 @@ describe('craplessBubble: the Interblock heads-up crapless machine', () => {
       '2:1',
     ])
     expect(net(cfg, 'field', '7')).toBeUndefined()
+    // The player's station photo prints the 2 "PAYS DOUBLE" (plan §0 #28); its 12 is out of frame.
+    expect(status('/catalog/field/pays/2')).toBe('verified')
     expect(status('/catalog/field/pays/12')).toBe('reported')
+  })
+
+  it('shows the chips and the "for" pay labels of the player\'s station (photo, plan §0 #28) [R]', () => {
+    // research interblock-station-photo-2026-10-30.md: $1 $2 $3 $5 $10 $25 $50 $100.
+    expect(cfg.chips).toEqual([100, 200, 300, 500, 1_000, 2_500, 5_000, 10_000])
+    expect(status('/chips')).toBe('reported')
+    expect(cfg.payLabelStyle).toBe('for')
+    expect(status('/payLabelStyle')).toBe('reported')
+    // Place 9 printed "12 FOR 5": 7:5 [R]; the other place pays stay as researched [A].
+    expect(net(cfg, 'place', 9)).toBe('7:5')
+    expect(status('/catalog/place/pays/9')).toBe('reported')
+    expect(status('/catalog/place/pays/8')).toBe('assumed')
+    // Hops 16/31 for 1 and the Lucky Roller 31/156/31 for 1: the screen and the photo agree [V].
+    expect(status('/catalog/hop13/pays')).toBe('verified')
+    expect(status('/catalog/hop22/pays')).toBe('verified')
+    expect(status('/sideBets/luckyRollerAll/pays')).toBe('verified')
   })
 
   it('pays props as the screen shows them, "for 1" [R]', () => {
@@ -320,7 +341,7 @@ describe('craplessBubble: the Interblock heads-up crapless machine', () => {
       expect(cfg.catalog.has(missing)).toBe(false)
   })
 
-  it('offers Lucky Roller at 30, 30 and 155 to 1 [R]', () => {
+  it('offers Lucky Roller at 30, 30 and 155 to 1 [V: the screen, VA and the station photo]', () => {
     const pays = ['luckyRollerLow', 'luckyRollerHigh', 'luckyRollerAll'].map((id) => {
       const bet = cfg.sideBets.get(id)
       return bet?.family === 'collectSet'
@@ -334,7 +355,7 @@ describe('craplessBubble: the Interblock heads-up crapless machine', () => {
     ])
     for (const id of ['luckyRollerLow', 'luckyRollerHigh', 'luckyRollerAll']) {
       expect(status(`/sideBets/${id}/targets`)).toBe('verified')
-      expect(status(`/sideBets/${id}/pays`)).toBe('reported')
+      expect(status(`/sideBets/${id}/pays`)).toBe('verified')
       expect(status(`/sideBets/${id}/placement`)).toBe('verified')
     }
   })
@@ -370,7 +391,7 @@ describe('craplessBubbleHighLimit: the same machine at high-limit stakes', () =>
   })
 
   it('adding the preset leaves craplessBubble untouched: its config hash still pins the fixture', () => {
-    expect(configHashOf(base)).toBe('4537b96ffb0ea61c')
+    expect(configHashOf(base)).toBe('b98393e15ab519bf')
     expect(configHashOf(high)).not.toBe(configHashOf(base))
   })
 
@@ -435,7 +456,7 @@ describe('the other presets', () => {
     expect(status('/catalog/place/payoutRoundingByNumber/6')).toBe('reported')
     expect(status('/catalog/place/payoutRoundingByNumber/8')).toBe('reported')
     // OFF chips use no credit on the machine [V STWO]; the trainer keeps their stake (plan §0 #23).
-    expect(cfg.notModelled).toEqual(['/offBets/consumeCredit'])
+    expect(cfg.notModelled).toEqual(['/offBets/consumeCredit', '/flow/shooter/mode'])
     expect(status('/offBets/consumeCredit')).toBe('verified')
     expect(cfg.catalog.get('dontPassOdds')).toMatchObject({ limit: { basis: 'stake' } })
     expect(cfg.catalog.get('dontComeOdds')).toMatchObject({ limit: { basis: 'win' } })
@@ -522,14 +543,40 @@ describe('the other presets', () => {
     expect(status('/sideBets/luckyShooter/topAward')).toBe('reported')
   })
 
-  it('models every value but Shoot To Win’s OFF chips that use no credit (plan §0 #23)', () => {
+  it('models every value but Shoot To Win’s OFF chips that use no credit and its community dome (plan §0 #23)', () => {
+    // The dome rolls on its own timer whatever a player has in; the trainer rolls when the player's
+    // bets meet the round minimum (M11 audit). The live table is a community game too, but has no
+    // round minimum, so nothing there gates a roll.
     expect(PRESET_IDS.map((id) => [id, compiled(id).notModelled])).toEqual([
       ['craplessBubble', []],
       ['craplessBubbleHighLimit', []],
-      ['traditionalBubble', ['/offBets/consumeCredit']],
+      ['traditionalBubble', ['/offBets/consumeCredit', '/flow/shooter/mode']],
       ['strictBubble', []],
       ['traditionalLive345', []],
     ])
+  })
+
+  it('traditionalLive345 posts real place, buy and lay minimums: a lay must win $20 (impl4 item 18)', () => {
+    const cfg = compiled('traditionalLive345')
+    const status = (pointer: string) => statusAt(cfg.provenance, pointer)
+    const mins = (typeId: string) => cfg.ruleset.points.map((n) => typeLimits(cfg, typeId, n).min)
+    // Points 4, 5, 6, 8, 9, 10. Each lay wins exactly $20 at its minimum: 1 to 2, 2 to 3, 5 to 6.
+    expect(mins('lay')).toEqual([4_000, 3_000, 2_400, 2_400, 3_000, 4_000])
+    expect(mins('buy')).toEqual([2_000, 2_000, 2_000, 2_000, 2_000, 2_000])
+    expect(mins('place')).toEqual([500, 500, 500, 500, 500, 500])
+    expect(typeLimits(cfg, 'lay').min).toBe(2_400)
+    expect(status('/limits/perType/lay')).toBe('verified')
+    expect(status('/limits/perType/lay/minByNumber')).toBe('verified')
+    expect(status('/limits/perType/buy')).toBe('verified')
+    expect(status('/limits/perType/place')).toBe('assumed')
+    // Nothing else moved: line bets from $10, props from $1, every other type its own.
+    expect(typeLimits(cfg, 'pass').min).toBe(1_000)
+    expect(typeLimits(cfg, 'field').min).toBe(100)
+    expect(typeLimits(cfg, 'placeToLose', 4).min).toBe(100)
+    // The other presets set no per-number minimum.
+    for (const id of PRESET_IDS.filter((other) => other !== 'traditionalLive345')) {
+      expect(compiled(id).limits.minByNumber.size, id).toBe(0)
+    }
   })
 
   it('traditionalLive345 takes odds and composites only in units that pay whole dollars [A]', () => {
@@ -726,7 +773,13 @@ function fingerprint(id: PresetId): string {
           ? ''
           : `steps ${Object.entries(own.incrementByNumber)
               .map(([n, unit]) => `${n}=${money(unit ?? 0)}`)
-              .join(' ')} ${tag(`/limits/perType/${typeId}/incrementByNumber`)}`
+              .join(' ')} ${tag(`/limits/perType/${typeId}/incrementByNumber`)} `
+      }${
+        own.minByNumber === undefined
+          ? ''
+          : `mins ${Object.entries(own.minByNumber)
+              .map(([n, min]) => `${n}=${money(min ?? 0)}`)
+              .join(' ')} ${tag(`/limits/perType/${typeId}/minByNumber`)}`
       }`.trimEnd(),
     ),
     `not modelled: ${list(cfg.notModelled)}`,

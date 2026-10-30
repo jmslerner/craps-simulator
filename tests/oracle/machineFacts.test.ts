@@ -7,6 +7,7 @@ import {
   DICE_PAIRS,
   factsFrom,
   incrementOf,
+  minimumOf,
   parseNet,
   payoutRoundingOf,
   typeFacts,
@@ -186,12 +187,14 @@ describe('factsFrom: bet types', () => {
       max: 50_000,
       increment: 100,
       incrementByNumber: none,
+      minByNumber: none,
     })
     expect(typeFacts(live, 'pass').limits).toEqual({
       min: 1_000,
       max: 500_000,
       increment: 100,
       incrementByNumber: none,
+      minByNumber: none,
     })
     expect(typeFacts(live, 'passOdds').limits.max).toBe(2_500_000)
     expect(typeFacts(live, 'dontComeOdds').limits.max).toBe(3_000_000)
@@ -200,6 +203,7 @@ describe('factsFrom: bet types', () => {
       max: 50_000,
       increment: 100,
       incrementByNumber: none,
+      minByNumber: none,
     })
   })
 
@@ -230,6 +234,20 @@ describe('factsFrom: bet types', () => {
       input.limits.perType = { place: { incrementByNumber: { '6': 0 } } as never }
     })
     expect(() => factsFrom(badValue)).toThrow(/whole cents/)
+  })
+
+  it('reads per-number minimums: a live lay must win $20 (rules spec §4.3, LIVE minimums)', () => {
+    const lay = typeFacts(live, 'lay')
+    expect([4, 5, 6, 8, 9, 10, null].map((n) => minimumOf(lay, n))).toEqual([
+      4_000, 3_000, 2_400, 2_400, 3_000, 4_000, 2_400,
+    ])
+    expect(typeFacts(live, 'buy').limits.min).toBe(2_000)
+    expect(minimumOf(typeFacts(live, 'place'), 6)).toBe(500)
+    expect(minimumOf(typeFacts(crapless, 'place'), 6)).toBe(100)
+    const badKey = edited('craplessBubble', (input) => {
+      input.limits.perType = { place: { minByNumber: { '7': 100 } } as never }
+    })
+    expect(() => factsFrom(badKey)).toThrow(/minByNumber\/7/)
   })
 
   it('rounds number bets per number where the machine says so (rules spec §4.1, §4.2)', () => {

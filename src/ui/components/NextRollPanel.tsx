@@ -16,8 +16,8 @@ import { rejectionText } from './rejectionText.ts'
 /**
  * The "Next roll" panel (plan §0 #18 lessons; the demo's Next roll section): one row per total
  * with its ways out of 36 as bars and a chance, the player's net if that total rolls, and which
- * bets it wins, loses, moves or returns; then "Your bets need", one line per bet with the totals
- * that win it and the totals that take it. Every figure comes from `selectNextRoll`, which
+ * bets it wins, loses, moves, returns or advances (a side bet moved on: M11); then "Your bets
+ * need", one line per bet with the totals that win it and the totals that take it. Every figure comes from `selectNextRoll`, which
  * dry-runs all 36 dice through the real engine on the shown table; this component computes
  * nothing and words nothing the engine did not say. A total shows two net lines when the dice
  * decide it differently (a hardway's 4-4 against the easy 8s). While a roll animates, the panel
@@ -195,6 +195,9 @@ function whoLine(outcome: DiceOutcome, cfg: MachineConfig): string {
       case 'push':
         parts.push(`${name} pushes`)
         break
+      case 'progress':
+        parts.push(`${name} advances`)
+        break
       case 'none':
       case 'off':
         break
@@ -246,6 +249,17 @@ function NeedRow({
     if (need.returnsOn.length > 0) {
       details.push(<span key="return">returned on {chips(need.returnsOn, 'return')}</span>)
     }
+    if (need.advancesOn.length > 0) {
+      details.push(
+        <span key="advance">
+          {need.advancesOn.length >= 7 ? (
+            'every other total advances it'
+          ) : (
+            <>advances on {chips(need.advancesOn, 'advance')}</>
+          )}
+        </span>,
+      )
+    }
     if (details.length === 0 && need.winsOn.length === 0) {
       details.push(<span key="none">no action on this roll</span>)
     }
@@ -289,7 +303,7 @@ function oddsBehind(need: BetNeeds, preview: NextRollPreview): BetNeeds | null {
   return preview.needs.find((other) => other.bet.parentId === need.bet.id) ?? null
 }
 
-type ChipKind = 'win' | 'lose' | 'move' | 'return'
+type ChipKind = 'win' | 'lose' | 'move' | 'return' | 'advance'
 
 /** Number chips, a space between them so the text reads as a list without styling. */
 function chips(needs: readonly NeedTotal[], kind: ChipKind): ReactNode {

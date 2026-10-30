@@ -2,15 +2,18 @@ import { cents, formatCents } from '../../engine/index.ts'
 import type { Cents } from '../../engine/index.ts'
 import { selectShown } from '../state/gameStore.ts'
 import type { RollEntry } from '../state/rollHistory.ts'
+import { CoachToggle } from './CoachPanel.tsx'
 import { useGameState, useUi } from './context.tsx'
+import { SessionMeters } from './SessionMeters.tsx'
 
 /**
- * The machine's top bar (plan §6; the demo's header): the brand lockup with the machine's name,
- * then the CREDIT, BET and WIN meters, all through `formatCents` and all from the engine — credit
- * is the shown ledger's bankroll, BET the stakes on the table, WIN the winnings the last roll paid
- * (each resolved bet's `winPaid` net of commission, from its `SettlementTrace`) — and the bank
- * pills: Add credit (plan §0 #19) and New game. The guide toggle and the coach-mode control live
- * in the coach panel (`CoachPanel`).
+ * The machine's top bar (plan §6, §0 #28): the cabinet's dark bezel over the felt. The brand
+ * lockup with the machine's name; the station's CREDIT, BET and WIN meters, all through
+ * `formatCents` and all from the engine — credit is the shown ledger's bankroll, BET the stakes on
+ * the table, WIN the winnings the last roll paid (each resolved bet's `winPaid` net of commission,
+ * from its `SettlementTrace`); the session meters beside them (CREDIT ADDED, TOTAL WAGERED,
+ * RESULT: rules spec §4.6, always on screen while playing); and the bank pills — Add credit (plan
+ * §0 #19), New game — with the Coach drawer's toggle at the right end.
  */
 
 export function Topbar() {
@@ -31,25 +34,25 @@ export function Topbar() {
         </h1>
         {machineName !== null && <p className="brand-tag machine-name">{machineName}</p>}
       </div>
-      <div className="topbar-right">
-        <div className="meters">
-          <Meter name="Credit" amount={credit} />
-          <Meter name="Bet" amount={onTable} />
-          <Meter name="Win" amount={win} up={win > 0} />
-        </div>
-        <div className="bank">
-          <button
-            type="button"
-            className={`add-credit${ui.highlight === 'control:add-credit' ? ' guide-target' : ''}`}
-            data-target="control:add-credit"
-            onClick={() => ui.openDialog('addCredit')}
-          >
-            + Add credit
-          </button>
-          <button type="button" onClick={() => ui.openDialog('newGame')}>
-            New game
-          </button>
-        </div>
+      <div className="meters">
+        <Meter name="Credit" amount={credit} />
+        <Meter name="Bet" amount={onTable} />
+        <Meter name="Win" amount={win} up={win > 0} />
+      </div>
+      <SessionMeters />
+      <div className="bank">
+        <button
+          type="button"
+          className={`add-credit${ui.highlight === 'control:add-credit' ? ' guide-target' : ''}`}
+          data-target="control:add-credit"
+          onClick={() => ui.openDialog('addCredit')}
+        >
+          + Add credit
+        </button>
+        <button type="button" className="new-game" onClick={() => ui.openDialog('newGame')}>
+          New game
+        </button>
+        <CoachToggle />
       </div>
     </header>
   )

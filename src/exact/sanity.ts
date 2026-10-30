@@ -1,4 +1,10 @@
-import { Fraction, type Cents, type MachineConfig } from '../engine/index.ts'
+import {
+  Fraction,
+  type Cents,
+  type CompiledSideBet,
+  type MachineConfig,
+  type Ratio,
+} from '../engine/index.ts'
 import {
   exactUnit,
   largestAmount,
@@ -48,9 +54,20 @@ import { typicalStart } from './start.ts'
  *   decision and player-favoured on every one after.
  *
  * Odds at true odds have an edge of exactly 0, so any rounding up of a lay-odds payout shows here.
+ * Odds that pay below true odds are plausible — a machine may pay 11:2 on a crapless 2 — but they
+ * are no longer free, so they carry a warning with their edge (`notFree`, plan §10 M12: 2/12 odds at
+ * 11:2 cost 1/14, 7.14%), which the machine editor shows beside the pay.
+ *
+ * Side bets (M11) are checked like every other bet, and their pay tables once more on their own
+ * (`payDrops`, a warning): a table that pays less as the bet makes progress — more points made,
+ * more rolls, more hits — is almost certainly mistyped, like the crapless Fire Bet's table A
+ * written for six points on a machine that counts ten, where a seventh point turns a 999 to 1 win
+ * into a loss (rules spec §6.6; the M11 audit's repro). The coach reads what settling now pays
+ * from the bet's current progress, so such a table shows as it plays, but the editor should say so.
  */
 
-export type SanityCode = 'playerAdvantage' | 'playerEven' | 'highEdge' | 'unanalysable'
+export type SanityCode =
+  'playerAdvantage' | 'playerEven' | 'highEdge' | 'notFree' | 'payDrops' | 'unanalysable'
 
 export interface SanityIssue {
   readonly severity: 'error' | 'warning'
@@ -71,10 +88,17 @@ export const PLAYER_ADVANTAGE = 'player advantage: almost certainly a data-entry
 
 export const PLAYER_EVEN = "player-even: almost certainly a 'for 1' pay typed as 'to 1'"
 
+export const PAY_DROPS = 'pays less for more progress: almost certainly a mistyped pay table'
+
+export const NOT_FREE = 'not free: these odds pay below true odds, so they carry a house edge'
+
 /** At most this many stakes per sweep. */
 const SWEEP_LIMIT = 240
 
-/** Every problem with `cfg`'s non-side bets; empty when all of them are plausible. */
+/**
+ * Every problem with `cfg`'s bets — the catalog's, the composites and the side bets
+ * (`catalogSpecs`) — empty when all of them are plausible.
+ */
 export function sanityCheck(cfg: MachineConfig): SanityIssue[] {
   return catalogSpecs(cfg).flatMap((spec) => checkBet(spec, cfg))
 }
@@ -82,12 +106,14 @@ export function sanityCheck(cfg: MachineConfig): SanityIssue[] {
 /** The problems with one bet (see the module comment). */
 export function checkBet(spec: BetSpec, cfg: MachineConfig): SanityIssue[] {
   const paths = configPathsOf(spec, cfg)
+  const side = cfg.sideBets.get(spec.typeId)
+  const drops = side === undefined ? [] : payDrops(spec, side, paths)
   try {
-    return issuesOf(spec, cfg, paths)
+    return [...issuesOf(spec, cfg, paths), ...drops]
   } catch (error) {
     if (!(error instanceof ExactError)) throw error
     // Odds the cap allows none of on a number cannot be placed there: nothing to check.
-    if (error.code === 'BAD_START') return []
+    if (error.code === 'BAD_START') return drops
     return [
       {
         severity: 'warning',
@@ -98,8 +124,88 @@ export function checkBet(spec: BetSpec, cfg: MachineConfig): SanityIssue[] {
         message: error.message,
         paths,
       },
+      ...drops,
     ]
   }
+}
+
+/** What a side bet settles for at one step of its progress: a loss, the stake back, or a win. */
+type StepPay = 'nothing' | 'push' | Ratio
+
+/**
+ * A side bet's pay table read step by step as the bet makes progress, each step with what the bet
+ * settles for if it ends there: the Fire Bet's counts of points made, from none to every counted
+ * point (or to `payImmediatelyAt`, which pays at once); the Hot Shooter's tiers in rising rolls,
+ * below the first tier a loss; the Lucky Shooter's hits, from none to every other box number, then
+ * every hit and the point. A Lucky Roller has one pay and cannot drop. A step that settles for less
+ * than the one before it is a warning (see the module comment).
+ */
+export function payDrops(
+  spec: BetSpec,
+  side: CompiledSideBet,
+  paths: readonly string[],
+): SanityIssue[] {
+  const steps: { readonly what: string; readonly pay: StepPay }[] = []
+  switch (side.family) {
+    case 'collectSet':
+      return []
+    case 'uniquePointsMade': {
+      const last = side.payImmediatelyAt ?? side.countedPoints.length
+      for (let count = 0; count <= last; count += 1) {
+        steps.push({
+          what: `${count} ${count === 1 ? 'point' : 'points'} made`,
+          pay: side.payTable.get(count) ?? 'nothing',
+        })
+      }
+      break
+    }
+    case 'handLength':
+      steps.push({ what: 'a hand under the first tier', pay: 'nothing' })
+      for (const tier of side.tiers) {
+        steps.push({ what: `${tier.minRolls} rolls`, pay: tier.pays })
+      }
+      break
+    case 'pointRun': {
+      const others = side.points.length - 1
+      for (let hits = 0; hits <= others; hits += 1) {
+        steps.push({
+          what: `${hits} ${hits === 1 ? 'hit' : 'hits'}`,
+          pay: side.payTable.get(hits) ?? 'nothing',
+        })
+      }
+      steps.push({ what: 'every hit and then the point', pay: side.topAward })
+      break
+    }
+  }
+  const issues: SanityIssue[] = []
+  for (let index = 1; index < steps.length; index += 1) {
+    const before = at(steps, index - 1)
+    const now = at(steps, index)
+    if (netOf(now.pay).compare(netOf(before.pay)) >= 0) continue
+    issues.push({
+      severity: 'warning',
+      code: 'payDrops',
+      spec,
+      amount: null,
+      edge: null,
+      message: `${PAY_DROPS}: ${now.what} ${payWords(now.pay)}, but ${before.what} ${payWords(before.pay)}`,
+      paths,
+    })
+  }
+  return issues
+}
+
+/** The net a step pays per unit staked: −1 for a loss, 0 for the stake back, the ratio for a win. */
+function netOf(pay: StepPay): Fraction {
+  if (pay === 'nothing') return Fraction.of(-1)
+  if (pay === 'push') return Fraction.ZERO
+  return Fraction.of(pay.num, pay.den)
+}
+
+function payWords(pay: StepPay): string {
+  if (pay === 'nothing') return 'loses'
+  if (pay === 'push') return 'returns the stake'
+  return `pays ${pay.label}`
 }
 
 function issuesOf(spec: BetSpec, cfg: MachineConfig, paths: readonly string[]): SanityIssue[] {
@@ -162,9 +268,21 @@ function issuesOf(spec: BetSpec, cfg: MachineConfig, paths: readonly string[]): 
     }
     // A bet that is exactly fair is almost always an Interblock "x for 1" pay entered "x to 1"
     // (plan §0 #10: Any 7 at 5:1 and P = 1/6 is dead even). Only free odds are fair by design
-    // (rules spec §8.1 rank 1), so the odds family is exempt.
+    // (rules spec §8.1 rank 1), so the odds family is exempt — and odds that are not fair, paying
+    // below true odds whatever the rounding, are flagged "not free" with their edge instead.
     const nominal = edgeOf(measure(life, unit, cfg, 'exact'))
     const family = cfg.catalog.get(spec.typeId)?.family
+    if (family === 'odds' && nominal.compare(Fraction.ZERO) > 0) {
+      issues.push({
+        severity: 'warning',
+        code: 'notFree',
+        spec,
+        amount: unit,
+        edge: nominal,
+        message: NOT_FREE,
+        paths,
+      })
+    }
     if (family !== 'odds' && (edge.isZero() || nominal.isZero())) {
       issues.push({
         severity: 'error',

@@ -1,4 +1,10 @@
-import type { BetInstance, CompiledSideBet, LegalBet, MachineConfig } from '../../engine/index.ts'
+import type {
+  BetInstance,
+  CompiledSideBet,
+  LegalBet,
+  MachineConfig,
+  Phase,
+} from '../../engine/index.ts'
 import {
   countingNote,
   payRows,
@@ -12,7 +18,8 @@ import { pipClass } from './ZoneButton.tsx'
 /**
  * The inspector's progress section for a side bet (plan §10 M11): the track with the numbers the
  * bet has collected lit (or the Hot Shooter's roll count), the machine's pay table with the row the
- * bet has reached and the next one marked, the counting rule from the config, and whether the bet
+ * bet has reached and the next one marked (where the coach says it stands: `payRows` reads the
+ * coach's `settlesNow` with the round's phase), the counting rule from the config, and whether the bet
  * can still be changed — the engine's own answer from `legalBets` (`canAdd`, `canRemove`), worded
  * by `rejectionText`, never decided here. These are machine facts and show in every coach mode;
  * the chance of the next tier and the equity are the coach's numbers (`coach/sideBetProgress.ts`,
@@ -22,15 +29,18 @@ export function SideBetProgress({
   side,
   bet,
   spot,
+  phase,
   cfg,
 }: {
   side: CompiledSideBet
   bet: BetInstance | null
   spot: LegalBet | null
+  /** The round's phase on the table shown: a Hot Shooter's next seven-out depends on it. */
+  phase: Phase
   cfg: MachineConfig
 }) {
   const progress = progressOf(side, bet?.progress ?? 0)
-  const rows = payRows(side, bet?.progress ?? 0)
+  const rows = payRows(side, bet?.progress ?? 0, phase)
   const track = trackOf(side)
   const note = countingNote(side)
   const status = statusOf(bet, spot, cfg)

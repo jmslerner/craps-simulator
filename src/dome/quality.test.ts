@@ -10,6 +10,7 @@ import {
   QUALITY_KEY,
   TIER_ORDER,
   TIERS,
+  type QualityChoice,
 } from './quality.ts'
 
 /**
@@ -37,9 +38,6 @@ function memoryStorage(initial: Record<string, string> = {}): Pick<
 describe('the tiers', () => {
   it('are ordered best first and spend less as they go down', () => {
     expect(TIER_ORDER).toStrictEqual(['high', 'medium', 'low'])
-    expect(TIERS.high.transmission && !TIERS.medium.transmission && !TIERS.low.transmission).toBe(
-      true,
-    )
     expect(TIERS.high.antialias && TIERS.medium.antialias && !TIERS.low.antialias).toBe(true)
     expect(TIERS.high.shadows && TIERS.medium.shadows && !TIERS.low.shadows).toBe(true)
     expect(TIERS.high.dpr).toStrictEqual([1, 2])
@@ -137,10 +135,7 @@ describe('the quality store', () => {
     expect(quality.getState().tier).toBe('high')
     expect(quality.getState().drop()).toBe(true)
     expect(quality.getState().tier).toBe('medium')
-    expect(JSON.parse(storage.kept.get(QUALITY_KEY) ?? '')).toStrictEqual({
-      override: 'auto',
-      measured: 'medium',
-    })
+    expect(JSON.parse(storage.kept.get(QUALITY_KEY) ?? '')).toStrictEqual({ measured: 'medium' })
     expect(quality.getState().drop()).toBe(true)
     expect(quality.getState().tier).toBe('low')
     expect(quality.getState().drop()).toBe(false)
@@ -159,20 +154,46 @@ describe('the quality store', () => {
 
   it('a pin wins, turns the monitor off and is kept; auto gives the measured tier back', () => {
     const storage = memoryStorage()
-    const quality = createQualityStore({ storage, device: 'medium' })
+    const written: string[] = []
+    let kept: QualityChoice = 'auto'
+    const pin = {
+      read: () => kept,
+      write: (choice: QualityChoice) => {
+        written.push(choice)
+        kept = choice
+      },
+    }
+    const quality = createQualityStore({ storage, device: 'medium', pin })
     quality.getState().drop()
     expect(quality.getState().tier).toBe('low')
     quality.getState().setOverride('high')
     expect(quality.getState().tier).toBe('high')
     expect(quality.getState().drop()).toBe(false)
     expect(quality.getState().tier).toBe('high')
-    expect(JSON.parse(storage.kept.get(QUALITY_KEY) ?? '')).toStrictEqual({
+    // The pin is the player's setting; the device key keeps only what the monitor measured.
+    expect(written).toStrictEqual(['high'])
+    expect(JSON.parse(storage.kept.get(QUALITY_KEY) ?? '')).toStrictEqual({ measured: 'low' })
+    // The next visit reads the pin back from the setting.
+    expect(createQualityStore({ storage, device: 'medium', pin }).getState()).toMatchObject({
       override: 'high',
-      measured: 'low',
+      tier: 'high',
     })
+    // Setting the same pin again writes nothing; auto gives the measured tier back.
+    quality.getState().setOverride('high')
+    expect(written).toStrictEqual(['high'])
     quality.getState().setOverride('auto')
     expect(quality.getState().tier).toBe('low')
-    expect(createQualityStore({ storage, device: 'medium' }).getState().override).toBe('auto')
+    expect(written).toStrictEqual(['high', 'auto'])
+  })
+
+  it('ignores the pin an older dome blob kept: the setting holds it now', () => {
+    const storage = memoryStorage({ [QUALITY_KEY]: '{"override":"low","measured":"medium"}' })
+    const quality = createQualityStore({ storage, device: 'high' })
+    expect(quality.getState()).toMatchObject({
+      override: 'auto',
+      measured: 'medium',
+      tier: 'medium',
+    })
   })
 
   it('shrugs off junk in storage and works without any', () => {

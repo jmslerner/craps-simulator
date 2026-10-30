@@ -43,6 +43,29 @@ describe('the Add credit dialog (plan §0 #19)', () => {
     expect(game.getState().view?.shown.ledger.bankroll).toBe(50_000)
   })
 
+  it('keeps the picked amount when focus only passes through the custom field (M14)', () => {
+    const { game } = renderApp()
+    fireEvent.click(screen.getByRole('button', { name: '+ Add credit' }))
+    const dialog = screen.getByRole('dialog', { name: 'Add credit' })
+    fireEvent.click(within(dialog).getByRole('radio', { name: '$50' }))
+    // A keyboard player tabs through the field on the way to the button.
+    fireEvent.focus(within(dialog).getByLabelText('Whole dollars'))
+    expect(within(dialog).getByRole('radio', { name: '$50' })).toBeChecked()
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Add credit' }))
+    expect(game.getState().view?.shown.ledger.bankroll).toBe(55_000)
+  })
+
+  it('a click inside the dialog keeps focus in it, so Escape still closes it (M14)', () => {
+    renderApp()
+    fireEvent.click(screen.getByRole('button', { name: '+ Add credit' }))
+    const dialog = screen.getByRole('dialog', { name: 'Add credit' })
+    // Safari never focuses a clicked button: focus goes to the nearest focusable ancestor.
+    expect(dialog).toHaveAttribute('tabindex', '-1')
+    dialog.focus()
+    fireEvent.keyDown(document.activeElement ?? dialog, { key: 'Escape' })
+    expect(screen.queryByRole('dialog')).toBeNull()
+  })
+
   it('traps focus and closes on Escape', () => {
     renderApp()
     const opener = screen.getByRole('button', { name: '+ Add credit' })

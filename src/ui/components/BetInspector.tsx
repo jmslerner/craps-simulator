@@ -248,7 +248,9 @@ export function BetInspector({ spot: ref }: { spot: SpotRef }) {
         </p>
       )}
 
-      {side !== null && <SideBetProgress side={side} bet={bet} spot={spot} cfg={cfg} />}
+      {side !== null && (
+        <SideBetProgress side={side} bet={bet} spot={spot} phase={shown.round.phase} cfg={cfg} />
+      )}
 
       <InspectorExtras spot={ref} />
 

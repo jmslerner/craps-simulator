@@ -39,20 +39,28 @@ describe('the shell', () => {
     expect(screen.getByTestId('meter-credit')).toHaveTextContent('$496.00')
   })
 
-  it('shows the session strip against deposits, so a top-up is never a win', () => {
+  it('shows the session against deposits, so a top-up is never a win', () => {
     const { run } = renderApp()
     run((state) => {
       state.deposit(cents(10_000))
     })
-    const strip = screen.getByTestId('session-strip')
-    expect(strip).toHaveTextContent('In $600.00')
-    expect(strip).toHaveTextContent('Result $0.00')
+    expect(screen.getByTestId('session-strip')).toHaveTextContent('Hand roll 1')
+    expect(screen.getByTestId('money-credit-added')).toHaveTextContent('$600.00')
+    expect(screen.getByTestId('money-result')).toHaveTextContent('$0.00')
+    expect(screen.getByTestId('meters-credit-added')).toHaveTextContent('$600.00')
+    expect(screen.getByTestId('meters-result')).toHaveTextContent('$0.00')
   })
 
   it('shows the approximation note once on a machine with values the engine plays otherwise', () => {
     renderApp({ cfg: COMPILED_PRESETS.traditionalBubble })
     const note = screen.getByRole('note')
-    expect(note).toHaveTextContent('/offBets/consumeCredit')
+    // In words, never as raw config pointers (/offBets/consumeCredit, /flow/shooter/mode).
+    expect(note).toHaveTextContent(
+      'This machine sets options the trainer approximates: its OFF bets use no credit, but the ' +
+        'trainer counts them against your credit; its shared dome rolls on its own timer, but the ' +
+        'trainer rolls only when you press ROLL. Everything else plays exactly.',
+    )
+    expect(note).not.toHaveTextContent('/')
     fireEvent.click(within(note).getByRole('button', { name: 'Got it' }))
     expect(screen.queryByRole('note')).toBeNull()
   })
@@ -148,9 +156,10 @@ describe('Set bets On (plan §0 #21, M5/M6 → M8 hand-off)', () => {
 })
 
 describe('keyboard play (plan §6)', () => {
-  it('selects chips with 1–6, toggles remove with X and undoes with U', () => {
+  it('selects chips with 1–9, toggles remove with X and undoes with U', () => {
     const { game, settings } = renderApp()
-    fireEvent.keyDown(document.body, { key: '2' })
+    // The station's rack is $1 $2 $3 $5 $10 $25 $50 $100 (plan §0 #28): key 4 is the $5 chip.
+    fireEvent.keyDown(document.body, { key: '4' })
     expect(settings.getState().selectedChip).toBe(500)
     fireEvent.click(screen.getByRole('button', { name: /^Pass Line/ }))
     expect(game.getState().view?.shown.bets[0]?.amount).toBe(500)

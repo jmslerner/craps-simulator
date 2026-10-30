@@ -23,7 +23,7 @@ import type {
   Total,
   WindowedSession,
 } from '../../engine/index.ts'
-import { rollEntryOf, type RollItem, type RoundEvent } from './rollHistory.ts'
+import { rollEntryOf, type ProgressItem, type RollItem, type RoundEvent } from './rollHistory.ts'
 
 /**
  * The "Next roll" panel's data (plan §0 #18 lessons; the demo's Next roll section): what every
@@ -35,14 +35,20 @@ import { rollEntryOf, type RollItem, type RoundEvent } from './rollHistory.ts'
  * settlement trace, the net from the ledgers) and group them by total. A total splits only where
  * the engine's events differ between its rolls — a hardway's 4-4 against the easy 8s, a hop's own
  * pair — which the dry-runs show rather than any rule written here. Ways out of 36 are counted
- * from the engine's dice module, and every chance is an exact `Fraction`.
+ * from the engine's dice module, and every chance is an exact `Fraction`. A side bet the roll moves
+ * on without deciding it (the engine's `betProgress`: a Lucky Roller collecting a total, a Hot
+ * Shooter counting the roll, a Fire point made, a Lucky Shooter's point or hit) has the fate
+ * `progress`, never "no action" (M11 audit).
  *
  * `cachedNextRoll` memoizes per shown table (by identity, then by state hash), so the 36 dry-runs
  * run once per betting change; `selectNextRoll` is the game-store selector built on it.
  */
 
-/** What one roll would do to one bet, read from the dry-run's events. */
-export type BetFate = 'win' | 'lose' | 'push' | 'travel' | 'returned' | 'none' | 'off'
+/**
+ * What one roll would do to one bet, read from the dry-run's events: `progress` is a side bet moved
+ * on without being decided (`betProgress`).
+ */
+export type BetFate = 'win' | 'lose' | 'push' | 'travel' | 'returned' | 'progress' | 'none' | 'off'
 
 export interface BetOutcome {
   readonly betId: BetId
@@ -59,6 +65,8 @@ export interface BetOutcome {
   readonly net: Cents
   /** Where a travelling bet moves; null otherwise. */
   readonly travelTo: PointNumber | null
+  /** A side bet's progress after the roll, when the roll moves it on; null otherwise. */
+  readonly progress: number | null
   /** The full settlement of a settled bet; null otherwise. */
   readonly trace: SettlementTrace | null
 }
@@ -81,6 +89,8 @@ export interface DiceOutcome {
   readonly losers: readonly BetOutcome[]
   /** The roll's bet-level events as the engine emitted them: what the history would list. */
   readonly items: readonly RollItem[]
+  /** The side bets the roll moves on (`betProgress`), as the history would list them. */
+  readonly progress: readonly ProgressItem[]
 }
 
 export interface HardSplit {
@@ -128,6 +138,8 @@ export interface BetNeeds {
   readonly movesOn: readonly NeedTotal[]
   /** Totals that hand the stake back: odds returned unplayed, or a push that ends the bet. */
   readonly returnsOn: readonly NeedTotal[]
+  /** Totals that move a side bet on without deciding it (`progress`). */
+  readonly advancesOn: readonly NeedTotal[]
   /** The chance the next roll wins (loses) this bet: its ways out of 36. */
   readonly winChance: Fraction
   readonly loseChance: Fraction
@@ -169,6 +181,7 @@ interface DryRun {
   readonly roundEvent: RoundEvent | null
   readonly endedHand: boolean
   readonly items: readonly RollItem[]
+  readonly progress: readonly ProgressItem[]
   readonly bets: readonly BetOutcome[]
   /** The events as data: two rolls with the same key would be listed identically by the history. */
   readonly key: string
@@ -200,7 +213,7 @@ export function nextRollPreview(session: WindowedSession, cfg: MachineConfig): N
       }
     }
     const entry = rollEntryOf(before, result.events, result.session.state)
-    const bets = betOutcomesOf(before, entry.items, cfg)
+    const bets = betOutcomesOf(before, entry.items, entry.progress, cfg)
     runs.push({
       dice,
       total: entry.total,
@@ -209,6 +222,7 @@ export function nextRollPreview(session: WindowedSession, cfg: MachineConfig): N
       roundEvent: entry.roundEvent,
       endedHand: entry.endedHand,
       items: entry.items,
+      progress: entry.progress,
       bets,
       key: canonicalJson({
         net: entry.net,
@@ -216,6 +230,7 @@ export function nextRollPreview(session: WindowedSession, cfg: MachineConfig): N
         roundEvent: entry.roundEvent,
         endedHand: entry.endedHand,
         items: entry.items,
+        progress: entry.progress,
       }),
     })
   }
@@ -254,6 +269,7 @@ function rowOf(total: Total, runs: readonly DryRun[]): NextRollRow {
         winners: first.bets.filter((bet) => bet.fate === 'win'),
         losers: first.bets.filter((bet) => bet.fate === 'lose'),
         items: first.items,
+        progress: first.progress,
       }
     })
     // Likeliest first; among equals, the one that is not the doubles alone.
@@ -284,23 +300,29 @@ function isHardOnly(outcome: DiceOutcome): boolean {
 }
 
 /**
- * Each bet's fate on a roll from the roll's bet-level events, in table order. A bet no event names
- * had no action: `none` when it works on the roll, `off` when it does not.
+ * Each bet's fate on a roll from the roll's bet-level events, in table order. A side bet the roll
+ * moves on (`betProgress`) and does not decide has the fate `progress`. A bet no event names had
+ * no action: `none` when it works on the roll, `off` when it does not.
  */
 function betOutcomesOf(
   before: TableState,
   items: readonly RollItem[],
+  progress: readonly ProgressItem[],
   cfg: MachineConfig,
 ): BetOutcome[] {
   interface Fold {
     readonly fate: BetFate
     readonly net: number
     readonly travelTo: PointNumber | null
+    readonly progress: number | null
     readonly trace: SettlementTrace | null
   }
   const folds = new Map<BetId, Fold>()
   const at = (betId: BetId): Fold =>
-    folds.get(betId) ?? { fate: 'none', net: 0, travelTo: null, trace: null }
+    folds.get(betId) ?? { fate: 'none', net: 0, travelTo: null, progress: null, trace: null }
+  for (const event of progress) {
+    folds.set(event.betId, { ...at(event.betId), fate: 'progress', progress: event.progress })
+  }
   for (const item of items) {
     switch (item.type) {
       case 'betResolved': {
@@ -351,12 +373,16 @@ function betOutcomesOf(
       fate: fold?.fate ?? (effectiveWorking(bet, before, cfg) ? 'none' : 'off'),
       net: cents(fold?.net ?? 0),
       travelTo: fold?.travelTo ?? null,
+      progress: fold?.progress ?? null,
       trace: fold?.trace ?? null,
     }
   })
 }
 
-/** What each bet needs: the totals (and which of their rolls) that win, lose, move or return it. */
+/**
+ * What each bet needs: the totals (and which of their rolls) that win, lose, move, return or
+ * advance it.
+ */
 function needsOf(before: TableState, rows: readonly NextRollRow[], cfg: MachineConfig): BetNeeds[] {
   return before.bets.map((bet, index): BetNeeds => {
     const where = (keep: (outcome: BetOutcome) => boolean): NeedTotal[] =>
@@ -383,6 +409,8 @@ function needsOf(before: TableState, rows: readonly NextRollRow[], cfg: MachineC
           outcome.fate === 'returned' ||
           (outcome.fate === 'push' && outcome.trace?.stakeDisposition === 'returned'),
       ),
+      // A side bet moved on (M11 audit: not "no action").
+      advancesOn: byFate('progress'),
       winChance: Fraction.of(waysIn(winsOn), WAYS_IN_ALL),
       loseChance: Fraction.of(waysIn(losesOn), WAYS_IN_ALL),
     }

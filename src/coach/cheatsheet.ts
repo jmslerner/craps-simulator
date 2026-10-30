@@ -1,6 +1,12 @@
 import type { Cents, MachineConfig } from '../engine/index.ts'
 import type { CatalogRow } from '../exact/catalog.ts'
-import { atMinimumNote, notModelledNote, sheetCost, sheetDetail } from './content/layout.ts'
+import {
+  atMinimumNote,
+  notModelledNote,
+  notModelledWords,
+  sheetCost,
+  sheetDetail,
+} from './content/layout.ts'
 import { sideBetSheetNote } from './content/sideBets.ts'
 import { returnsUnplayed, winChanceOfDecisions } from './decisions.ts'
 import { coachMoney, coachPercent, coachProbability, coachRolls, sourceOf } from './numbers.ts'
@@ -54,7 +60,7 @@ export function sheetFromRows(rows: readonly CatalogRow[], cfg: MachineConfig): 
     notModelled:
       cfg.notModelled.length === 0
         ? null
-        : { id: 'not-modelled', parts: notModelledNote(cfg.notModelled.join(', ')) },
+        : { id: 'not-modelled', parts: notModelledNote(notModelledWords(cfg.notModelled)) },
   }
 }
 
@@ -112,5 +118,5 @@ function sheetRow(row: CatalogRow, cfg: MachineConfig): SheetRow {
 /** The side-bet note of a row, from the family of the side bet it prices; null otherwise. */
 function sideNote(row: CatalogRow, cfg: MachineConfig): CoachLine | null {
   const side = cfg.sideBets.get(row.spec.typeId)
-  return side === undefined ? null : { id: 'side-note', parts: sideBetSheetNote(side.family) }
+  return side === undefined ? null : { id: 'side-note', parts: sideBetSheetNote(side) }
 }

@@ -25,6 +25,8 @@ export const KEYS = {
   sessionPrefix: (id: string) => `session:${id}:`,
   /** An invalid blob, moved aside so the next load starts fresh (plan §8). */
   corrupt: (timestamp: number) => `corrupt:${timestamp}`,
+  /** The player's own machines (`machineRepo.ts`, M12). */
+  machines: 'machines:v1',
 } as const
 
 let store: UseStore | null = null

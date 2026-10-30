@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react'
+import { act, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { analyzeZone } from '../services/testHooks.ts'
 import { setAnalysisTransportForTests } from '../services/analysisClient.ts'
@@ -45,6 +45,22 @@ describe('the zone coach badge', () => {
       const badge = await within(zone).findByText(expected?.badge ?? '--')
       expect(badge).toBeInTheDocument()
     }
+  })
+
+  it('says the badge it shows in the zone’s name, graded, and only where the mode shows it', async () => {
+    const app = renderApp()
+    const expected = analyzeZone(CRAPLESS, 'place', 6)
+    expect(expected?.grade).toBe('good') // so Quiet hides it (plan §5.6)
+    const zone = screen.getByRole('button', { name: /^Place 6/ })
+    await within(zone).findByText(expected?.badge ?? '--')
+    // M14: the badge's number exactly as drawn, then its grade, which the colour alone carries.
+    const spoken = (expected?.badge ?? '').replace('%', ' percent')
+    expect(zone).toHaveAccessibleName(
+      `Place 6, no bet, pays 7 to 6, house edge ${spoken}, ${expected?.grade ?? ''}`,
+    )
+    act(() => app.settings.getState().update({ coachMode: 'hints' }))
+    expect(zone.querySelector('[data-coach-badge]')).toBeNull()
+    expect(zone).toHaveAccessibleName('Place 6, no bet, pays 7 to 6')
   })
 
   it('shows no coach badge while the analysis has not arrived', () => {

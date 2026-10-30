@@ -98,6 +98,7 @@ export const strictBubble: MachineConfigInput = deepFreeze({
   limits: {
     min: 100,
     max: 50_000,
+    perType: { luckyShooter: { max: 10_000 } },
     minTotal: { amount: 500, scope: 'totalRound', countOff: false, countSideBets: false },
   },
   chips: [100, 500, 1_000, 2_500, 5_000, 10_000],
@@ -396,6 +397,11 @@ export const strictBubble: MachineConfigInput = deepFreeze({
       status: 'assumed',
       source: 'WSGC-ETG',
       note: '$500 per wager, the Washington tribal ETG cap.',
+    },
+    '/limits/perType/luckyShooter': {
+      status: 'verified',
+      source: 'IBLS',
+      note: "Interblock takes the Lucky Shooter at 1 to 100 credits (not dollars): $1 to $100 at this machine's $1 credit.",
     },
     '/limits/minTotal': {
       status: 'verified',

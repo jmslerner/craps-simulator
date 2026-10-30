@@ -1,6 +1,7 @@
 import { useStore } from 'zustand'
 import { createStore, type StoreApi } from 'zustand/vanilla'
 import {
+  cents,
   clearWindow,
   dispatchBetting,
   doubleBets,
@@ -27,10 +28,23 @@ import type {
   MachineConfig,
   Rejection,
   RejectionCode,
+  SessionHeader,
   TableState,
   WindowRecord,
   WindowedSession,
 } from '../../engine/index.ts'
+import {
+  addBetting,
+  addRoll,
+  metersOfDeposits,
+  metersOfSession,
+  sessionTotals,
+  startMeters,
+  withOpenWindow,
+  type SessionMeters,
+  type SessionMetersPair,
+  type SessionTotals,
+} from '../../coach/summary/meters.ts'
 import type { SessionMeta, SessionNotice } from '../../persistence/sessionRepo.ts'
 import { nextStep, type NextStep, type NextStepSettings } from './nextStep.ts'
 import {
@@ -52,6 +66,13 @@ import {
  * surface as data (`rejection`: the engine's code and details plus the zone that asked), never as
  * a throw. The roll lifecycle (`beginRoll` → `reveal` → `finishReveal`) is driven by
  * `ui/services/rollFlow.ts`, which persists the outcome before any animation.
+ *
+ * The session meters (rules spec §4.6: the deposits, the total wagered and the commission's parts)
+ * are kept live beside the session as a fold over its log (`coach/summary/meters.ts`): each kept
+ * betting action adds its events, an undo or a clear refolds the open window from the committed
+ * windows' meters, and a roll adds its settlements. Like the table, the meters shown trail the
+ * engine during a roll (`meters` follows `view.shown`), and a restore recomputes them from the
+ * whole log, so a reload shows exactly what play showed.
  */
 
 export type ViewPhase = 'betting' | 'rolling' | 'revealing'
@@ -110,6 +131,13 @@ export interface GameSnapshot {
   readonly scriptQueue: readonly Dice[]
   /** The entry `reveal` appends, built at `beginRoll` so the reveal needs no recompute. */
   readonly pendingEntry: RollEntry | null
+  /**
+   * The session meters of the table the player sees (`view.shown`): during a roll still the
+   * pre-roll figures, so no meter reveals the result before the dice do.
+   */
+  readonly meters: SessionMeters | null
+  /** The meters of the committed windows: what the open window's actions add to. */
+  readonly committedMeters: SessionMeters | null
 }
 
 export interface GameActions {
@@ -171,10 +199,45 @@ const EMPTY: GameSnapshot = {
   notice: null,
   scriptQueue: [],
   pendingEntry: null,
+  meters: null,
+  committedMeters: null,
 }
 
 function lockedRejection(): Rejection {
   return { code: 'WINDOW_CLOSED', details: { reason: 'The dice are rolling' } }
+}
+
+/**
+ * The meters after a betting action: the action the log kept (the last of `after.pending`) with its
+ * events; unchanged when the log kept nothing (a refusal, or an action that changed no table).
+ */
+function metersAfterBetting(
+  state: GameSnapshot,
+  before: WindowedSession,
+  after: WindowedSession,
+  events: readonly GameEvent[],
+  cfg: MachineConfig,
+): SessionMeters | null {
+  if (after === before) return state.meters
+  const logged = after.pending.at(-1)
+  if (state.meters !== null && logged !== undefined) {
+    return addBetting(state.meters, logged, events, after.state.round.rollIndex)
+  }
+  return state.committedMeters === null ? null : withOpenWindow(state.committedMeters, after, cfg)
+}
+
+/**
+ * A restored session's meters, from its whole log. A log this engine cannot replay keeps the
+ * deposits it records (`metersOfSession` does that itself for a replay failure); anything else
+ * that stops the fold — a stored header whose machine now compiles to another hash — falls back
+ * the same way, so a resume never fails over its meters.
+ */
+function restoredMeters(session: WindowedSession, cfg: MachineConfig): SessionMetersPair {
+  try {
+    return metersOfSession(session, cfg)
+  } catch {
+    return metersOfDeposits(session, cfg.startingBankroll)
+  }
 }
 
 export function createGameStore(): StoreApi<GameState> {
@@ -206,6 +269,7 @@ export function createGameStore(): StoreApi<GameState> {
         session: result.session,
         view: { phase: 'betting', shown: result.session.state },
         rejection: null,
+        meters: metersAfterBetting(get(), session, result.session, result.events, cfg),
       })
       return result
     }
@@ -215,6 +279,7 @@ export function createGameStore(): StoreApi<GameState> {
 
       startGame: (cfg, seed, options = {}) => {
         const session = newSession(cfg, seed)
+        const meters = startMeters(cfg.startingBankroll)
         set({
           ...EMPTY,
           cfg,
@@ -222,10 +287,14 @@ export function createGameStore(): StoreApi<GameState> {
           session,
           view: { phase: 'betting', shown: session.state },
           notice: options.notice ?? null,
+          meters,
+          committedMeters: meters,
         })
       },
 
       restoreGame: ({ cfg, session, meta, notice, history }) => {
+        // From the whole log, never from the capped history: a reload shows what play showed.
+        const meters = restoredMeters(session, cfg)
         set({
           ...EMPTY,
           cfg,
@@ -234,6 +303,8 @@ export function createGameStore(): StoreApi<GameState> {
           view: { phase: 'betting', shown: session.state },
           notice: notice ?? null,
           history: history ?? emptyHistory(true),
+          meters: meters.current,
+          committedMeters: meters.committed,
         })
       },
 
@@ -243,19 +314,30 @@ export function createGameStore(): StoreApi<GameState> {
         applyBetting({ type: 'deposit', amount }, zone),
 
       undoLast: () => {
-        const { cfg, session, view } = get()
+        const { cfg, session, view, committedMeters } = get()
         if (cfg === null || session === null || view?.phase !== 'betting') return false
         const undone = undo(session, cfg)
         if (undone === null) return false
-        set({ session: undone, view: { phase: 'betting', shown: undone.state }, rejection: null })
+        set({
+          session: undone,
+          view: { phase: 'betting', shown: undone.state },
+          rejection: null,
+          // An undone deposit or bet leaves the log, so the open window is folded again.
+          meters: committedMeters === null ? null : withOpenWindow(committedMeters, undone, cfg),
+        })
         return true
       },
 
       clearBets: () => {
-        const { cfg, session, view } = get()
+        const { cfg, session, view, committedMeters } = get()
         if (cfg === null || session === null || view?.phase !== 'betting') return
         const cleared = clearWindow(session, cfg)
-        set({ session: cleared, view: { phase: 'betting', shown: cleared.state }, rejection: null })
+        set({
+          session: cleared,
+          view: { phase: 'betting', shown: cleared.state },
+          rejection: null,
+          meters: committedMeters === null ? null : withOpenWindow(committedMeters, cleared, cfg),
+        })
       },
 
       enqueueDice: (dice) => {
@@ -280,6 +362,9 @@ export function createGameStore(): StoreApi<GameState> {
         const next = result.session.state
         const rolled = result.events.find((event) => event.type === 'diceRolled')
         if (rolled === undefined) throw new Error('a roll must emit diceRolled')
+        // The roll commits the open window: its meters plus the roll's settlements. `meters` keeps
+        // the pre-roll figures the shown table has until the reveal.
+        const { meters } = get()
         set({
           session: result.session,
           view: { phase: 'rolling', shown: prev, next, events: result.events },
@@ -287,6 +372,7 @@ export function createGameStore(): StoreApi<GameState> {
           rejection: null,
           scriptQueue: queued === undefined ? scriptQueue : scriptQueue.slice(1),
           pendingEntry: rollEntryOf(prev, result.events, next, cfg),
+          committedMeters: meters === null ? null : addRoll(meters, result.events, cfg),
         })
         return {
           ok: true,
@@ -301,12 +387,13 @@ export function createGameStore(): StoreApi<GameState> {
       },
 
       reveal: () => {
-        const { view, history, pendingEntry } = get()
+        const { view, history, pendingEntry, committedMeters } = get()
         if (view === null || view.phase !== 'rolling' || view.next === undefined) return
         set({
           view: { ...view, phase: 'revealing', shown: view.next },
           history: pendingEntry === null ? history : pushRoll(history, pendingEntry),
           pendingEntry: null,
+          meters: committedMeters,
         })
       },
 
@@ -346,6 +433,40 @@ export const selectBankroll = (state: GameState): Cents | null =>
 
 export const selectCanUndo = (state: GameState): boolean =>
   state.view?.phase === 'betting' && (state.session?.pending.length ?? 0) > 0
+
+/**
+ * The session's result on the shown table (plan §0 #19): credit plus the bets up at face value,
+ * less every deposit, so a top-up is never a win. The session strip and the session meters show
+ * this one figure.
+ */
+export const selectSessionResult = (state: GameState): Cents | null => {
+  const shown = state.view?.shown
+  if (shown === undefined) return null
+  const onTable = shown.bets.reduce((sum, bet) => sum + bet.amount, 0)
+  return cents(shown.ledger.bankroll + onTable - shown.ledger.deposits)
+}
+
+/**
+ * The session meters as the screens show them (rules spec §4.6): credit added and its deposits, the
+ * total wagered and the commission paid, for the shown table — so during a roll they still read as
+ * before it. Memoized per shown table and meters.
+ */
+export const selectSessionTotals: (state: GameState) => SessionTotals | null = (() => {
+  const cache = new WeakMap<
+    TableState,
+    { readonly meters: SessionMeters; readonly value: SessionTotals }
+  >()
+  return (state) => {
+    const shown = state.view?.shown
+    const { meters } = state
+    if (shown === undefined || meters === null) return null
+    const hit = cache.get(shown)
+    if (hit !== undefined && hit.meters === meters) return hit.value
+    const value = sessionTotals(meters, shown.ledger)
+    cache.set(shown, { meters, value })
+    return value
+  }
+})()
 
 /** Caches one value per shown table (and config), so selectors stay referentially stable. */
 function memoByTable<T>(
@@ -482,3 +603,54 @@ export const selectWorkingToggle: (state: GameState) => WorkingToggleView | null
   })
   return (state) => compute(state) ?? null
 })()
+
+// ---------------------------------------------------------------------------------------------
+// The session summary (plan §5.7, §10 M13).
+// ---------------------------------------------------------------------------------------------
+
+/**
+ * What the session summary replays: the session's machine and its log, the open window's actions
+ * included. The summary is derived from the log alone, so a resumed session summarises exactly as
+ * the live one did.
+ */
+export interface SummaryLog {
+  readonly cfg: MachineConfig
+  readonly header: SessionHeader
+  readonly committed: readonly WindowRecord[]
+  readonly pending: readonly Action[]
+  /**
+   * The session meters of the same log (rules spec §4.6), for the summary to show beside its own
+   * figures; null when the store has none.
+   */
+  readonly money: SessionTotals | null
+}
+
+/** The session's log for the summary, or null with no session; one object per session. */
+export const selectSummaryLog: (state: GameState) => SummaryLog | null = (() => {
+  const cache = new WeakMap<WindowedSession, SummaryLog>()
+  return (state) => {
+    const { cfg, session } = state
+    if (cfg === null || session === null) return null
+    const hit = cache.get(session)
+    if (hit !== undefined && hit.cfg === cfg) return hit
+    // The meters of the session itself, not of the shown table: mid-roll that is the committed
+    // windows' (the roll has closed the window), otherwise the shown meters.
+    const meters = state.view?.phase === 'betting' ? state.meters : state.committedMeters
+    const log: SummaryLog = {
+      cfg,
+      header: session.header,
+      committed: session.committed,
+      pending: session.pending,
+      money: meters === null ? null : sessionTotals(meters, session.state.ledger),
+    }
+    cache.set(session, log)
+    return log
+  }
+})()
+
+/**
+ * Whether the summary may open now: a session is on and the betting window is open, so no roll
+ * the table has not revealed yet is summarised.
+ */
+export const selectSummaryAvailable = (state: GameState): boolean =>
+  state.session !== null && state.cfg !== null && state.view?.phase === 'betting'

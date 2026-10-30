@@ -1,11 +1,21 @@
 import {
+  Fraction,
   collectSetRemaining,
   collectSetRolled,
+  handLengthCounted,
   pointRunHits,
   pointRunState,
   uniquePointsMade,
 } from '../../engine/index.ts'
-import type { CompiledSideBet, PointNumber, SettlementTrace, Total } from '../../engine/index.ts'
+import type {
+  CompiledSideBet,
+  Phase,
+  PointNumber,
+  Ratio,
+  SettlementTrace,
+  Total,
+} from '../../engine/index.ts'
+import { settlesNow } from '../../coach/sideBetStanding.ts'
 
 /**
  * A side bet's progress as the layout, the inspector and the history show it (plan §0 #11, §10
@@ -16,7 +26,9 @@ import type { CompiledSideBet, PointNumber, SettlementTrace, Total } from '../..
  * and the numbers the dice have shown. The chances and the equity are the coach's (plan §5.4
  * `sideBetProgress`): `coach/sideBetProgress.ts` prices them in the analysis worker and carries
  * them on `InspectorMath.sideBet`, with its lines (`side-stage`, `side-now`, `side-next`,
- * `side-chances`) appended to `InspectorMath.lines`, which `InspectorExtras` renders verbatim.
+ * `side-chances`) appended to `InspectorMath.lines`, which `InspectorExtras` renders verbatim. The
+ * pay table marks where the bet stands from the coach's own reading (`settlesNow`), so the marked
+ * rows and the coach's "Settled now" and "Next step" lines always name the same tiers (M11 audit).
  */
 
 /** The numbers a side-bet zone draws as pips, lit as the bet collects them; null for a roll counter. */
@@ -64,13 +76,16 @@ export function progressOf(type: CompiledSideBet, progress: number): SideBetProg
           : `${lit.length} ${plural(lit.length, 'point')} made (${listNumbers(lit)})`
       return { lit, point: null, count: null, words }
     }
-    case 'handLength':
+    case 'handLength': {
+      // The rolls the hand has counted so far: all of them, but C's first come-out.
+      const count = handLengthCounted(type, progress)
       return {
         lit: [],
         point: null,
-        count: progress,
-        words: `${progress} ${plural(progress, 'roll')} counted`,
+        count,
+        words: `${count} ${plural(count, 'roll')} counted`,
       }
+    }
     case 'pointRun': {
       const { point } = pointRunState(progress)
       const lit = pointRunHits(progress)
@@ -93,14 +108,57 @@ export interface PayRow {
   readonly reach: string
   /** The pay as the machine writes it ("24 to 1"), or "stake back" for a 1-for-1 tier. */
   readonly pays: string
-  /** The bet stands at or past this row. */
+  /** The bet stands at or past this row: settling now pays it, or a row after it. */
   readonly reached: boolean
-  /** The first row above where the bet stands. */
+  /** The next pay step up: the row the coach's "Next step" names. */
   readonly next: boolean
 }
 
-/** The pay table of `type` with the bet's standing marked; `progress` 0 marks only the first row next. */
-export function payRows(type: CompiledSideBet, progress: number): readonly PayRow[] {
+/** A row before marking, with its net pay per unit (0 for the stake back) to compare by. */
+interface TableRow {
+  readonly key: string
+  readonly reach: string
+  readonly pays: string
+  readonly net: Fraction
+}
+
+const COME_OUT: Phase = { kind: 'comeOut' }
+
+/**
+ * The pay table of `type` with where a bet with `progress` stands, the round in `phase`: the row
+ * settling now pays (`settlesNow`: the bet's earliest deciding roll, without improving — the coach's
+ * own reading) and every row before it are reached; the next row is the lowest pay above it among
+ * the rows after it, as the coach's next tier is the lowest cash above settling now. So a Hot
+ * Shooter whose seven-out roll will count, or whose hand on the come-out has two rolls to go, marks
+ * the tier that roll lands in, not the one its count has passed. An empty spot (`progress` 0 on the
+ * come-out) marks only the first paying row next.
+ */
+export function payRows(
+  type: CompiledSideBet,
+  progress: number,
+  phase: Phase = COME_OUT,
+): readonly PayRow[] {
+  const rows = tableRows(type)
+  const now = settlesNow(type, progress, phase)
+  const at = now.row === null ? -1 : rows.findIndex((row) => row.key === now.row)
+  const floor = at === -1 ? Fraction.of(-1) : (rows[at]?.net ?? Fraction.of(-1))
+  let next = -1
+  for (const [index, row] of rows.entries()) {
+    if (index <= at || row.net.compare(floor) <= 0) continue
+    const best = rows[next]
+    if (best === undefined || row.net.compare(best.net) < 0) next = index
+  }
+  return rows.map(({ key, reach, pays }, index) => ({
+    key,
+    reach,
+    pays,
+    reached: index <= at,
+    next: index === next,
+  }))
+}
+
+/** The rows of `type`'s pay table in the machine's order, unmarked. */
+function tableRows(type: CompiledSideBet): readonly TableRow[] {
   switch (type.family) {
     case 'collectSet':
       return [
@@ -108,58 +166,56 @@ export function payRows(type: CompiledSideBet, progress: number): readonly PayRo
           key: 'set',
           reach: `all of ${listNumbers(type.targets)}`,
           pays: type.pays.label,
-          reached: false,
-          next: true,
+          net: netOf(type.pays),
         },
       ]
-    case 'uniquePointsMade': {
-      const made = uniquePointsMade(progress).length
-      return markNext(
-        sortedKeys(type.payTable).map((count) => ({
+    case 'uniquePointsMade':
+      return sortedKeys(type.payTable).map((count) => {
+        const pays = type.payTable.get(count)
+        return {
           key: String(count),
           reach: `${count} ${plural(count, 'point')}`,
-          pays: type.payTable.get(count)?.label ?? '',
-          reached: count <= made,
-          next: false,
-        })),
-      )
-    }
+          pays: pays?.label ?? '',
+          net: pays === undefined ? Fraction.ZERO : netOf(pays),
+        }
+      })
     case 'handLength':
-      return markNext(
-        type.tiers.map((tier) => ({
-          key: String(tier.minRolls),
-          reach: `${tier.minRolls}+ ${plural(tier.minRolls, 'roll')}`,
-          pays: tier.pays === 'push' ? 'stake back' : tier.pays.label,
-          reached: tier.minRolls <= progress,
-          next: false,
-        })),
-      )
+      return type.tiers.map((tier) => ({
+        key: String(tier.minRolls),
+        reach: `${tier.minRolls}+ ${plural(tier.minRolls, 'roll')}`,
+        pays: tier.pays === 'push' ? 'stake back' : tier.pays.label,
+        net: tier.pays === 'push' ? Fraction.ZERO : netOf(tier.pays),
+      }))
     case 'pointRun': {
-      const hits = pointRunHits(progress).length
       const others = type.points.length - 1
-      return markNext([
-        ...sortedKeys(type.payTable).map((count) => ({
-          key: String(count),
-          reach: `${count} ${plural(count, 'hit')}`,
-          pays: type.payTable.get(count)?.label ?? '',
-          reached: count <= hits,
-          next: false,
-        })),
+      return [
+        ...sortedKeys(type.payTable).map((count) => {
+          const pays = type.payTable.get(count)
+          return {
+            key: String(count),
+            reach: `${count} ${plural(count, 'hit')}`,
+            pays: pays?.label ?? '',
+            net: pays === undefined ? Fraction.ZERO : netOf(pays),
+          }
+        }),
         {
           key: 'top',
           reach: `all ${others} hits, then the point`,
           pays: type.topAward.label,
-          reached: false,
-          next: false,
+          net: netOf(type.topAward),
         },
-      ])
+      ]
     }
   }
 }
 
+function netOf(ratio: Ratio): Fraction {
+  return Fraction.of(ratio.num, ratio.den)
+}
+
 /** The machine's top pay for the bet, as written: the zone's one-line summary of the table. */
 export function topPayLabel(type: CompiledSideBet): string {
-  const rows = payRows(type, 0)
+  const rows = tableRows(type)
   return rows[rows.length - 1]?.pays ?? ''
 }
 
@@ -264,10 +320,4 @@ function plural(count: number | string, word: string): string {
 
 function sortedKeys(table: ReadonlyMap<number, unknown>): number[] {
   return [...table.keys()].sort((a, b) => a - b)
-}
-
-/** Marks the first row the bet has not reached as the next one. */
-function markNext(rows: readonly PayRow[]): readonly PayRow[] {
-  const index = rows.findIndex((row) => !row.reached)
-  return rows.map((row, i) => (i === index ? { ...row, next: true } : row))
 }

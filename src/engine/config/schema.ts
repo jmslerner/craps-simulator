@@ -286,9 +286,10 @@ export const MachineConfigInputSchema = z.strictObject({
     max: PositiveCentsSchema,
     tableMax: PositiveCentsSchema.optional(),
     /**
-     * Limits of one bet type, composite or side bet. `incrementByNumber` sets the stake unit on
-     * the numbers it lists, for a type whose bets sit on a number (odds: their parent's point), as
-     * a live table takes odds on 6 and 8 in $5 units.
+     * Limits of one bet type, composite or side bet. For a type whose bets sit on a number (odds:
+     * their parent's point), `incrementByNumber` sets the stake unit on the numbers it lists, as a
+     * live table takes odds on 6 and 8 in $5 units, and `minByNumber` the smallest bet there, as a
+     * live table's "lay must win at least $20" asks $40 on 4 but $24 on 6 (M12).
      */
     perType: z
       .record(
@@ -298,6 +299,7 @@ export const MachineConfigInputSchema = z.strictObject({
           max: PositiveCentsSchema.optional(),
           increment: PositiveCentsSchema.optional(),
           incrementByNumber: z.partialRecord(PointKeySchema, PositiveCentsSchema).optional(),
+          minByNumber: z.partialRecord(PointKeySchema, PositiveCentsSchema).optional(),
         }),
       )
       .optional(),

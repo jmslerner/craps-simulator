@@ -13,11 +13,14 @@ import './dome.css'
  * good. A lost WebGL context (M10b) also shows the 2D dice, with a "Retry 3D" toast: play goes on
  * in 2D, and the retry probes again and remounts the already-loaded chunk. The wrapper carries
  * the plan §7 DOM contract: `data-mode` (`3d` only while a renderer is live), `data-state`,
- * `data-dice` read off the drawn meshes, plus `data-shown` (plan / hop / rest: how the dice got
- * there), `data-ready` (the next throw is pre-simulated), `data-tier` (the quality tier drawn at)
- * and `data-handoff` (how many dice blend their face change over a handoff window) for the e2e.
+ * `data-dice` read off the drawn meshes and listed as the engine's d1-d2 (as the 2D view lists
+ * them), plus `data-shown` (plan / hop / rest: how the dice got there), `data-ready` (the next
+ * throw is pre-simulated), `data-tier` (the quality tier drawn at) and `data-handoff` (how many
+ * dice blend their face change over a handoff window) for the e2e. While the dome is idle — no
+ * roll yet in this session — it draws no dice and says what the 2D view says: press ROLL.
  * `nextSeed` is the next roll's physics seed, prefetched from the dice at rest while the player
- * bets; null while no roll can come.
+ * bets; null while no roll can come, and released when the dome unmounts (2D mode), so a snap
+ * there never asks the worker for a throw no one will play.
  */
 
 export type DomeComponent = ComponentType<{ controller: DiceDomeController }>
@@ -46,6 +49,7 @@ export function DiceDome({ controller, nextSeed, load = loadDomeView }: DiceDome
   useEffect(() => {
     if (snapshot.webgl === 'ok') controller.prefetch(nextSeed)
   }, [controller, nextSeed, snapshot.webgl])
+  useEffect(() => () => controller.prefetch(null), [controller])
 
   useEffect(() => {
     if (snapshot.webgl !== 'ok' || Dome !== null) return
@@ -78,14 +82,20 @@ export function DiceDome({ controller, nextSeed, load = loadDomeView }: DiceDome
   if (snapshot.webgl !== 'ok' || Dome === null) {
     return <DiceView2D controller={controller.fallback} mode="2d" />
   }
-  const { state, faces, shown, handoff, ready, live } = snapshot
+  const { state, faces, d1Body, shown, handoff, ready, live } = snapshot
+  const dice =
+    state === 'settled' && faces !== null
+      ? d1Body === 0
+        ? `${faces[0]}-${faces[1]}`
+        : `${faces[1]}-${faces[0]}`
+      : ''
   return (
     <div
       className="dice-view dice-view-3d"
       data-testid="dice-view"
       data-mode={live ? '3d' : '2d'}
       data-state={state}
-      data-dice={state === 'settled' && faces !== null ? `${faces[0]}-${faces[1]}` : ''}
+      data-dice={dice}
       data-shown={shown ?? ''}
       data-handoff={handoff}
       data-ready={ready ? 'true' : 'false'}
@@ -94,6 +104,7 @@ export function DiceDome({ controller, nextSeed, load = loadDomeView }: DiceDome
       <DomeBoundary onError={() => controller.markUnavailable()}>
         <Dome controller={controller} />
       </DomeBoundary>
+      {state === 'idle' && <p className="dice-idle dome-prompt">Press ROLL to throw</p>}
     </div>
   )
 }

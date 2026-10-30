@@ -85,9 +85,12 @@ export { derive } from './derive.ts'
 export type { DerivationStep } from './derive.ts'
 export {
   HIGH_EDGE,
+  NOT_FREE,
+  PAY_DROPS,
   PLAYER_ADVANTAGE,
   PLAYER_EVEN,
   checkBet,
+  payDrops,
   sanityCheck,
   sweepAmounts,
 } from './sanity.ts'

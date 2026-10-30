@@ -16,17 +16,17 @@ function memoryStorage(): Pick<Storage, 'getItem' | 'setItem'> {
 }
 
 describe('DiceModeToggle', () => {
-  it('reflects the dice mode and flips it between 2D and 3D', () => {
+  it('reflects the dice mode, pressed by default (3D), and flips it between 3D and 2D', () => {
     const settings = createSettingsStore({ storage: memoryStorage() })
     render(<DiceModeToggle settings={settings} />)
     const button = screen.getByRole('button', { name: '3D dice' })
-    expect(button).toHaveAttribute('aria-pressed', 'false')
-    fireEvent.click(button)
-    expect(settings.getState().diceMode).toBe('3d')
     expect(button).toHaveAttribute('aria-pressed', 'true')
     fireEvent.click(button)
     expect(settings.getState().diceMode).toBe('2d')
     expect(button).toHaveAttribute('aria-pressed', 'false')
+    fireEvent.click(button)
+    expect(settings.getState().diceMode).toBe('3d')
+    expect(button).toHaveAttribute('aria-pressed', 'true')
   })
 
   it('turns 3D on from instant too, and persists the choice', () => {

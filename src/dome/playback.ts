@@ -4,6 +4,7 @@ import type { PlaybackPlan } from '../physics/core/plan.ts'
 import { multiply, normalize, slerp, type Quat, type Vec3 } from '../physics/core/quat.ts'
 import { framePose, type DieIndex, type Recording } from '../physics/core/recording.ts'
 import type { RestState } from '../physics/core/restPose.ts'
+import { easeCamera, THROW_SHOT, type CameraPose } from './camera.ts'
 
 /**
  * Playback math (plan §7 Playback): where each die is drawn at a moment of a throw. Positions are
@@ -13,6 +14,11 @@ import type { RestState } from '../physics/core/restPose.ts'
  * read pause follows before the reveal. Pure functions of time: the renderer calls `sampleAt`
  * each frame, and the controller tests drive it with numbers.
  *
+ * The camera (camera.ts) rides the same clock: it eases from wherever it was to the throw shot
+ * over the first `CAMERA_OUT_MS`, and from the throw shot to the read framing of the plan's rest
+ * over the last `CAMERA_IN_MS`, arriving as the read pause ends — so the reveal comes with the
+ * dice framed, and a throw too short for both moves is held until the camera arrives.
+ *
  * The drawn cube rotation at a frame is `drawnRotation` (physics/core/handoff.ts): the handoff
  * blend over the track's window (M10b), the single-frame step of a hidden snap, or the soft cut
  * around a snap that cannot hide (M10a's cover for P1b's ~0.3%). Nothing can change a face at
@@ -21,6 +27,12 @@ import type { RestState } from '../physics/core/restPose.ts'
 
 export const LEAD_IN_MS = 120
 export const READ_PAUSE_MS = 250
+/** The camera's move to the throw shot, from the start of the playback. */
+export const CAMERA_OUT_MS = 380
+/** The camera's move to the read framing starts this long before the dice settle... */
+export const CAMERA_IN_LEAD_MS = 220
+/** ...and lasts through the read pause, so it arrives as the pause ends. */
+export const CAMERA_IN_MS = CAMERA_IN_LEAD_MS + READ_PAUSE_MS
 /** The most a rendered frame may advance the clock, so a hitch never skips the throw (plan §7). */
 export const MAX_STEP_MS = 50
 export { drawnRotation, SOFT_CUT_FRAMES }
@@ -47,10 +59,23 @@ export function lastFrameOf(rec: Recording): number {
   return rec.settleFrame > 0 ? rec.settleFrame : rec.frameCount - 1
 }
 
-/** The throw's wall time at normal speed: lead-in, the throw, the read pause. */
-export function playbackMs(plan: PlaybackPlan): number {
+/** When, in playback time at normal speed, the dice come to rest. */
+export function settleMs(plan: PlaybackPlan): number {
   const rec = plan.recording
-  return LEAD_IN_MS + (lastFrameOf(rec) / rec.frameRate) * 1000 + READ_PAUSE_MS
+  return LEAD_IN_MS + (lastFrameOf(rec) / rec.frameRate) * 1000
+}
+
+/** When the camera starts its move to the read framing: just before the dice settle. */
+export function cameraInStartMs(plan: PlaybackPlan): number {
+  return Math.max(CAMERA_OUT_MS, settleMs(plan) - CAMERA_IN_LEAD_MS)
+}
+
+/**
+ * The throw's wall time at normal speed: lead-in, the throw, the read pause — or, for a throw too
+ * short for both camera moves, until the camera has arrived at the read framing.
+ */
+export function playbackMs(plan: PlaybackPlan): number {
+  return Math.max(settleMs(plan) + READ_PAUSE_MS, cameraInStartMs(plan) + CAMERA_IN_MS)
 }
 
 /** Both dice as drawn at `timeMs` into the playback, at normal speed. */
@@ -59,8 +84,24 @@ export function sampleAt(plan: PlaybackPlan, timeMs: number): PlaybackSample {
   const last = lastFrameOf(rec)
   const thrown = Math.max(0, timeMs - LEAD_IN_MS)
   const frame = Math.min(last, (thrown / 1000) * rec.frameRate)
-  const done = thrown >= (last / rec.frameRate) * 1000 + READ_PAUSE_MS
+  const done = timeMs >= playbackMs(plan)
   return { poses: [poseAt(plan, 0, frame), poseAt(plan, 1, frame)], frame, done }
+}
+
+/**
+ * The camera at `timeMs` into the playback of `plan`: from `from` (where it was when the throw
+ * began) to the throw shot, held there, then to `read` (the read framing of the plan's rest).
+ */
+export function cameraAt(
+  plan: PlaybackPlan,
+  timeMs: number,
+  from: CameraPose,
+  read: CameraPose,
+): CameraPose {
+  if (timeMs < CAMERA_OUT_MS) return easeCamera(from, THROW_SHOT, timeMs / CAMERA_OUT_MS)
+  const start = cameraInStartMs(plan)
+  if (timeMs < start) return THROW_SHOT
+  return easeCamera(THROW_SHOT, read, (timeMs - start) / CAMERA_IN_MS)
 }
 
 function poseAt(plan: PlaybackPlan, die: DieIndex, frame: number): VisualPose {

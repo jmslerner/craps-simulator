@@ -151,7 +151,14 @@ export function rejectionText(
           label ?? 'one bet'
         } is ${formatCents(short)} short.`
       }
-      return `BETS ARE NOT VALID YET! Must bet ${creditsText(short, cfg)} more to roll.`
+      const refusal = `BETS ARE NOT VALID YET! Must bet ${creditsText(short, cfg)} more to roll.`
+      // A side bet up does not count toward the round's minimum (rules spec §9 #11). Say so, and
+      // on a community dome — which rolls on its own timer whatever a player has in, a flow the
+      // trainer does not model (`/flow/shooter/mode` in `notModelled`) — say why it waits anyway.
+      if (money(details, 'sideBets') === null) return refusal
+      return cfg.input.flow.shooter.mode === 'community'
+        ? `${refusal} Side bets don’t count toward it. A community dome would roll on regardless; the trainer rolls only once your main-game bets meet the minimum.`
+        : `${refusal} Side bets don’t count toward it.`
     }
   }
 }

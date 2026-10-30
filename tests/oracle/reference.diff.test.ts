@@ -12,7 +12,11 @@ import {
   runDifferential,
   unexplainedCodePairs,
 } from '../properties/differential.ts'
-import { DIFF_MACHINES, MACHINE_VARIANTS } from '../properties/machineVariants.ts'
+import {
+  DIFF_MACHINES,
+  MACHINE_VARIANTS,
+  withoutPostedMinimums,
+} from '../properties/machineVariants.ts'
 import { scenario } from '../scenarios/dsl.ts'
 import { factsFrom } from './machineFacts.ts'
 import { refSnapshot } from './referenceTable.ts'
@@ -68,6 +72,9 @@ function sideBySide(machine: PresetId | MachineConfigInput, steps: readonly Step
   return { engine, refused }
 }
 
+/** The live table without its posted lay minimums (M12), for the $1-lay cases below. */
+const SMALL_LAYS = withoutPostedMinimums('traditionalLive345', ['lay'])
+
 const place = (typeId: string, amount: number, number: number | null = null): Step => ({
   kind: 'place',
   typeId,
@@ -111,15 +118,16 @@ describe('adjudicated mismatches (M4d)', () => {
 
   it('live: a $1 lay pays the $1 minimum vig although its win rounds to $0 (§4.3 LIVE minimums) — the engine was fixed', () => {
     // Found on traditionalLive345, seed 20261028, run 0: the engine charged no vig on a base of 0.
-    // vig = max($1, floor$(5% × $0)) = $1.
-    const { engine } = sideBySide('traditionalLive345', [place('lay', 100, 8)])
+    // vig = max($1, floor$(5% × $0)) = $1. Since M12 the preset posts "lay must win $20", so the
+    // $1 lay plays on a copy without that minimum.
+    const { engine } = sideBySide(SMALL_LAYS, [place('lay', 100, 8)])
     expect(engine).toMatchObject({ bankroll: 49_800, houseNet: 100, vigPaid: 100 })
     expect(engine.bets).toMatchObject([{ typeId: 'lay', number: 8, amount: 100, vigHeld: 100 }])
   })
 
   it('live: vig is re-paid on every win; what the win cannot cover comes from credit (§4.3 HAR-PA) — the engine was fixed', () => {
     // The engine capped the re-collection at the win ($0 for a $1 lay), so the lay rode free.
-    const { engine } = sideBySide('traditionalLive345', [place('lay', 100, 4), roll(3, 4)])
+    const { engine } = sideBySide(SMALL_LAYS, [place('lay', 100, 4), roll(3, 4)])
     expect(engine).toMatchObject({ bankroll: 49_700, houseNet: 200, vigPaid: 200 })
     expect(engine.bets).toMatchObject([{ typeId: 'lay', number: 4, amount: 100, vigHeld: 100 }])
   })
@@ -181,14 +189,14 @@ describe('adjudicated mismatches (M4d)', () => {
   it('when credit cannot pay a re-collection the bet comes down instead (§4.5, IB §3.3) — both models agree since the oracle gained the decline', () => {
     // §4.5: declining the vig removes the bet; its stake comes back and nothing is re-collected.
     // M4d's reference table let the bankroll go below 0 here; it now declines too (`vigDeclined`).
-    const { engine } = sideBySide('traditionalLive345', [
+    const { engine } = sideBySide(SMALL_LAYS, [
       place('lay', 100, 4),
       place('place', 49_800, 6),
       roll(3, 4),
     ])
     expect(engine).toMatchObject({ bankroll: 100, houseNet: 100, vigPaid: 100 })
     expect(engine.bets).toMatchObject([{ typeId: 'place', number: 6, amount: 49_800 }])
-    scenario('traditionalLive345')
+    scenario(SMALL_LAYS)
       .place('lay', 100, { number: 4 })
       .place('place', 49_800, { number: 6 })
       .expectBankroll(0)

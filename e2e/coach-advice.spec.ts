@@ -1,5 +1,5 @@
 import { expect, test, type Locator } from '@playwright/test'
-import { appUrl, chip, zone } from './hooks.ts'
+import { appUrl, chip, openCoach, zone } from './hooks.ts'
 
 /**
  * The §10 M9c advice check, UI half: on a machine whose buy vig is taken from the win
@@ -70,7 +70,9 @@ test('the guide states what a 7 would do, and No thanks dismisses the idea for g
       'A seven now: wins you $5.00, takes $5.00, returns $5.00 — net $0.00.',
   )
 
-  // The optional idea (Bets Off for the come-out) is dismissible by id and stays gone.
+  // The optional idea (Bets Off for the come-out) is dismissible by id and stays gone. The
+  // guide's detail is in the Coach drawer (plan §0 #28), collapsed on narrow screens.
+  await openCoach(page)
   await expect(bar.getByTestId('guide-alt')).toHaveText('Bets Off for the come-out')
   await bar.getByTestId('guide-dismiss').click()
   await expect(bar.getByTestId('guide-alt')).toBeDisabled()

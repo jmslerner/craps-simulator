@@ -103,7 +103,8 @@ export function AddCreditDialog() {
             value={custom}
             aria-invalid={error !== null ? true : undefined}
             aria-describedby={error !== null ? 'add-credit-error' : undefined}
-            onFocus={() => setPicked('custom')}
+            // Typing picks Custom; focus alone does not (M14): a keyboard player tabbing past the
+            // field to Add credit keeps the amount they chose with the arrow keys.
             onChange={(event) => {
               setPicked('custom')
               setCustom(event.target.value)

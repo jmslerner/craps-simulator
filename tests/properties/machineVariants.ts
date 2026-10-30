@@ -68,6 +68,40 @@ function setPerType(
   }
 }
 
+/**
+ * Removes the posted minimums of `typeIds` (their `min` and `minByNumber`) from a config copy, so
+ * those types take any stake from the machine's own minimum; a limit entry left empty goes.
+ */
+export function liftMinimums(input: MachineConfigInput, typeIds: readonly string[]): void {
+  const perType = input.limits.perType
+  if (perType === undefined) return
+  for (const typeId of typeIds) {
+    const own = perType[typeId]
+    if (own === undefined) continue
+    const { min, minByNumber, ...rest } = own
+    void min
+    void minByNumber
+    if (Object.keys(rest).length === 0) delete perType[typeId]
+    else perType[typeId] = rest
+  }
+}
+
+/**
+ * `PRESETS[id]` with the posted minimums of `typeIds` lifted (`liftMinimums`), its id kept and its
+ * provenance pruned: for cases about commission and rounding mechanics at stakes the machine's
+ * posted minimums refuse. M12 gave the live table its researched minimums — a buy from $20, a lay
+ * that wins at least $20 (rules spec §4.3, LIVE minimums) — so its $1 lay and $10 buy cases, the
+ * rules spec's own §4.3 and §4.5 examples, run on this copy.
+ */
+export function withoutPostedMinimums(
+  id: PresetId,
+  typeIds: readonly string[],
+): MachineConfigInput {
+  const input = structuredClone(PRESETS[id]) as MachineConfigInput
+  liftMinimums(input, typeIds)
+  return { ...input, provenance: pruneProvenance(input) }
+}
+
 function setNewPlacedOff(
   input: MachineConfigInput,
   change: Partial<NonNullable<MachineConfigInput['afterSevenOut']['newPlacedOff']>>,
@@ -81,6 +115,18 @@ const FLOOR_QUARTER = { mode: 'floor', increment: 25 } as const
 const CENT_UP = { mode: 'ceil', increment: 1 } as const
 
 export const MACHINE_VARIANTS: readonly MachineVariant[] = [
+  {
+    // The live table without its posted buy and lay minimums (M12): a $1 lay wins $0 and owes its
+    // $1 vig again, from credit, which the posted "lay must win $20" no longer lets happen.
+    id: 'live-small-stakes',
+    from: 'traditionalLive345',
+    knobs: ['/limits/perType/<t>/min, minByNumber: lifted'],
+    commission: ['placement', 'rearmFromWin', 'rearmFromCredit', 'refund', 'onWin'],
+    prices: false,
+    input: variantOf('traditionalLive345', 'live-small-stakes', (input) => {
+      liftMinimums(input, ['buy', 'lay'])
+    }),
+  },
   {
     id: 'stw-next-roll-only',
     from: 'traditionalBubble',
@@ -330,10 +376,11 @@ const PRESET_COMMISSION: Readonly<Record<PresetId, readonly CommissionEvent[]>> 
   // Shoot To Win takes its commission from wins: nothing is charged up front, held or refunded.
   traditionalBubble: ['onWin'],
   strictBubble: ['placement', 'increase', 'rearmFromWin'],
-  // A live $1 lay wins $0 and owes its $1 vig again from credit; take-downs are refunded. The vig
-  // is $1 on every bet under $40, so an increase is rarely charged. The buy vig on 4 and 10 is
-  // taken from the win (commissionByNumber).
-  traditionalLive345: ['placement', 'rearmFromWin', 'rearmFromCredit', 'refund', 'onWin'],
+  // Take-downs are refunded. The vig is $1 on every bet under $40, so an increase is rarely
+  // charged. The buy vig on 4 and 10 is taken from the win (commissionByNumber). Since M12 a lay
+  // must win $20, so a re-collection always fits in the win; the $1 lay that wins $0 and pays its
+  // vig again from credit plays on the `live-small-stakes` variant.
+  traditionalLive345: ['placement', 'rearmFromWin', 'refund', 'onWin'],
 }
 
 /** Every machine the differential plays: the four presets, then the variants. */

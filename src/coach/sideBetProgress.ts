@@ -3,6 +3,7 @@ import {
   cents,
   collectSetRemaining,
   collectSetRolled,
+  handLengthCounted,
   pointRunHits,
   pointRunState,
   settle,
@@ -29,6 +30,7 @@ import {
   collectSetStage,
   handLengthStage,
   nextTierLine,
+  nothingToWinLine,
   pointRunStage,
   settlesNowLine,
   sideChancesLine,
@@ -37,6 +39,7 @@ import {
   uniquePointsStage,
 } from './content/sideBets.ts'
 import { coachCount, coachMoney, coachProbability, coachRolls, sourceOf } from './numbers.ts'
+import { settlesNow, type SideBetSettlement } from './sideBetStanding.ts'
 import type { CoachLine, CoachNumber, CoachSource } from './types.ts'
 
 /**
@@ -47,13 +50,17 @@ import type { CoachLine, CoachNumber, CoachSource } from './types.ts'
  * progress (`startOfBet` carries it; the chain starts from that state), and the words come from
  * `content/sideBets.ts`.
  *
- * Tiers are read off the engine's own settlements, not off the paytable: the bet's lifetime
- * distribution from now lists every way it can come down (a loss, a push that returns it, each
- * win), with its exact chance and the cash it returns at this stake (`settlementCash`). Sorted by
- * cash, the lowest is what settling now assures (a loss when the bet pays nothing yet), the next
- * distinct cash is the next tier, and P(next tier) is the chance of ending at that cash or higher.
- * This needs no knowledge of any family's rules, and the Monte Carlo sampler
- * (tests/slow/mc.sideBets.slow.test.ts) checks the same progress starts against the engine.
+ * What settling now pays comes from the bet's current progress (`settlesNow`: its earliest deciding
+ * roll, without improving), priced by the engine's own settlement at this stake. The ways it can
+ * still come down are read off the engine's settlements, not off the paytable: the bet's lifetime
+ * distribution from now lists each (a loss, a push that returns it, each win) with its exact
+ * chance and the cash it returns (`settlementCash`). The next tier is the lowest cash above what
+ * settling now pays, and P(next tier) is the chance of ending at that cash or higher. On every
+ * table that pays more for more progress, settling now is the lowest way down; on one that does
+ * not (the M11 audit's crapless Fire Bet with table A as written, where six points pay 999 to 1
+ * and a seventh pays nothing) it is what the bet has, and `sanityCheck` warns about the table. The
+ * Monte Carlo sampler (tests/slow/mc.sideBets.slow.test.ts) checks the same progress starts
+ * against the engine.
  */
 
 /** Where the bet stands, in its family's own terms (for the words and the UI). */
@@ -69,6 +76,7 @@ export type SideBetStage =
       /** How many points count (`/sideBets/<t>/countedPoints`). */
       readonly counted: number
     }
+  /** The rolls the hand has counted so far (`handLengthCounted`: all but C's first come-out). */
   | { readonly kind: 'handLength'; readonly rolls: number }
   | {
       readonly kind: 'pointRun'
@@ -106,9 +114,15 @@ export interface SideBetProgress {
   readonly stage: SideBetStage
   /** Every way it can come down from here, worst first. */
   readonly outcomes: readonly SideBetOutcome[]
-  /** What settling on the next deciding roll assures: the lowest outcome left (a loss pays nothing). */
+  /**
+   * What the bet settles for now — on its earliest deciding roll, without improving, from its
+   * current progress (`settlesNow`) — with P(ending at that cash or higher).
+   */
   readonly assured: SideBetTier
-  /** The next pay step up and the exact chance of reaching it; null when the top is assured. */
+  /**
+   * The next pay step up — the lowest cash above `assured` among the ways down from here — and the
+   * exact chance of reaching it; null when nothing from here pays more.
+   */
   readonly nextTier: SideBetTier | null
   /** The exact chance of any win from here. */
   readonly pWin: CoachNumber
@@ -139,10 +153,16 @@ export function sideBetProgress(
   const start = startOfBet(bet, state)
   const life = distribution(spec, start, 'lifetime', cfg)
   const outcomes = terminalOutcomes(bet, life, cfg)
-  const floor = outcomes[0]
-  if (floor === undefined) throw new RangeError(`${bet.typeId} has no way to come down`)
+  if (outcomes.length === 0) throw new RangeError(`${bet.typeId} has no way to come down`)
+  const floor = outcomeOf(
+    bet,
+    settlesNow(type, bet.progress, state.round.phase).decision,
+    outcomes,
+    cfg,
+  )
   const assumed = assumedPaths(spec, cfg)
   const source = (field: string): CoachSource => sourceOf('sideBetProgress', { betId, field }, cfg)
+  // Outcomes are sorted by cash: the first above what settling now pays is the next tier.
   const next = outcomes.find((outcome) => outcome.cash > floor.cash) ?? null
   const reaching = (from: SideBetOutcome): Fraction =>
     Fraction.sum(outcomes.filter((o) => o.cash >= from.cash).map((o) => o.chance))
@@ -172,13 +192,13 @@ export function sideBetProgress(
   const existing = analyzeExisting(betId, state, cfg)
   const stage = stageOf(type, bet)
   const lines: CoachLine[] = [
-    { id: 'side-stage', parts: stageParts(stage, source, assumed) },
+    { id: 'side-stage', parts: stageParts(stage, type, source, assumed) },
     {
       id: 'side-now',
       parts: settlesNowLine(floor.kind, floor.payLabel, { cash: assured.cash }),
     },
     nextTier === null
-      ? { id: 'side-next', parts: topTierLine() }
+      ? { id: 'side-next', parts: floor.kind === 'lose' ? nothingToWinLine() : topTierLine() }
       : {
           id: 'side-next',
           parts: nextTierLine(
@@ -232,18 +252,47 @@ function terminalOutcomes(
     if (cash.den !== 1n) throw new RangeError(`${bet.typeId} settles in fractions of a cent`)
     outcomes.push({
       kind: decision.kind,
-      key:
-        decision.kind === 'win'
-          ? decision.payKey
-          : decision.kind === 'push'
-            ? decision.reason
-            : '-',
+      key: keyOf(decision),
       payLabel: decision.kind === 'win' ? settle(bet, decision, cfg).ratioLabel : '',
       cash: cents(Number(cash.num)),
       chance,
     })
   }
   return outcomes.sort((a, b) => a.cash - b.cash || a.key.localeCompare(b.key))
+}
+
+/**
+ * The way down settling now gives (`settlesNow`), as one of `outcomes` where it is among them (it is
+ * whenever its chance from here is not 0), else priced on its own with the chance 0.
+ */
+function outcomeOf(
+  bet: BetInstance,
+  decision: SideBetSettlement,
+  outcomes: readonly SideBetOutcome[],
+  cfg: MachineConfig,
+): SideBetOutcome {
+  const key = keyOf(decision)
+  const known = outcomes.find((outcome) => outcome.kind === decision.kind && outcome.key === key)
+  if (known !== undefined) return known
+  const spec: BetSpec = { typeId: bet.typeId, number: null }
+  const cash = settlementCash(spec, decision, bet.amount, cfg, 'rounded')
+  if (cash.den !== 1n) throw new RangeError(`${bet.typeId} settles in fractions of a cent`)
+  return {
+    kind: decision.kind,
+    key,
+    payLabel: decision.kind === 'win' ? settle(bet, decision, cfg).ratioLabel : '',
+    cash: cents(Number(cash.num)),
+    chance: Fraction.ZERO,
+  }
+}
+
+/** The engine's pay key (`win`) or push reason; '-' for a loss: an outcome's `key`. */
+function keyOf(decision: SideBetSettlement): string {
+  return decision.kind === 'win'
+    ? decision.payKey
+    : decision.kind === 'push'
+      ? decision.reason
+      : '-'
 }
 
 /** Where the bet stands, read with each family's own progress helpers. */
@@ -262,7 +311,7 @@ function stageOf(type: CompiledSideBet, bet: BetInstance): SideBetStage {
         counted: type.countedPoints.length,
       }
     case 'handLength':
-      return { kind: 'handLength', rolls: bet.progress }
+      return { kind: 'handLength', rolls: handLengthCounted(type, bet.progress) }
     case 'pointRun':
       return {
         kind: 'pointRun',
@@ -274,6 +323,7 @@ function stageOf(type: CompiledSideBet, bet: BetInstance): SideBetStage {
 
 function stageParts(
   stage: SideBetStage,
+  type: CompiledSideBet,
   source: (field: string) => CoachSource,
   assumed: readonly string[],
 ): CoachLine['parts'] {
@@ -285,12 +335,19 @@ function stageParts(
       return collectSetStage(
         { rolled: list(stage.rolled), remaining: list(stage.remaining) },
         { remaining: count('remaining', stage.remaining.length) },
+        type.family === 'collectSet' ? type.endsOn : 'anySeven',
       )
-    case 'uniquePointsMade':
+    case 'uniquePointsMade': {
+      const payAt = type.family === 'uniquePointsMade' ? type.payImmediatelyAt : null
       return uniquePointsStage(
         { made: list(stage.made) },
-        { count: count('made', stage.made.length), counted: count('counted', stage.counted) },
+        {
+          count: count('made', stage.made.length),
+          counted: count('counted', stage.counted),
+          payAt: payAt === null ? null : count('payAt', payAt),
+        },
       )
+    }
     case 'handLength':
       return handLengthStage({ rolls: count('rolls', stage.rolls) })
     case 'pointRun':

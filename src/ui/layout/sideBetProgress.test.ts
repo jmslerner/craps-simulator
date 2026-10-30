@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { pointRunProgress, totalBit } from '../../engine/index.ts'
-import type { CompiledSideBet } from '../../engine/index.ts'
+import { PRESETS, compileConfig, pointRunProgress, totalBit } from '../../engine/index.ts'
+import type { CompiledSideBet, MachineConfigInput, Phase } from '../../engine/index.ts'
+import { settlesNow } from '../../coach/sideBetStanding.ts'
 import { COMPILED_PRESETS } from '../state/machineStore.ts'
 import {
   countingNote,
@@ -74,6 +75,15 @@ describe('progressOf', () => {
       words: '12 rolls counted',
     })
     expect(progressOf(hot, 1).words).toBe('1 roll counted')
+    // Definition C leaves the hand's first come-out out: the hand's 12 rolls count 11 so far.
+    const input = structuredClone(PRESETS.traditionalBubble) as MachineConfigInput
+    const c = input.sideBets.hotShooter
+    if (c?.family !== 'handLength') throw new Error('no Hot Shooter')
+    c.countDefinition = 'exceptComeOutAndSevenOut'
+    const counted = compileConfig(input).sideBets.get('hotShooter')
+    if (counted === undefined) throw new Error('no Hot Shooter')
+    expect(progressOf(counted, 12).count).toBe(11)
+    expect(progressOf(counted, 1).words).toBe('0 rolls counted')
   })
 
   it('reads the Lucky Shooter’s point and hits', () => {
@@ -131,6 +141,60 @@ describe('payRows and topPayLabel', () => {
       ['all 5 hits, then the point', '500 for 1', false, false],
     ])
     expect(topPayLabel(shooter)).toBe('500 for 1')
+  })
+
+  it('marks the Hot Shooter tier its earliest seven-out lands in, as the coach does (M11 audit)', () => {
+    const point = (n: 4 | 10): Phase => ({ kind: 'point', point: n })
+    const marks = (progress: number, phase: Phase) => {
+      const rows = payRows(hot, progress, phase)
+      return {
+        reached: rows.filter((row) => row.reached).map((row) => row.key),
+        next: rows.find((row) => row.next)?.key ?? null,
+      }
+    }
+    // 7 rolls on point 4: the next roll may be the seven-out, the 8th: the stake back is reached.
+    expect(marks(7, point(4))).toStrictEqual({ reached: ['8'], next: '16' })
+    // 49 rolls on point 10: the next seven-out is the 50th roll, the top tier: nothing next.
+    expect(marks(49, point(10))).toStrictEqual({
+      reached: ['8', '16', '24', '32', '40', '45', '50'],
+      next: null,
+    })
+    // 43 rolls on a come-out: two rolls at least before a seven-out, so the 45-roll tier.
+    expect(marks(43, { kind: 'comeOut' })).toStrictEqual({
+      reached: ['8', '16', '24', '32', '40', '45'],
+      next: '50',
+    })
+    // The row reached is the one the coach's "settled now" names.
+    expect(settlesNow(hot, 43, { kind: 'comeOut' }).row).toBe('45')
+  })
+
+  it('marks the pay settling now gives on a table that pays less for more progress', () => {
+    // The M11 audit's crapless Fire Bet counting all ten points, table A as written: six points
+    // pay 999 to 1 and more pay nothing, so nothing is next once six are made.
+    const input = structuredClone(PRESETS.craplessBubble) as MachineConfigInput
+    input.sideBets.fire = {
+      family: 'uniquePointsMade',
+      label: 'Fire Bet',
+      countedPoints: [2, 3, 4, 5, 6, 8, 9, 10, 11, 12],
+      payTable: { '4': '24 to 1', '5': '249 to 1', '6': '10 to 1' },
+      payImmediatelyAt: null,
+      placement: 'newHand',
+    }
+    const odd = compileConfig(input).sideBets.get('fire')
+    if (odd === undefined) throw new Error('no Fire Bet')
+    const sixPoints = ([4, 5, 6, 8, 9, 10] as const).reduce((mask, n) => mask | totalBit(n), 0)
+    const six = payRows(odd, sixPoints, { kind: 'point', point: 2 })
+    expect(six.map((row) => [row.key, row.reached, row.next])).toStrictEqual([
+      ['4', true, false],
+      ['5', true, false],
+      ['6', true, false],
+    ])
+    // At four points the next step up is the 5-point row (249 to 1), not the 6 that pays less.
+    const four = payRows(odd, totalBit(4) | totalBit(5) | totalBit(6) | totalBit(8), {
+      kind: 'point',
+      point: 2,
+    })
+    expect(four.find((row) => row.next)?.key).toBe('5')
   })
 
   it('a collect set has the one row, always next', () => {

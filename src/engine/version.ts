@@ -15,5 +15,12 @@
  *   11), and refuses them with `WINDOW_CLOSED`, `WRONG_PHASE`, `CONTRACT_BET` and the qualifier's
  *   `BELOW_MIN_TOTAL` where it did with `NOT_OFFERED` before. `TableState` keeps its shape;
  *   `BetInstance.progress` is now set for side bets.
+ * - 4: the M11 side-bet audit fixes. The Hot Shooter counts the hand's rolls (rules spec §2.6): its
+ *   `progress` is `hand.rolls`, so a bet placed on a later come-out (`anyComeOut`) carries the
+ *   hand's earlier rolls, and definition C leaves out the hand's first come-out rather than the
+ *   bet's first roll (under C the first roll now emits `betProgress` too). A roll refused for the
+ *   round's minimum with side bets up carries their stakes (`BELOW_MIN_TOTAL.sideBets`). Presets
+ *   moved too (config edits: the Fire Bet's $5 and the Lucky Shooter's $100 maximums), and Take
+ *   down all takes down side bets that can still come down.
  */
-export const ENGINE_VERSION = 3
+export const ENGINE_VERSION = 4

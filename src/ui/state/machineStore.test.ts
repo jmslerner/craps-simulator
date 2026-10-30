@@ -16,18 +16,18 @@ describe('compiled presets', () => {
     for (const id of PRESET_IDS) {
       expect(COMPILED_PRESETS[id].id).toBe(id)
       // The same object on every read: nothing recompiles per render (M5/M6 → M8 hand-off).
-      expect(selectMachine({ selectedId: id, select: () => undefined })).toBe(COMPILED_PRESETS[id])
+      expect(selectMachine({ selectedId: id })).toBe(COMPILED_PRESETS[id])
     }
   })
 
   it('surfaces notModelled for the approximation note (plan §0 #23)', () => {
     // The default Interblock crapless machine is fully modelled; Shoot To Win's OFF-chip credit
-    // rule is not (plan §0 #23), so its preset must carry the pointer.
+    // rule is not (plan §0 #23), nor its community dome rolling whatever a player has in (M11
+    // audit), so its preset must carry both pointers.
+    const stw = ['/offBets/consumeCredit', '/flow/shooter/mode']
     expect(COMPILED_PRESETS.craplessBubble.notModelled).toStrictEqual([])
-    expect(COMPILED_PRESETS.traditionalBubble.notModelled).toStrictEqual(['/offBets/consumeCredit'])
-    expect(selectNotModelled({ selectedId: 'traditionalBubble', select: () => undefined })).toEqual(
-      ['/offBets/consumeCredit'],
-    )
+    expect(COMPILED_PRESETS.traditionalBubble.notModelled).toStrictEqual(stw)
+    expect(selectNotModelled({ selectedId: 'traditionalBubble' })).toEqual(stw)
   })
 })
 

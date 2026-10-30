@@ -36,6 +36,11 @@ export interface BootDeps {
   readonly mirror?: MirrorStorage | null
 }
 
+/** What the boot calls on the e2e test-hooks module (`testHooks.ts`, in e2e builds only). */
+interface E2eHooks {
+  installTestHooks(store: StoreApi<GameState>): boolean
+}
+
 export interface BootResult {
   /** 'resumed' continues the stored session; anything else started fresh. */
   readonly started: 'resumed' | 'new' | 'fresh-after-corrupt' | 'fresh-after-error'
@@ -94,8 +99,10 @@ export async function bootGame(deps: BootDeps = {}): Promise<BootResult> {
   const repo = deps.repo ?? sessionRepo
 
   // The e2e parameters force a fresh, scripted session; the module only exists in e2e builds.
+  let e2eHooks: E2eHooks | null = null
   if (import.meta.env.MODE === 'e2e') {
     const hooks = await import('./testHooks.ts')
+    e2eHooks = hooks
     const search = deps.search ?? (typeof location === 'undefined' ? '' : location.search)
     const params = hooks.readTestParams(search)
     if (params.diceMode !== null) settings.getState().update({ diceMode: params.diceMode })
@@ -146,23 +153,20 @@ export async function bootGame(deps: BootDeps = {}): Promise<BootResult> {
             cfg,
           )
     store.getState().restoreGame({ cfg, session, meta, notice, history })
+    // e2e builds: the hooks go in with the resumed table, synchronously and before the writes
+    // below, so a spec that sees the resumed table can always read it through them (a reload
+    // during pendingReveal once showed the revealed dice before the hooks existed).
+    if (import.meta.env.MODE === 'e2e') e2eHooks?.installTestHooks(store)
     // The stored state already holds the roll, so showing it IS the instant reveal (plan §8:
     // never re-roll); the flag has done its work and comes off.
     if (pendingReveal) await repo.clearPendingReveal(meta, session)
     // A version-stamped header (a verified cross-version resume) is saved back under this engine.
     if (notice?.kind === 'engineVersion') await repo.saveBetting(meta, session)
-    if (import.meta.env.MODE === 'e2e') {
-      const hooks = await import('./testHooks.ts')
-      hooks.installTestHooks(store)
-    }
     return { started: 'resumed', pendingReveal }
   }
 
   await startNewGame({}, deps)
-  if (import.meta.env.MODE === 'e2e') {
-    const hooks = await import('./testHooks.ts')
-    hooks.installTestHooks(store)
-  }
+  if (import.meta.env.MODE === 'e2e') e2eHooks?.installTestHooks(store)
   return {
     started:
       loaded.kind === 'corrupt'

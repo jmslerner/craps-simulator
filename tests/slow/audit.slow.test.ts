@@ -8,7 +8,10 @@ import { runCoachAudit } from '../properties/coachAudit.ts'
  * cross-checked against the independent closed-form oracle, every sameEvent claim is re-verified
  * (strictly cheaper by ≥ 0.25 pp, identical events, stake unchanged), every fix is dry-run on the
  * table it was offered for, and the anti-nag gate is exercised in all three modes under rotating
- * memory fixtures. The quick subset is `tests/properties/coachAudit.prop.test.ts`.
+ * memory fixtures. Side bets (M11 audit): one side-bet catalog row per session against the
+ * independent side-bet oracle, and a side-bet session per preset whose every `sideBetProgress`
+ * number is recomputed from its source, fresh bets and Lucky Rollers held to the oracle. The quick
+ * subset is `tests/properties/coachAudit.prop.test.ts`.
  */
 
 describe('coach audit (full)', () => {
@@ -38,5 +41,9 @@ describe('coach audit (full)', () => {
     expect(report.rowOracleChecks).toBeGreaterThan(100)
     expect(report.layoutOracleChecks).toBeGreaterThan(100)
     expect(report.equityChecks).toBeGreaterThan(500)
+    // Every preset offers side bets: one row per session, every one modelled by the oracle.
+    expect(report.sideRowOracleChecks).toBe(200)
+    expect(report.sideProgressChecks).toBeGreaterThan(300)
+    expect(report.sideProgressOracleChecks).toBeGreaterThan(50)
   }, 240_000)
 })

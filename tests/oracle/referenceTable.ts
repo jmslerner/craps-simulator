@@ -47,7 +47,13 @@
  *   there included (IB221 on `excludeLineVsLayBuy`: "prevent the player from wagering on the Buy
  *   bet of the established Point"); cutting or taking that bet down stays allowed.
  */
-import { incrementOf, typeFacts, type MachineFacts, type TypeFacts } from './machineFacts.ts'
+import {
+  incrementOf,
+  minimumOf,
+  typeFacts,
+  type MachineFacts,
+  type TypeFacts,
+} from './machineFacts.ts'
 import {
   refDecide,
   refMaxOdds,
@@ -690,9 +696,10 @@ function roll(facts: MachineFacts, s: Draft, d1: number, d2: number): Rejected |
 }
 
 /**
- * Per-type limits on the bet's new total (rules spec §4.5, §5.1): the minimum, the maximum, the
- * increment on the bet's number (`incrementByNumber`; for odds, the parent's point), and the table
- * maximum on what the action adds (every bet on the table counts, odds and OFF bets included).
+ * Per-type limits on the bet's new total (rules spec §4.5, §5.1): the minimum on the bet's number
+ * (`minByNumber`, else the type's), the maximum, the increment on the bet's number
+ * (`incrementByNumber`; for odds, the parent's point), and the table maximum on what the action
+ * adds (every bet on the table counts, odds and OFF bets included).
  */
 function checkLimits(
   facts: MachineFacts,
@@ -702,7 +709,8 @@ function checkLimits(
   total: number,
   added: number,
 ): Rejected | null {
-  const { min, max } = type.limits
+  const { max } = type.limits
+  const min = minimumOf(type, number)
   const increment = incrementOf(type, number)
   if (total < min) return reject('BELOW_MIN', `${type.id} needs at least ${min}`)
   if (total > max) return reject('ABOVE_MAX', `${type.id} takes at most ${max}`)

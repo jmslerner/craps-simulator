@@ -66,6 +66,10 @@ export function Dialog({
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
+        // Focusable by script and click only (M14): Safari and WebKit never focus a clicked
+        // button, so a click inside moves focus here instead of to the page, and Escape and the
+        // Tab trap keep working after it.
+        tabIndex={-1}
         className={className === undefined ? 'dialog' : `dialog ${className}`}
         onClick={(event) => event.stopPropagation()}
         onKeyDown={onKeyDown}

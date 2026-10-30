@@ -123,8 +123,8 @@ const FIXTURES: readonly Fixture[] = [
   {
     name: 'assumed provenance without a note',
     base: 'craplessBubble',
-    edit: (cfg) => delete at(cfg, 'provenance', '/chips').note,
-    paths: [['provenance', '/chips', 'note']],
+    edit: (cfg) => delete at(cfg, 'provenance', '/money/startingBankroll').note,
+    paths: [['provenance', '/money/startingBankroll', 'note']],
   },
   {
     name: 'an unknown source key',
@@ -481,6 +481,37 @@ const FIXTURES: readonly Fixture[] = [
     edit: (cfg) => (at(cfg, 'limits', 'perType', 'dontPassOdds', 'incrementByNumber')['5'] = 350),
     paths: [['limits', 'perType', 'dontPassOdds', 'incrementByNumber', '5']],
     message: /must be a multiple of \$1\.00, the type's increment/,
+  },
+  {
+    name: 'per-number minimums on a type that takes no number (M12)',
+    base: 'craplessBubble',
+    edit: (cfg) => (cfg.limits.perType = { field: { minByNumber: { '6': 500 } } }),
+    paths: [['limits', 'perType', 'field', 'minByNumber']],
+    message: /only odds, number bets and hardways sit on a number; use min instead/,
+  },
+  {
+    name: 'a per-number minimum on a number the type takes no bet on (M12)',
+    base: 'traditionalLive345',
+    edit: (cfg) => (at(cfg, 'limits', 'perType', 'lay', 'minByNumber')['2'] = 4_000),
+    paths: [['limits', 'perType', 'lay', 'minByNumber', '2']],
+    message: /lay takes no bet on 2/,
+  },
+  {
+    name: 'a per-number minimum off the type’s own increment (M12)',
+    base: 'craplessBubble',
+    edit: (cfg) =>
+      (cfg.limits.perType = {
+        place: { min: 500, max: 50_000, increment: 500, minByNumber: { '6': 600 } },
+      }),
+    paths: [['limits', 'perType', 'place', 'minByNumber', '6']],
+    message: /must be a multiple of \$5\.00, the type's increment/,
+  },
+  {
+    name: 'a per-number minimum above the type’s maximum (M12)',
+    base: 'traditionalLive345',
+    edit: (cfg) => (at(cfg, 'limits', 'perType', 'lay', 'minByNumber')['4'] = 600_000),
+    paths: [['limits', 'perType', 'lay', 'minByNumber', '4']],
+    message: /the minimum on 4 is above the type's maximum/,
   },
   {
     name: 'chips out of order',
@@ -998,12 +1029,39 @@ describe('compileConfig', () => {
     expect(compileConfig(craplessBubble).limits.incrementByNumber.size).toBe(0)
   })
 
+  it('compiles per-number minimums, keyed by number, for the types that set them (M12)', () => {
+    const live = compileConfig(PRESETS.traditionalLive345)
+    expect([...(live.limits.minByNumber.get('lay') ?? [])]).toEqual([
+      [4, 4_000],
+      [5, 3_000],
+      [9, 3_000],
+      [10, 4_000],
+    ])
+    expect(live.limits.minByNumber.has('place')).toBe(false)
+    expect(compileConfig(craplessBubble).limits.minByNumber.size).toBe(0)
+    // An optional knob no other preset sets: their hashes are unchanged (craplessBubble's pins the
+    // replay fixture; re-pinned when the player's station photo set its chips and its "for" pay
+    // labels, plan §0 #28).
+    expect(compileConfig(craplessBubble).configHash).toBe('b98393e15ab519bf')
+  })
+
   it('lists the values it does not model (plan §0 #23)', () => {
-    expect(compileConfig(traditionalBubble).notModelled).toEqual(['/offBets/consumeCredit'])
+    expect(compileConfig(traditionalBubble).notModelled).toEqual([
+      '/offBets/consumeCredit',
+      '/flow/shooter/mode',
+    ])
     expect(compileConfig(craplessBubble).notModelled).toEqual([])
     const credit = copy(craplessBubble)
     credit.offBets.consumeCredit = false
     expect(compileConfig(credit).notModelled).toEqual(['/offBets/consumeCredit'])
+    // A community dome rolls whatever a player has in; the trainer only gates a roll on the round
+    // minimum, so only a community machine with one is approximated (M11 audit).
+    const community = copy(craplessBubble)
+    community.flow.shooter.mode = 'community'
+    expect(compileConfig(community).notModelled).toEqual(['/flow/shooter/mode'])
+    // The live table is a community game with no round minimum: nothing gates its rolls.
+    expect(PRESETS.traditionalLive345.flow.shooter.mode).toBe('community')
+    expect(compileConfig(PRESETS.traditionalLive345).notModelled).toEqual([])
   })
 
   it('resolves commission per number, overrides included', () => {

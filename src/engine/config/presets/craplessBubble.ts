@@ -90,9 +90,9 @@ const LUCKY_ROLLER = {
 } as const
 
 const LUCKY_ROLLER_PAYS = {
-  status: 'reported',
-  source: 'IB §6.2 (game screen); VA',
-  note: "30, 30 and 155 to 1: the screen shows Low 31, Roll 'Em All 156 and High 31 for 1 (rules spec §0.2 #10).",
+  status: 'verified',
+  source: 'IB §6.2 (game screen); VA; USER photo 2026-10-30',
+  note: "30, 30 and 155 to 1: the screen shows Low 31, Roll 'Em All 156 and High 31 for 1 (rules spec §0.2 #10), as the player's own station prints them (research interblock-station-photo-2026-10-30.md).",
 } as const
 
 const LUCKY_ROLLER_WINDOW = {
@@ -133,7 +133,7 @@ export const craplessBubble: MachineConfigInput = deepFreeze({
     max: 50_000,
     minTotal: { amount: 500, scope: 'totalRound', countOff: false, countSideBets: false },
   },
-  chips: [100, 500, 1_000, 2_500, 5_000, 10_000],
+  chips: [100, 200, 300, 500, 1_000, 2_500, 5_000, 10_000],
   catalog: {
     pass: {
       family: 'line',
@@ -344,7 +344,7 @@ export const craplessBubble: MachineConfigInput = deepFreeze({
   offBets: { consumeCredit: true },
   exclusiveGroups: [],
   excludeLineVsLayBuy: false,
-  payLabelStyle: 'asWritten',
+  payLabelStyle: 'for',
   flow: {
     shooter: { mode: 'single' },
     invalidRoll: 'reVibrate',
@@ -399,9 +399,9 @@ export const craplessBubble: MachineConfigInput = deepFreeze({
       note: 'Whether side bets count toward the minimum is undocumented (rules spec §9 #11).',
     },
     '/chips': {
-      status: 'assumed',
-      source: 'IB §5.1',
-      note: 'Interblock shows seven chips whose values scale with denomination; these values are a trainer default.',
+      status: 'reported',
+      source: 'IB §5.1; USER photo 2026-10-30',
+      note: "The player's station shows eight chips at this denomination: $1, $2, $3, $5, $10, $25, $50 and $100 (research interblock-station-photo-2026-10-30.md); IB §5.1 says chip values scale with denomination.",
     },
     '/catalog/pass': {
       status: 'verified',
@@ -452,6 +452,11 @@ export const craplessBubble: MachineConfigInput = deepFreeze({
       status: 'assumed',
       source: 'CW §17; WOO-B',
       note: 'The standard 9:5, 7:5 and 7:6 on 4 to 10, as on Shoot To Win and live tables. Interblock v2.5.1 removed its pay tables, and its par sheet is not public (rules spec §5.2).',
+    },
+    '/catalog/place/pays/9': {
+      status: 'reported',
+      source: 'USER photo 2026-10-30',
+      note: 'The player\'s station prints "PLACE 12 FOR 5" under NINE: 7:5 (research interblock-station-photo-2026-10-30.md).',
     },
     '/catalog/place/pays/2': PLACE_2_12,
     '/catalog/place/pays/12': PLACE_2_12,
@@ -518,6 +523,11 @@ export const craplessBubble: MachineConfigInput = deepFreeze({
       source: 'VA; IB §2.7',
       note: '2:1 on 2 and 12 ("typically ... a double payout"); pay table EL602 pays 3:1 on 12 in standard craps only.',
     },
+    '/catalog/field/pays/2': {
+      status: 'verified',
+      source: 'VA; IB §2.7; USER photo 2026-10-30',
+      note: 'The player\'s station prints the field\'s 2 circled, "PAYS DOUBLE": 2:1 (research interblock-station-photo-2026-10-30.md). Its 12 is out of the photo.',
+    },
     '/catalog/field/afterWin': ONE_ROLL_RETURNED,
     '/catalog/any7': {
       status: 'verified',
@@ -574,9 +584,9 @@ export const craplessBubble: MachineConfigInput = deepFreeze({
         note: '13 easy hops and the hard hops 2-2 to 5-5; 1-1, 1-2, 5-6 and 6-6 are the horn singles.',
       },
       pays: {
-        status: 'reported',
-        source: 'IB (game screen)',
-        note: '16 for 1 on an easy hop and 31 for 1 on a hard hop, as the screen shows.',
+        status: 'verified',
+        source: 'IB (game screen); USER photo 2026-10-30',
+        note: '16 for 1 on an easy hop and 31 for 1 on a hard hop, as the screen shows: the player\'s station prints "31 FOR 1 • HOPPING HARD WAYS" over 2-2 to 5-5 and "16 FOR 1 • HOP BETS" over the 13 easy hops (research interblock-station-photo-2026-10-30.md).',
       },
       afterWin: ONE_ROLL_RETURNED,
     }),
@@ -649,8 +659,9 @@ export const craplessBubble: MachineConfigInput = deepFreeze({
       note: "The Pass/Don't Pass vs Lay/Buy exclusion needs lay or don't pass, which crapless lacks.",
     },
     '/payLabelStyle': {
-      status: 'assumed',
-      note: 'Display only: each ratio is shown as written, so props read "for 1" as on the screen.',
+      status: 'reported',
+      source: 'USER photo 2026-10-30',
+      note: 'Display only: the player\'s station prints every pay it shows as "N for M" — place 9 "12 FOR 5", hops "16 FOR 1" and "31 FOR 1", Lucky Roller "31 FOR 1" and "156 FOR 1" (research interblock-station-photo-2026-10-30.md).',
     },
     '/flow/shooter': {
       status: 'verified',
