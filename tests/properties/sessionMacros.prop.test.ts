@@ -27,5 +27,7 @@ describe.each(PRESET_IDS)('macros on %s (quick subset)', (id) => {
     for (const kind of KINDS) {
       expect(report.macroEmitted.get(kind) ?? 0, kind).toBeGreaterThan(20)
     }
-  })
+    // ~1.5 s quiet, but this 8 GB machine has stalled it past the 5 s default under a coverage
+    // run; the slow suite's allowance, scaled down (see the Reconciliation row, plan §13).
+  }, 30_000)
 })

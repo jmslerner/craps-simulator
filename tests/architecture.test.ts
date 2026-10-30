@@ -486,7 +486,9 @@ describe('architecture scanner oracle reach', () => {
     expect(
       probe("import type { MachineConfigInput } from '../../src/engine/config/schema.ts'"),
     ).toEqual([])
-  })
+    // A real-tree scan like the lint sweeps below: the same 30 s allowance, because this 8 GB
+    // machine has stalled it past the 5 s default under a coverage run (it takes ~1 s quiet).
+  }, 30_000)
 })
 
 describe('architecture scanner seeded tests', () => {
