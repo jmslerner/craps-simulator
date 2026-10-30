@@ -4,6 +4,7 @@ import { typeLimits } from '../../bets/limits.ts'
 import { payoutRoundingFor } from '../../bets/types.ts'
 import {
   compileConfig,
+  configHashOf,
   validateConfig,
   type CommissionRule,
   type CompiledBetType,
@@ -52,9 +53,10 @@ function commission(cfg: MachineConfig, typeId: string, n: number): CommissionRu
 }
 
 describe('the preset list', () => {
-  it('has the four researched machines, crapless first and the default', () => {
+  it('has the five researched machines, crapless first and the default', () => {
     expect(PRESET_IDS).toEqual([
       'craplessBubble',
+      'craplessBubbleHighLimit',
       'traditionalBubble',
       'strictBubble',
       'traditionalLive345',
@@ -346,6 +348,74 @@ describe('craplessBubble: the Interblock heads-up crapless machine', () => {
   })
 })
 
+describe('craplessBubbleHighLimit: the same machine at high-limit stakes', () => {
+  const cfg = compiled('craplessBubbleHighLimit')
+  const base = PRESETS.craplessBubble
+  const high = PRESETS.craplessBubbleHighLimit
+  const status = (pointer: string) => statusAt(cfg.provenance, pointer)
+
+  it('shares every RULE with craplessBubble by identity: only money differs', () => {
+    // The spread keeps the identical frozen objects, so the rules cannot drift apart.
+    expect(high.rules).toBe(base.rules)
+    expect(high.catalog).toBe(base.catalog)
+    expect(high.composites).toBe(base.composites)
+    expect(high.sideBets).toBe(base.sideBets)
+    expect(high.workingToggle).toBe(base.workingToggle)
+    expect(high.comeOut).toBe(base.comeOut)
+    expect(high.afterSevenOut).toBe(base.afterSevenOut)
+    expect(high.offBets).toBe(base.offBets)
+    expect(high.flow).toBe(base.flow)
+    expect(high.money.payoutRounding).toBe(base.money.payoutRounding)
+    expect(cfg.ruleset.variant).toBe('crapless')
+  })
+
+  it('adding the preset leaves craplessBubble untouched: its config hash still pins the fixture', () => {
+    expect(configHashOf(base)).toBe('4537b96ffb0ea61c')
+    expect(configHashOf(high)).not.toBe(configHashOf(base))
+  })
+
+  it('takes $5 to $5,000 a bet at a $5 denomination, $25 total to roll, $20,000 on the layout', () => {
+    expect(cfg.limits.min).toBe(500)
+    expect(cfg.limits.max).toBe(500_000)
+    expect(cfg.limits.tableMax).toBe(2_000_000)
+    expect(cfg.betIncrement).toBe(500)
+    expect(cfg.limits.minTotal).toEqual({
+      amount: 2_500,
+      scope: 'totalRound',
+      countOff: false,
+      countSideBets: false,
+    })
+    expect(cfg.startingBankroll).toBe(500_000)
+    expect(cfg.chips).toEqual([2_500, 5_000, 10_000, 25_000, 50_000, 100_000])
+    // The one reported number is the $20,000 layout maximum (WOV-35576); the rest are assumed.
+    expect(status('/limits/tableMax')).toBe('reported')
+    for (const pointer of ['/limits/min', '/limits/max', '/limits/minTotal/amount', '/chips']) {
+      expect(status(pointer), pointer).toBe('assumed')
+    }
+  })
+
+  it('caps per-type maximums by the reported structure: odds and place 2x the line, props by pay tier', () => {
+    expect(typeLimits(cfg, 'pass')).toEqual({ min: 500, max: 500_000, increment: 500 })
+    for (const typeId of ['passOdds', 'comeOdds', 'place', 'buy']) {
+      expect(typeLimits(cfg, typeId).max, typeId).toBe(1_000_000)
+    }
+    expect(typeLimits(cfg, 'hard', 8).max).toBe(300_000)
+    // One-roll props by their "for 1" pay: 8-for-1 $3,800, 16-for-1 $1,800, 31-for-1 $900.
+    expect(typeLimits(cfg, 'anyCraps').max).toBe(380_000)
+    expect(typeLimits(cfg, 'yo').max).toBe(180_000)
+    expect(typeLimits(cfg, 'hop34').max).toBe(180_000)
+    expect(typeLimits(cfg, 'boxcars').max).toBe(90_000)
+    expect(typeLimits(cfg, 'hop44').max).toBe(90_000)
+    // Composites: parts x the part's tier, so a max horn still respects its 31-for-1 corners.
+    expect(typeLimits(cfg, 'ce').max).toBe(360_000)
+    expect(typeLimits(cfg, 'horn').max).toBe(360_000)
+    // The 5-for-1 seven and the field inherit the $5,000 wager maximum.
+    expect(typeLimits(cfg, 'any7').max).toBe(500_000)
+    expect(typeLimits(cfg, 'field').max).toBe(500_000)
+    expect(status('/limits/perType')).toBe('assumed')
+  })
+})
+
 describe('the other presets', () => {
   it('traditionalBubble is Shoot To Win as on the Clearwater card', () => {
     const cfg = compiled('traditionalBubble')
@@ -449,6 +519,7 @@ describe('the other presets', () => {
   it('models every value but Shoot To Win’s OFF chips that use no credit (plan §0 #23)', () => {
     expect(PRESET_IDS.map((id) => [id, compiled(id).notModelled])).toEqual([
       ['craplessBubble', []],
+      ['craplessBubbleHighLimit', []],
       ['traditionalBubble', ['/offBets/consumeCredit']],
       ['strictBubble', []],
       ['traditionalLive345', []],

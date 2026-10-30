@@ -11,7 +11,10 @@ import { applyAction, validateAction } from '../table/reducer.ts'
 import { newTable, type TableState } from '../table/state.ts'
 import { ENGINE_VERSION } from '../version.ts'
 import { replay } from './replay.ts'
+import { deserializeSession, serializeSession } from './serialize.ts'
 import {
+  MAX_BATCH_DEPTH,
+  batchDepthOf,
   clearWindow,
   dispatchBetting,
   lastWindowOf,
@@ -52,6 +55,13 @@ function ok<T extends BettingResult | RollResult>(result: T): Extract<T, { ok: t
 /** The session after each action in turn, all accepted. */
 function bets(session: WindowedSession, actions: readonly Action[]): WindowedSession {
   return actions.reduce((s, action) => ok(dispatchBetting(s, action, crapless)).session, session)
+}
+
+/** A batch nested `depth` levels: `nested(1, a)` is one batch holding only `a`. */
+function nested(depth: number, inner: Action): Action {
+  let action = inner
+  for (let i = 0; i < depth; i++) action = { type: 'batch', actions: [action] }
+  return action
 }
 
 describe('newSession', () => {
@@ -143,6 +153,42 @@ describe('dispatchBetting', () => {
     const result = dispatchBetting(start, hidden, crapless)
     expect(result.ok ? null : result.rejection.code).toBe('BAD_PARAMS')
     expect(start.state.round.rollIndex).toBe(0)
+  })
+
+  it('refuses an action whose toJSON smuggles a roll past the checks (M5/M6 audit)', () => {
+    const start = bets(newSession(crapless, 'w'), [place('pass', 500)])
+    const smuggler = {
+      ...placeOn('place', 6, 600),
+      toJSON: () => ({ type: 'roll', dice: { d1: 3, d2: 3 } }),
+    } as unknown as Action
+    expect(dispatchBetting(start, smuggler, crapless)).toEqual({
+      ok: false,
+      rejection: { code: 'BAD_PARAMS', details: { field: 'type', reason: 'roll' } },
+    })
+    expect(start.state.round.rollIndex).toBe(0)
+    expect(start.pending).toHaveLength(1)
+  })
+
+  it('takes a batch nested to the depth cap, which still saves, and refuses one past it', () => {
+    const start = newSession(crapless, 'w')
+    const deep = ok(dispatchBetting(start, nested(MAX_BATCH_DEPTH, place('pass', 500)), crapless))
+    expect(deep.session.state.bets).toHaveLength(1)
+    const loaded = deserializeSession(serializeSession(deep.session))
+    expect(loaded.ok && loaded.session).toStrictEqual(deep.session)
+    const over = dispatchBetting(start, nested(MAX_BATCH_DEPTH + 1, place('pass', 500)), crapless)
+    expect(over).toEqual({
+      ok: false,
+      rejection: {
+        code: 'BAD_PARAMS',
+        details: { field: 'actions', reason: 'depth', max: MAX_BATCH_DEPTH },
+      },
+    })
+    expect(batchDepthOf(place('pass', 500))).toBe(0)
+    expect(batchDepthOf(nested(3, place('pass', 500)))).toBe(3)
+    // A batch that contains itself cannot loop the walk; plainCopy refuses it anyway.
+    const cycle: { type: 'batch'; actions: unknown[] } = { type: 'batch', actions: [] }
+    cycle.actions.push(cycle)
+    expect(batchDepthOf(cycle)).toBe(MAX_BATCH_DEPTH + 1)
   })
 
   it('throws for another machine’s config: a session never has two', () => {

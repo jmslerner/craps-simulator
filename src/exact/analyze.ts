@@ -6,6 +6,7 @@ import {
   requireType,
   settle,
   statusAt,
+  typeLimits,
   type BetInstance,
   type Cents,
   type MachineConfig,
@@ -14,7 +15,7 @@ import {
   type StakeDisposition,
 } from '../engine/index.ts'
 import { legalAmounts } from './amounts.ts'
-import { ExactError, type BetSpec, type StartContext } from './chain.ts'
+import { ExactError, type BetSpec, type Horizon, type StartContext } from './chain.ts'
 import {
   betAt,
   distribution,
@@ -25,7 +26,7 @@ import {
   type Measured,
 } from './price.ts'
 import { at } from './solve.ts'
-import { typicalStart } from './start.ts'
+import { isPutStart, roundWeightedStart, typicalStart } from './start.ts'
 
 /**
  * Exact analysis of one bet (plan §5.1, §5.2), every number from the engine's own rules through
@@ -105,7 +106,7 @@ export function analyzeBet(
 ): BetAnalysis {
   const from = start === 'typical' ? typicalStart(spec, cfg) : start
   const first = distribution(spec, from, 'decision', cfg)
-  const life = distribution(spec, from, 'lifetime', cfg)
+  const life = distribution(spec, from, lifecycleHorizon(spec, from, cfg), cfg)
   const paid = measure(life, amount, cfg, 'rounded')
   const nominal = measure(life, amount, cfg, 'exact')
   const edge = edgeOf(paid)
@@ -141,6 +142,19 @@ export function analyzeBet(
     },
     assumedPaths: assumedPaths(spec, cfg),
   }
+}
+
+/**
+ * The horizon a bet's lifecycle metrics use: `lifetime` (follow the wins that leave it up), except
+ * for a put placement, whose lifecycle ends at its first decision — a winner that stays goes back
+ * to the line as a new line bet, not a put (rules spec §3.1: put 4 costs 33.33% per decision).
+ */
+export function lifecycleHorizon(
+  spec: BetSpec,
+  start: StartContext,
+  cfg: MachineConfig,
+): Horizon {
+  return isPutStart(spec, start, cfg) ? 'decision' : 'lifetime'
 }
 
 /** The chances that the first decision is a win, a loss or a push. */
@@ -198,12 +212,32 @@ function lifecycleOf(measured: Measured): Lifecycle {
 }
 
 /**
- * The JSON pointers `spec`'s analysis reads, from its family (`configPaths`): its pays, rounding,
- * commission, working rules and so on.
+ * The pointers behind the round's long-run phase shares (π): `advanceRound` reads the variant's
+ * ruleset, so any number weighted by π depends on them (M5/M6 audit: a joint `/variant` +
+ * `/rules` change moved come-odds chances with none of their family pointers touched).
+ */
+const ROUND_POINTERS: readonly string[] = [
+  '/variant',
+  '/rules/naturals',
+  '/rules/craps',
+  '/rules/points',
+]
+
+/**
+ * The JSON pointers `spec`'s analysis reads: its family's (`configPaths`) — its pays, rounding,
+ * commission, working rules and so on — plus, for a bet whose typical placement is weighted by the
+ * round's π (`roundWeightedStart`), the `/variant` and `/rules` pointers those weights depend on,
+ * and, for a line bet on a number, `/rules/allowPutBets` (it decides whether the analysis prices a
+ * put, whose lifecycle ends at its first decision).
  */
 export function configPathsOf(spec: BetSpec, cfg: MachineConfig): readonly string[] {
   const { family, type } = requireType(cfg, spec.typeId)
-  return family.configPaths(type, spec.number, cfg)
+  const own = family.configPaths(type, spec.number, cfg)
+  const extra: string[] = []
+  if (roundWeightedStart(spec, cfg)) extra.push(...ROUND_POINTERS)
+  if (type.family === 'line' && spec.number !== null) extra.push('/rules/allowPutBets')
+  if (extra.length === 0) return own
+  return [...new Set([...own, ...extra])]
 }
 
 /**
@@ -232,11 +266,35 @@ export function efficientAmounts(
   start: StartContext | 'typical' = 'typical',
 ): { readonly amount: Cents; readonly edge: Fraction }[] {
   const from = start === 'typical' ? typicalStart(spec, cfg) : start
-  const life = distribution(spec, from, 'lifetime', cfg)
+  const life = distribution(spec, from, lifecycleHorizon(spec, from, cfg), cfg)
   return legalAmounts(spec, cfg, range).map((amount) => ({
     amount,
     edge: edgeOf(measure(life, amount, cfg, 'rounded')),
   }))
+}
+
+/**
+ * The most odds the table accepts behind a line bet of `flat` on `n` (M5/M6 audit): the rules cap
+ * (`maxOdds`: multiple × flat, floored to the unit on n), clamped to the odds type's own maximum on
+ * that number (`typeLimits`, never the type-level value alone) and to the table maximum less the
+ * flat already on the layout, floored to the increment on n; 0 when that leaves less than the
+ * minimum. Exactly what `validateAction` accepts for the odds `place`, so the combined edge never
+ * prices odds the machine refuses (a $300 crapless flat allows $500 odds, not 2 × $300).
+ */
+export function attainableOdds(
+  line: BetSpec,
+  flat: Cents,
+  oddsId: string,
+  n: PointNumber,
+  cfg: MachineConfig,
+): Cents {
+  const cap = maxOdds(parentOn(line.typeId, n, flat), cfg)
+  const limits = typeLimits(cfg, oddsId, n)
+  let most = Math.min(cap, limits.max)
+  const { tableMax } = cfg.limits
+  if (tableMax !== null) most = Math.min(most, tableMax - flat)
+  most -= most % limits.increment
+  return most >= limits.min ? cents(most) : cents(0)
 }
 
 /** A line bet with odds behind it, per decision of the line bet (glossary, "combined edge"). */
@@ -258,8 +316,9 @@ export interface CombinedEdge {
 
 /**
  * The combined edge of a line bet of `flat` with odds behind it whenever it goes to a number:
- * `odds(n)` on n, the table's maximum by default (`maxOdds`). Odds lower the edge per dollar
- * wagered but never the flat bet's expected loss.
+ * `odds(n)` on n, or by default the most the table accepts there (`attainableOdds`: the rules cap
+ * clamped to the per-bet and table maximums). Odds lower the edge per dollar wagered but never the
+ * flat bet's expected loss.
  */
 export function combinedEdge(
   line: BetSpec,
@@ -276,7 +335,7 @@ export function combinedEdge(
   for (const [index, label] of flatDist.labels.entries()) {
     if (label.kind !== 'travel' || oddsId === undefined) continue
     const n = label.number
-    const amount = odds === 'max' ? maxOdds(parentOn(line.typeId, n, flat), cfg) : odds(n)
+    const amount = odds === 'max' ? attainableOdds(line, flat, oddsId, n, cfg) : odds(n)
     if (amount === 0) continue
     const chance = at(flatDist.counts, index)
     const spec = { typeId: oddsId, number: n }

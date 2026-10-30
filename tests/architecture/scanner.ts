@@ -14,8 +14,10 @@ export type TokenKind = 'word' | 'number' | 'string' | 'template' | 'regex' | 'p
 export interface Token {
   readonly kind: TokenKind
   /**
-   * The identifier or punctuator, or a string literal's contents with escapes left as written. A
-   * template literal without substitutions is a string too; other template text is left empty.
+   * The identifier or punctuator, or a string literal's contents. Escape sequences are decoded the
+   * way the runtime reads them — in strings and in identifiers alike — so `'money'` and
+   * `Math` cannot slip past checks that match names (M5/M6 audit). A template literal without
+   * substitutions is a string too; other template text is left empty.
    */
   readonly text: string
   readonly line: number
@@ -54,8 +56,53 @@ export interface Violation {
   readonly message: string
 }
 
-const WORD = /[A-Za-z_$][\w$]*/y
+const WORD_PART = /[\w$]+/y
 const NUMBER = /\.?\d[\w.]*/y
+const SIMPLE_ESCAPES: Readonly<Record<string, string>> = {
+  n: '\n',
+  t: '\t',
+  r: '\r',
+  b: '\b',
+  f: '\f',
+  v: '\v',
+  '0': '\0',
+  '\n': '',
+  '\r': '',
+}
+
+/** A string's value: its escape sequences decoded as the runtime reads them. */
+function decodeEscapes(text: string): string {
+  if (!text.includes('\\')) return text
+  return text.replace(
+    /\\(?:u\{([0-9A-Fa-f]+)\}|u([0-9A-Fa-f]{4})|x([0-9A-Fa-f]{2})|([\s\S]))/g,
+    (whole, braced: string | undefined, u4: string | undefined, x2: string | undefined, other) => {
+      const hex = braced ?? u4 ?? x2
+      if (hex !== undefined) {
+        const code = parseInt(hex, 16)
+        return code > 0x10ffff ? whole : String.fromCodePoint(code)
+      }
+      return typeof other === 'string' ? (SIMPLE_ESCAPES[other] ?? other) : whole
+    },
+  )
+}
+
+/** The `\uXXXX` or `\u{...}` identifier escape at `at`, as tsc and the runtime read it, if any. */
+function identifierEscape(
+  source: string,
+  at: number,
+): { readonly text: string; readonly end: number } | null {
+  if (source.charAt(at) !== '\\' || source.charAt(at + 1) !== 'u') return null
+  if (source.charAt(at + 2) === '{') {
+    const close = source.indexOf('}', at + 3)
+    const hex = close < 0 ? '' : source.slice(at + 3, close)
+    if (!/^[0-9A-Fa-f]{1,6}$/.test(hex)) return null
+    const code = parseInt(hex, 16)
+    return code > 0x10ffff ? null : { text: String.fromCodePoint(code), end: close + 1 }
+  }
+  const hex = source.slice(at + 2, at + 6)
+  if (!/^[0-9A-Fa-f]{4}$/.test(hex)) return null
+  return { text: String.fromCharCode(parseInt(hex, 16)), end: at + 6 }
+}
 /** Words after which `/` starts a regex literal; after any other word it is a division. */
 const REGEX_AFTER = new Set([
   ...['return', 'typeof', 'instanceof', 'in', 'of', 'new', 'delete', 'void'],
@@ -89,7 +136,7 @@ export function lex(source: string): Token[] {
     while (i < source.length) {
       const c = ch(i)
       if (c === '`') {
-        push(head ? 'string' : 'template', head ? source.slice(start, i) : '', from)
+        push(head ? 'string' : 'template', head ? decodeEscapes(source.slice(start, i)) : '', from)
         i++
         return
       }
@@ -110,7 +157,7 @@ export function lex(source: string): Token[] {
     while (end < source.length && ch(end) !== quote && ch(end) !== '\n') {
       end += ch(end) === '\\' ? 2 : 1
     }
-    push('string', source.slice(i + 1, end))
+    push('string', decodeEscapes(source.slice(i + 1, end)))
     advance(end + 1)
   }
 
@@ -156,10 +203,22 @@ export function lex(source: string): Token[] {
       readTemplate(false)
     } else if (c === '/' && regexMayStart(tokens.at(-1)) && readRegex()) {
       // readRegex consumed the literal.
-    } else if (/[A-Za-z_$]/.test(c)) {
-      const word = sticky(WORD)
+    } else if (/[A-Za-z_$]/.test(c) || identifierEscape(source, i) !== null) {
+      // An identifier, its `\uXXXX` and `\u{…}` escapes decoded, so `Math` is `Math`.
+      let word = ''
+      while (i < source.length) {
+        const part = sticky(WORD_PART)
+        if (part !== '') {
+          word += part
+          i += part.length
+          continue
+        }
+        const escape = identifierEscape(source, i)
+        if (escape === null) break
+        word += escape.text
+        i = escape.end
+      }
       push('word', word)
-      i += word.length
     } else if (/\d/.test(c) || (c === '.' && /\d/.test(next))) {
       const number = sticky(NUMBER)
       push('number', number)
@@ -277,19 +336,27 @@ const NO_NAMES: ReadonlySet<string> = new Set()
  * what it holds out of sight too. Such a use is reported under the host's name, or, when it
  * destructures one of the `values`, as that value or the banned members it takes. After `typeof`,
  * in an equality test, or declared (`const window = ...`, a local), a host's name is no such use.
+ *
+ * `hostBanned` names globals, such as eval and Function, that a host must not even read
+ * (`globalThis.eval`, `self['Function']`): unlike Math, reading them by name is already the escape
+ * (M5/M6 audit).
  */
 export function findUsages(
   tokens: readonly Token[],
   globals: ReadonlySet<string>,
   members: ReadonlySet<string>,
   values: ReadonlySet<string> = NO_NAMES,
+  hostBanned: ReadonlySet<string> = NO_NAMES,
 ): Usage[] {
   const found: Usage[] = []
   // A host is guarded wherever values are: they are what it carries.
   const guarded = (name: string) => values.size > 0 && HOSTS.has(name) && !globals.has(name)
   tokens.forEach((token, k) => {
-    // `globalThis['Math']`, or a host read from a host: `globalThis['self']`.
-    if (token.kind === 'string' && (values.has(token.text) || guarded(token.text))) {
+    // `globalThis['Math']`, a banned global (`self['eval']`), or a host read from a host.
+    if (
+      token.kind === 'string' &&
+      (values.has(token.text) || guarded(token.text) || hostBanned.has(token.text))
+    ) {
       if (isHostIndex(tokens, k)) found.push({ name: token.text, line: token.line })
     }
     if (token.kind !== 'word') return
@@ -299,7 +366,17 @@ export function findUsages(
     }
     const host = hostOf(tokens, k)
     const viaHost = host !== undefined
-    if (!viaHost && isPropertyName(tokens, k)) return
+    if (!viaHost && isPropertyName(tokens, k)) {
+      // A banned member read through a property named like the object (`x.Math.random`): whatever
+      // `x.Math` is, the chain may carry the real Math (M5/M6 audit).
+      if (values.has(token.text)) {
+        const chained = memberName(tokens, k)
+        if (chained !== undefined && members.has(`${token.text}.${chained}`)) {
+          found.push({ name: `${token.text}.${chained}`, line: token.line })
+        }
+      }
+      return
+    }
     const member = memberName(tokens, k)
     if (member !== undefined && members.has(`${token.text}.${member}`)) {
       found.push({ name: `${token.text}.${member}`, line: token.line })
@@ -319,6 +396,7 @@ export function findUsages(
       // An allowed member, but read through a host: `globalThis.Math.sqrt`.
       found.push({ name: token.text, line: token.line })
     }
+    if (viaHost && hostBanned.has(token.text)) found.push({ name: token.text, line: token.line })
     if (!viaHost && globals.has(token.text)) found.push({ name: token.text, line: token.line })
   })
   return found
@@ -594,6 +672,7 @@ const DOM = 'core code is pure: no DOM or storage APIs'
 const TIMERS = 'core code is synchronous and pure: no timers'
 const CLOCK = 'core code must not read the clock'
 const HOST = 'core code must not use Node or host globals'
+const DYNAMIC = 'no dynamic code: it runs out of sight of the import, purity and Math rules'
 const PURITY_REASONS = new Map<string, string>([
   ...['window', 'document', 'navigator', 'localStorage', 'sessionStorage', 'indexedDB'].map(
     (name) => [name, DOM] as const,
@@ -608,9 +687,15 @@ const PURITY_REASONS = new Map<string, string>([
   ['performance', CLOCK],
   ['crypto', 'dice come only from engine RNG state; seeds are made in the ui shell'],
   ...['process', 'Buffer', 'globalThis', 'global', 'self'].map((name) => [name, HOST] as const),
+  ...['eval', 'Function'].map((name) => [name, DYNAMIC] as const),
 ])
 const PURITY_GLOBALS: ReadonlySet<string> = new Set(PURITY_REASONS.keys())
 const NO_GLOBALS: ReadonlySet<string> = new Set()
+/**
+ * Banned in tests too, and as a host's member (`globalThis.eval`): dynamic code reaches
+ * Math.random, the clock and any module out of sight of every other rule (M5/M6 audit).
+ */
+const DYNAMIC_GLOBALS: ReadonlySet<string> = new Set(['eval', 'Function'])
 const RANDOM = 'Math.random'
 const ROUNDING = ['Math.floor', 'Math.round', 'Math.ceil', 'Math.trunc']
 /** Number#toFixed and #toPrecision, and Fraction#toNumber, all turn exact amounts into floats. */
@@ -734,9 +819,19 @@ const withoutQuery = (specifier: string) => specifier.replace(/\?.*$/, '')
 
 const isPathSpecifier = (specifier: string) => RELATIVE.test(specifier) || specifier.startsWith('/')
 
+/** Node and Vite read specifiers as URLs, so `mon%65y.ts` loads money.ts (M5/M6 audit). */
+function decodePercent(path: string): string {
+  if (!path.includes('%')) return path
+  try {
+    return decodeURIComponent(path)
+  } catch {
+    return path
+  }
+}
+
 /** Repo-relative target of a relative or root-absolute specifier; undefined for packages. */
 function resolveSpecifier(file: string, specifier: string): string | undefined {
-  const path = withoutQuery(specifier)
+  const path = decodePercent(withoutQuery(specifier))
   if (RELATIVE.test(path)) return posix.normalize(posix.join(posix.dirname(file), path))
   if (path.startsWith('/')) return posix.normalize(path.slice(1))
   return undefined
@@ -783,10 +878,14 @@ function analyze(file: string, source: string): { violations: Violation[]; edges
   const isTest = TEST_FILE.test(file)
   const layer = layerOf(file)
 
-  // Node's type stripping and the bundler both need the file's own name; neither guesses it.
+  // Node's type stripping and the bundler both need the file's own name; neither guesses it. A
+  // file: or data: URL names a module while evading every path rule, so it is banned outright
+  // (M5/M6 audit: a file:/// specifier reached money.ts past the oracle rule).
   if (file.startsWith('src/') || file.startsWith('tests/')) {
     for (const { specifier, line } of imports) {
-      if (isPathSpecifier(specifier) && !IMPORTABLE.test(withoutQuery(specifier))) {
+      if (/^(?:file|data):/i.test(specifier)) {
+        report(line, 'import-extension', `'${specifier}': URL specifiers are banned; use a path`)
+      } else if (isPathSpecifier(specifier) && !IMPORTABLE.test(withoutQuery(specifier))) {
         report(line, 'import-extension', `'${specifier}' must end in .ts, .tsx or an asset type`)
       }
     }
@@ -813,8 +912,11 @@ function analyze(file: string, source: string): { violations: Violation[]; edges
 
     const roundingBanned = !isTest && ROUNDING_LAYERS.includes(layer) && !ROUNDING_HOMES.has(file)
     const members = new Set([RANDOM, ...(roundingBanned ? ROUNDING : [])])
-    const globals = isTest ? NO_GLOBALS : PURITY_GLOBALS
-    for (const { name, line } of findUsages(tokens, globals, members, VALUE_ONLY)) {
+    // Core tests keep the dynamic-code ban (shipped core bans eval and Function as purity
+    // globals, and the hosts outright, so hostBanned has nothing left to add there).
+    const globals = isTest ? DYNAMIC_GLOBALS : PURITY_GLOBALS
+    const hostBanned = isTest ? DYNAMIC_GLOBALS : NO_GLOBALS
+    for (const { name, line } of findUsages(tokens, globals, members, VALUE_ONLY, hostBanned)) {
       if (name === RANDOM) {
         report(line, 'seeded-random', 'Math.random: draw from seeded engine RNG so runs reproduce')
       } else if (ROUNDING.includes(name)) {
@@ -861,13 +963,22 @@ function analyze(file: string, source: string): { violations: Violation[]; edges
     }
   }
   // Randomized tests use pinned seeds, so every failure reproduces: the oracles, scenarios,
-  // properties, golden values and the slow suite alike.
+  // properties, golden values and the slow suite alike. Dynamic code is banned with them.
   if (file.startsWith('tests/')) {
-    for (const { name, line } of findUsages(tokens, NO_GLOBALS, new Set([RANDOM]), VALUE_ONLY)) {
+    const usages = findUsages(
+      tokens,
+      DYNAMIC_GLOBALS,
+      new Set([RANDOM]),
+      VALUE_ONLY,
+      DYNAMIC_GLOBALS,
+    )
+    for (const { name, line } of usages) {
       if (name === RANDOM) {
         report(line, 'seeded-random', 'Math.random: draw from a seeded RNG so failures reproduce')
       } else if (VALUE_ONLY.has(name)) {
         report(line, 'math-value', MATH_VALUE)
+      } else if (DYNAMIC_GLOBALS.has(name)) {
+        report(line, 'purity', `${name}: ${DYNAMIC}`)
       } else {
         report(line, 'host-value', hostValue(name))
       }

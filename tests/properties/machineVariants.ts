@@ -266,6 +266,19 @@ export const MACHINE_VARIANTS: readonly MachineVariant[] = [
     }),
   },
   {
+    // Shoot To Win's commission is taken from the win; with a minimum, a small win cannot cover it
+    // and the vig is capped at the win (rules spec §4.3; the engine's winCommission `.min(win)`).
+    // The M5/M6 audit found neither event counted, and the cap never exercised by the differential.
+    id: 'stw-vig-cap',
+    from: 'traditionalBubble',
+    knobs: ['/catalog/buy/commission/minimum with timing onWin', 'vig capped at the win'],
+    commission: ['onWin', 'onWinCapped'],
+    prices: true,
+    input: variantOf('traditionalBubble', 'stw-vig-cap', (input) => {
+      setCommission(input, 'buy', (c) => ({ ...c, minimum: 500 }))
+    }),
+  },
+  {
     id: 'crapless-units-by-number',
     from: 'craplessBubble',
     knobs: ['/limits/perType/<t>/incrementByNumber'],
@@ -312,12 +325,15 @@ export interface DiffMachine {
 /** The commission events each preset reaches (rules spec §4.3, §5.2). */
 const PRESET_COMMISSION: Readonly<Record<PresetId, readonly CommissionEvent[]>> = {
   craplessBubble: ['placement', 'increase', 'rearmFromWin'],
+  // The high-limit preset shares craplessBubble's catalog, buy commission included.
+  craplessBubbleHighLimit: ['placement', 'increase', 'rearmFromWin'],
   // Shoot To Win takes its commission from wins: nothing is charged up front, held or refunded.
-  traditionalBubble: [],
+  traditionalBubble: ['onWin'],
   strictBubble: ['placement', 'increase', 'rearmFromWin'],
   // A live $1 lay wins $0 and owes its $1 vig again from credit; take-downs are refunded. The vig
-  // is $1 on every bet under $40, so an increase is rarely charged.
-  traditionalLive345: ['placement', 'rearmFromWin', 'rearmFromCredit', 'refund'],
+  // is $1 on every bet under $40, so an increase is rarely charged. The buy vig on 4 and 10 is
+  // taken from the win (commissionByNumber).
+  traditionalLive345: ['placement', 'rearmFromWin', 'rearmFromCredit', 'refund', 'onWin'],
 }
 
 /** Every machine the differential plays: the four presets, then the variants. */

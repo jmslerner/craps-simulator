@@ -25,6 +25,8 @@ export interface Settings {
   readonly reducedMotion: boolean | null
   /** What New game offers first, in cents (plan §0 #19); null offers the machine's default. */
   readonly startingBankroll: number | null
+  /** The machine picked in the last New game, a preset id; null plays the default machine. */
+  readonly machineId: string | null
   /** The next-step guide bar (plan §0 #18). */
   readonly guideEnabled: boolean
   /** Placeholder until M9 defines the coach's modes; stored so M9 keeps the player's choice. */
@@ -39,6 +41,7 @@ export const DEFAULT_SETTINGS: Settings = Object.freeze({
   speed: 'normal',
   reducedMotion: null,
   startingBankroll: null,
+  machineId: null,
   guideEnabled: true,
   coachMode: 'hints',
 })
@@ -52,6 +55,8 @@ const SettingsSchema = z.object({
   speed: z.enum(['normal', 'fast']).catch(DEFAULT_SETTINGS.speed),
   reducedMotion: z.boolean().nullable().catch(null),
   startingBankroll: z.int().positive().nullable().catch(null),
+  // The id is checked against the known presets where it is used, so junk only costs the memory.
+  machineId: z.string().min(1).nullable().catch(null),
   guideEnabled: z.boolean().catch(true),
   coachMode: z.enum(['off', 'hints', 'full']).catch(DEFAULT_SETTINGS.coachMode),
 })

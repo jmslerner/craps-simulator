@@ -875,6 +875,10 @@ describe('limits on the table (rules spec §4.4, §4.5)', () => {
 function scripted(input: MachineConfigInput, dice: readonly (readonly [number, number])[]) {
   const s = session(input)
   const offered = (id: string) => s.facts.types.has(id)
+  // The plan is written on a $1 grid; a machine with a larger denomination (the high-limit
+  // preset's $5) plays the same plan scaled to its own credits, so bets and the round minimum
+  // stay on every machine's grid. The four $1 presets play the plan unchanged.
+  const unit = input.money.betIncrement / 100
   const tryApply = (action: RefAction) => {
     const before = JSON.stringify(s.table())
     const outcome = refApply(s.facts, s.table(), action)
@@ -889,40 +893,48 @@ function scripted(input: MachineConfigInput, dice: readonly (readonly [number, n
       tryApply({
         type: 'place',
         typeId: i % 4 === 3 && offered('dontPass') ? 'dontPass' : 'pass',
-        amount: 1_000,
+        amount: 1_000 * unit,
       })
     }
     for (const n of [6, 8])
-      if (!has('place', n)) tryApply({ type: 'place', typeId: 'place', number: n, amount: 600 })
-    if (i % 2 === 0) tryApply({ type: 'place', typeId: 'field', amount: 500 })
-    if (i % 5 === 0 && offered('horn')) tryApply({ type: 'place', typeId: 'horn', amount: 400 })
-    if (i % 7 === 0) tryApply({ type: 'place', typeId: 'hard', number: 6, amount: 100 })
+      if (!has('place', n))
+        tryApply({ type: 'place', typeId: 'place', number: n, amount: 600 * unit })
+    if (i % 2 === 0) tryApply({ type: 'place', typeId: 'field', amount: 500 * unit })
+    if (i % 5 === 0 && offered('horn'))
+      tryApply({ type: 'place', typeId: 'horn', amount: 400 * unit })
+    if (i % 7 === 0) tryApply({ type: 'place', typeId: 'hard', number: 6, amount: 100 * unit })
     if (phase === 'point' && point !== null) {
       for (const line of ['pass', 'dontPass']) {
         const odds = line === 'pass' ? 'passOdds' : 'dontPassOdds'
         if (has(line, point) && !s.bets().some((b) => b.startsWith(`${odds}@`))) {
-          tryApply({ type: 'place', typeId: odds, parent: `${line}@${point}`, amount: 2_000 })
+          tryApply({
+            type: 'place',
+            typeId: odds,
+            parent: `${line}@${point}`,
+            amount: 2_000 * unit,
+          })
         }
       }
-      if (!has('come')) tryApply({ type: 'place', typeId: 'come', amount: 1_000 })
+      if (!has('come')) tryApply({ type: 'place', typeId: 'come', amount: 1_000 * unit })
       for (const bet of s.snap().bets) {
         if (bet.typeId === 'come' && bet.number !== null && !has('comeOdds', bet.number)) {
           tryApply({
             type: 'place',
             typeId: 'comeOdds',
             parent: `come@${bet.number}`,
-            amount: 1_000,
+            amount: 1_000 * unit,
           })
         }
       }
-      if (!has('buy', 4)) tryApply({ type: 'place', typeId: 'buy', number: 4, amount: 2_000 })
+      if (!has('buy', 4))
+        tryApply({ type: 'place', typeId: 'buy', number: 4, amount: 2_000 * unit })
       if (offered('lay') && !has('lay', 10))
-        tryApply({ type: 'place', typeId: 'lay', number: 10, amount: 2_000 })
+        tryApply({ type: 'place', typeId: 'lay', number: 10, amount: 2_000 * unit })
     }
     if (i % 9 === 4) tryApply({ type: 'setAmount', bet: { typeId: 'place', number: 8 }, amount: 0 })
     if (i % 11 === 5) tryApply({ type: 'setGlobalWorking', off: true })
     if (i % 11 === 8) tryApply({ type: 'setGlobalWorking', off: null })
-    if (s.bankroll() < 10_000) s.apply({ type: 'deposit', amount: 20_000 })
+    if (s.bankroll() < 10_000 * unit) s.apply({ type: 'deposit', amount: 20_000 * unit })
     settled.push(...s.roll(d1, d2))
   })
   return { s, settled }

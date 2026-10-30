@@ -114,6 +114,53 @@ describe('the New game dialog (plan §0 #19)', () => {
     expect(screen.queryByTestId('next-step')).toBeNull()
   })
 
+  it('offers every machine with its variant and real stakes, computed from the config', () => {
+    renderApp()
+    fireEvent.click(screen.getByRole('button', { name: 'New game' }))
+    const dialog = screen.getByRole('dialog', { name: 'New game' })
+    const machines = within(dialog).getByRole('group', { name: 'Machine' })
+    // The default machine's stakes: $1 to $500 a bet (typeLimits through formatCents).
+    expect(machines).toHaveTextContent('Crapless bubble craps')
+    expect(machines).toHaveTextContent('crapless · Pass Line $1 min / $500 max')
+    // The high-limit machine's stakes, its $20,000 layout maximum included.
+    expect(machines).toHaveTextContent(
+      'crapless · Pass Line $5 min / $5,000 max, table max $20,000',
+    )
+    expect(machines).toHaveTextContent('traditional · Pass Line')
+    // Non-verified stakes are marked, as the UI marks assumptions elsewhere.
+    expect(within(machines).getAllByText(/\((assumed|reported)\)/).length).toBeGreaterThan(0)
+    // Five machines, the default checked first.
+    const radios = within(machines).getAllByRole('radio')
+    expect(radios).toHaveLength(5)
+    expect((radios[0] as HTMLInputElement).checked).toBe(true)
+  })
+
+  it('starts on the picked machine, offers its default buy-in, and remembers the choice', async () => {
+    const { game, settings } = renderApp()
+    fireEvent.click(screen.getByRole('button', { name: 'New game' }))
+    let dialog = screen.getByRole('dialog', { name: 'New game' })
+    fireEvent.click(within(dialog).getByRole('radio', { name: /high limit/ }))
+    // The picked machine's own default joins the bankroll choices ($5,000 for the high-limit).
+    const defaultChoice = within(dialog).getByRole('radio', { name: '$5,000' })
+    expect((defaultChoice as HTMLInputElement).checked).toBe(true)
+    await act(async () => {
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Start' }))
+    })
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).toBeNull()
+    })
+    expect(game.getState().cfg?.id).toBe('craplessBubbleHighLimit')
+    expect(game.getState().view?.shown.ledger.bankroll).toBe(500_000)
+    expect(settings.getState().machineId).toBe('craplessBubbleHighLimit')
+    expect(settings.getState().startingBankroll).toBe(500_000)
+
+    // Reopening the dialog preselects the remembered machine.
+    fireEvent.click(screen.getByRole('button', { name: 'New game' }))
+    dialog = screen.getByRole('dialog', { name: 'New game' })
+    const remembered = within(dialog).getByRole('radio', { name: /high limit/ })
+    expect((remembered as HTMLInputElement).checked).toBe(true)
+  })
+
   it('remembers the last choice: a custom amount comes back prefilled', async () => {
     const app = renderApp()
     fireEvent.click(screen.getByRole('button', { name: 'New game' }))

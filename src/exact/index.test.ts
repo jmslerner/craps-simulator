@@ -25,6 +25,6 @@ describe('the exact barrel', () => {
     ] as const) {
       expect(typeof exact[name], name).toBe('function')
     }
-    expect(exact.EXACT_VERSION).toBe(1)
+    expect(exact.EXACT_VERSION).toBe(2)
   })
 })

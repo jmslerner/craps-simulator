@@ -8,6 +8,8 @@ import { applyAction, type ApplyOptions } from '../table/reducer.ts'
 import { newTable, type TableState } from '../table/state.ts'
 import { ENGINE_VERSION } from '../version.ts'
 import {
+  MAX_BATCH_DEPTH,
+  batchDepthOf,
   lastWindowOf,
   type SessionHeader,
   type WindowRecord,
@@ -24,7 +26,9 @@ import {
  * - the log was recorded on another `ENGINE_VERSION` (it replays only on its own; see
  *   `ReplayOptions.anyEngineVersion` for checking one against this engine);
  * - the header's config does not compile, or compiles to another hash;
- * - the log is malformed (a roll among a window's betting actions, a record without a roll);
+ * - the log is malformed (a roll among a window's betting actions, a record without a roll, or a
+ *   batch nested past `MAX_BATCH_DEPTH`, which `dispatchBetting` would never have logged and
+ *   `serializeSession` could not write back);
  * - the table refuses an action the log says it accepted;
  * - the table after a window hashes differently from the recorded `hashAfter`.
  *
@@ -214,7 +218,10 @@ function play(
   return { cfg, state }
 }
 
-/** Betting action `step` of window `at`: never a roll, and one the table accepts. */
+/**
+ * Betting action `step` of window `at`: never a roll, never a batch nested past what live play
+ * could have logged and a save could write again (`MAX_BATCH_DEPTH`), and one the table accepts.
+ */
 function applyStep(
   state: TableState,
   action: Action,
@@ -225,6 +232,10 @@ function applyStep(
 ): { readonly state: TableState; readonly events: readonly GameEvent[] } {
   if (typeof action === 'object' && action !== null && action.type === 'roll') {
     fail(malformed(`windows[${at}].actions[${step}]`, 'a roll among the betting actions'))
+  }
+  if (batchDepthOf(action) > MAX_BATCH_DEPTH) {
+    const reason = `a batch nested deeper than ${MAX_BATCH_DEPTH}, which no log can hold`
+    fail(malformed(`windows[${at}].actions[${step}]`, reason))
   }
   const result = applyAction(state, action, cfg, applyOptions(options))
   if (!result.ok) fail({ kind: 'refused', window: at, step, rejection: result.rejection })

@@ -38,6 +38,7 @@ const LAY: Readonly<Partial<Record<PointNumber, readonly [bigint, bigint]>>> = {
 /** Each machine's payout rounding unit in cents, floored (§4.2, §5.2). */
 const UNIT: Readonly<Record<PresetId, bigint>> = {
   craplessBubble: 1n,
+  craplessBubbleHighLimit: 1n,
   traditionalBubble: 1n,
   strictBubble: 1n,
   traditionalLive345: 100n,

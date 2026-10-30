@@ -364,6 +364,17 @@ export function workingOf(table: TableNode, cfg: MachineConfig): boolean[] {
  * transition, each slot's decision in settlement order (odds get their parent's), each family's
  * `apply`, then the commit (every bet is now carried; `nextRollOnly` toggles go back to their
  * defaults) and the machine's `AFTER_ROLL` actions.
+ *
+ * MAINTENANCE (M5/M6 audit, refactor note): the commit below re-states `table/roll.ts`'s
+ * unexported commit step — `vigHeld` cleared, `placedAtRoll` reset, the `nextRollOnly` reset of
+ * the toggles and the button, and the `heldOff` filter to the bets still up — and `rearmDue`
+ * re-states `settle/commission.ts`'s `rearmAfterWin` condition. Slot order stands in for the
+ * reducer's settlement order, which is safe only because a group is built parent-first
+ * (`groupFor`), the one ordering settlement uses for these bets. None of this may drift: an engine
+ * change to any of those steps must be mirrored here (or the helpers exported and shared — an
+ * engine change, out of scope for the exact module alone), and the dispatch-chain oracle
+ * (tests/oracle/dispatchChain.ts drives the real reducer; dispatchChain.slow compares every preset
+ * bet) is the net that catches a mismatch.
  */
 export function rollOutcomes(
   group: Group,

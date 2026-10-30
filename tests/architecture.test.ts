@@ -639,7 +639,11 @@ describe('architecture scanner Math members by other routes', () => {
       'purity@3',
       'rounding@3',
     ])
-    expect(check('src/engine/settle/settle.ts', 'const m = state.global.Math.random()')).toEqual([])
+    // A banned member through ANY `.Math.` chain: whatever carries it may be the real Math.
+    expect(check('src/engine/settle/settle.ts', 'const m = state.global.Math.random()')).toEqual([
+      'seeded-random@1',
+    ])
+    expect(check('src/engine/settle/settle.ts', 'const s = state.Math.sqrt(2)')).toEqual([])
     expect(check('tests/oracle/x.test.ts', 'const r = globalThis?.Math.random()')).toEqual([
       'seeded-random@1',
     ])
@@ -801,10 +805,12 @@ describe('architecture scanner hosts', () => {
   it('sees Math destructured, aliased or passed on out of any host, in all tests', () => {
     for (const host of HOST_NAMES) {
       for (const file of ['tests/scenarios/dsl.test.ts', 'src/engine/core/rng.test.ts']) {
+        // Line 3 reports twice: the alias carries the host, and `.Math.random` is a banned chain.
         expect(check(file, carriedFrom(host)), `${host} in ${file}`).toEqual([
           'math-value@1',
           'seeded-random@2',
           'host-value@3',
+          'seeded-random@3',
           'host-value@4',
           'host-value@5',
         ])
@@ -819,6 +825,7 @@ describe('architecture scanner hosts', () => {
           'purity@1',
           'purity@2',
           'purity@3',
+          'seeded-random@3',
           'purity@4',
           'purity@5',
         ])
@@ -829,8 +836,10 @@ describe('architecture scanner hosts', () => {
   it('sees every other way a host carries Math', () => {
     expect(check('tests/oracle/x.test.ts', HOST_EVASIONS.join('\n'))).toEqual([
       'host-value@1',
+      'seeded-random@1',
       'host-value@2',
       'host-value@3',
+      'seeded-random@3',
       'host-value@4',
       'host-value@5',
       'host-value@6',
@@ -870,6 +879,90 @@ describe('architecture scanner hosts', () => {
     ])
     expect(check('tests/golden/types.test.ts', MATH_TYPE_NAMES.join('\n'))).toEqual([])
     expect(check('src/exact/price.ts', MATH_TYPE_NAMES.join('\n'))).toEqual([])
+  })
+})
+
+describe('architecture scanner dynamic code (M5/M6 audit)', () => {
+  it('bans eval and the Function constructor in shipped core', () => {
+    const source = [
+      'export const a = Function("return this")().Date.now()',
+      'export const b = new Function("return Math.random()")()',
+      'export const c = eval("Math.random()")',
+    ].join('\n')
+    expect(check('src/engine/bets/legal.ts', source)).toEqual(['purity@1', 'purity@2', 'purity@3'])
+    expect(check('src/physics/core/hop.ts', 'const f = Function')).toEqual(['purity@1'])
+  })
+
+  it('bans them in core tests and everywhere under tests/, with the .Math.random chain', () => {
+    const source = 'const r = Function("return this")().Math.random()\nconst e = eval("1")'
+    for (const file of [
+      'src/engine/core/rng.test.ts',
+      'tests/scenarios/dsl.ts',
+      'tests/oracle/closedForm.ts',
+      'tests/architecture/scanner.ts',
+    ]) {
+      expect(check(file, source), file).toEqual(['purity@1', 'seeded-random@1', 'purity@2'])
+    }
+    expect(check('src/ui/App.tsx', source)).toEqual([])
+    expect(check('e2e/a.spec.ts', source)).toEqual([])
+  })
+
+  it('sees eval and Function read off a host in tests, where hosts are otherwise usable', () => {
+    const source = "const e = globalThis.eval('1')\nconst f = self['Function']('return 1')"
+    expect(check('tests/golden/x.test.ts', source)).toEqual(['purity@1', 'purity@2'])
+  })
+})
+
+describe('architecture scanner escapes (M5/M6 audit)', () => {
+  it('decodes identifier escapes, as tsc and the runtime do', () => {
+    expect(check('src/engine/round/round.ts', 'export const r = M\\u0061th.random()')).toEqual([
+      'seeded-random@1',
+    ])
+    expect(check('src/engine/round/round.ts', 'export const d = D\\u0061te.now()')).toEqual([
+      'purity@1',
+    ])
+    expect(check('src/exact/price.ts', 'export const f = x.to\\u0046ixed(2)')).toEqual([
+      'rounding@1',
+    ])
+    expect(check('tests/scenarios/dsl.ts', 'const r = M\\u{61}th.r\\u{61}ndom()')).toEqual([
+      'seeded-random@1',
+    ])
+  })
+
+  it('decodes string escapes in specifiers and computed members', () => {
+    for (const path of [
+      '../../src/engine/b\\u0065ts/legal.ts',
+      '../../src/\\u0065xact/analyze.ts',
+      '../../src/engine/ind\\x65x.ts',
+      '../../src/ex%61ct/analyze.ts',
+      '../../src/engine/core/mon%65y.ts',
+    ]) {
+      expect(check('tests/oracle/referenceRules.ts', imp(path)), path).toEqual([
+        'oracle-independence@1',
+      ])
+    }
+    expect(check('src/engine/round/x.ts', imp('../../\\u0075i/App.tsx'))).toEqual(['layering@1'])
+    expect(check('tests/golden/x.test.ts', "const m = globalThis['M\\u0061th']")).toEqual([
+      'math-value@1',
+    ])
+    expect(check('src/exact/price.ts', "const f = x['to\\u0046ixed'](2)")).toEqual(['rounding@1'])
+  })
+
+  it('bans file: and data: URL specifiers everywhere under src/ and tests/', () => {
+    const fileUrl = imp('file:///Users/x/craps-simulator/src/engine/core/money.ts')
+    expect(check('tests/oracle/referenceRules.ts', fileUrl)).toEqual(['import-extension@1'])
+    expect(check('tests/oracle/dispatchChain.ts', imp('FILE:///x/src/exact/solve.ts'))).toEqual([
+      'import-extension@1',
+    ])
+    expect(check('tests/support/helper.ts', fileUrl)).toEqual(['import-extension@1'])
+    // In a layer the URL is also no allowed package, so the layering rule reports it too.
+    expect(check('src/engine/round/round.ts', fileUrl)).toEqual([
+      'import-extension@1',
+      'layering@1',
+    ])
+    expect(check('tests/golden/x.test.ts', imp('data:text/javascript,export const x = 1'))).toEqual(
+      ['import-extension@1'],
+    )
   })
 })
 
@@ -1148,6 +1241,9 @@ describe('the lint mirror in eslint.config.js', () => {
     'no-restricted-properties',
     'no-restricted-imports',
     '@typescript-eslint/no-import-type-side-effects',
+    'no-eval',
+    'no-implied-eval',
+    'no-new-func',
   ])
   /** `rule@line` for each mirrored rule ESLint reports on `code`, linted as if it were `file`. */
   const lint = async (file: string, code: string) => {
@@ -1267,6 +1363,51 @@ describe('the lint mirror in eslint.config.js', () => {
     expect(await lint('tests/oracle/dispatchChain.ts', imp('../../src/exact/chain.ts'))).toEqual([
       'no-restricted-imports@1',
     ])
+  }, 30_000)
+
+  it('bans dynamic code in core and tests, like the scanner (M5/M6 audit)', async () => {
+    const source = [
+      'export const a = eval("1")',
+      'export const b = new Function("return 1")()',
+      'export const c = Function("return this")()',
+      'export const d = globalThis.eval("1")',
+      'export const e = setTimeout("code()", 1)',
+    ].join('\n')
+    for (const file of [
+      'src/engine/round/round.ts',
+      'src/exact/price.ts',
+      'src/physics/core/hop.test.ts',
+      'tests/scenarios/dsl.ts',
+    ]) {
+      expect(await lint(file, source), file).toEqual([
+        'no-eval@1',
+        'no-new-func@2',
+        'no-new-func@3',
+        'no-eval@4',
+        'no-implied-eval@5',
+      ])
+    }
+    expect(await lint('src/ui/App.tsx', source)).toEqual([])
+  }, 30_000)
+
+  it('bans file: URLs and percent-escaped paths, like the scanner (M5/M6 audit)', async () => {
+    const fileUrl = imp('file:///Users/x/craps-simulator/src/engine/core/money.ts')
+    for (const file of [
+      'tests/oracle/referenceRules.ts',
+      'tests/oracle/dispatchChain.ts',
+      'src/engine/round/round.ts',
+      'tests/scenarios/dsl.ts',
+      'src/engine/core/money.ts',
+    ]) {
+      expect(await lint(file, fileUrl), file).toEqual(['no-restricted-imports@1'])
+    }
+    expect(
+      await lint('tests/oracle/referenceRules.ts', imp('../../src/ex%61ct/analyze.ts')),
+    ).toEqual(['no-restricted-imports@1'])
+    // The core area pattern sees the percent-escaped directory too, so money.ts reports twice.
+    expect(
+      await lint('tests/oracle/referenceRules.ts', imp('../../src/engine/core/mon%65y.ts')),
+    ).toEqual(['no-restricted-imports@1', 'no-restricted-imports@1'])
   }, 30_000)
 
   it('reports Math carried out of any host, as the scanner does', async () => {

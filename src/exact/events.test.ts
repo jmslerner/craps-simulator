@@ -3,6 +3,7 @@ import { compileConfig } from '../engine/config/compile.ts'
 import { PRESETS, type PresetId } from '../engine/config/presets/index.ts'
 import type { BetSpec } from './chain.ts'
 import { sameEvents } from './events.ts'
+import { startAt } from './start.ts'
 
 const cfgOf = (id: PresetId) => compileConfig(PRESETS[id])
 const same = (id: PresetId, a: BetSpec, b: BetSpec) => sameEvents(a, b, 'typical', cfgOf(id))
@@ -63,5 +64,32 @@ describe('sameEvents', () => {
     const pass: BetSpec = { typeId: 'pass', number: null }
     expect(same('craplessBubble', pass, pass)).toBe(true)
     expect(same('craplessBubble', pass, { typeId: 'come', number: null })).toBe(false)
+  })
+
+  it("holds only the types the machine's hold covers from a held start (M5/M6 audit)", () => {
+    // Interblock holds place and buy bets after a seven-out, never hardways: a held place 6 gets
+    // no decision while hard 6 is decided by the easy 6 and the 7, so they are different events.
+    const cfg = cfgOf('craplessBubble')
+    const held = startAt({ kind: 'comeOut' }, { held: true })
+    expect(
+      sameEvents({ typeId: 'place', number: 6 }, { typeId: 'hard', number: 6 }, held, cfg),
+    ).toBe(false)
+    expect(
+      sameEvents({ typeId: 'hard', number: 6 }, { typeId: 'place', number: 6 }, held, cfg),
+    ).toBe(false)
+  })
+
+  it('never calls two bets the same while either can never be decided', () => {
+    // Both held until Set bets On, which the chain never presses: neither is ever decided, so the
+    // comparison would be vacuous (M5/M6 audit).
+    const cfg = cfgOf('craplessBubble')
+    const held = startAt({ kind: 'comeOut' }, { held: true })
+    expect(
+      sameEvents({ typeId: 'place', number: 4 }, { typeId: 'buy', number: 4 }, held, cfg),
+    ).toBe(false)
+    // Released (the player sets bets on), they are the same events again.
+    expect(
+      sameEvents({ typeId: 'place', number: 4 }, { typeId: 'buy', number: 4 }, 'typical', cfg),
+    ).toBe(true)
   })
 })

@@ -40,6 +40,9 @@ describe.each(DIFF_MACHINES.map((machine) => [machine.id, machine] as const))(
       expect(report.actions).toBe(QUICK_RUNS * 100)
       expectExercised(report, compileConfig(machine.input), {
         oddsPlaced: 10,
+        // Too few runs to see every (odds type, number) win; the scripted dice below pin the ones
+        // the M5/M6 audit found missing, and the slow run bars them all (oddsNumberWins: 1 there).
+        oddsNumberWins: 0,
         commission: machine.commission,
         commissionCount: 1,
       })
@@ -272,6 +275,65 @@ describe('adjudicated mismatches (M6 reconciliation)', () => {
       { typeId: 'buy', number: 9, amount: 1_000 },
       { typeId: 'dontPass', number: 9, amount: 1_000 },
     ])
+  })
+
+  it('targeted: crapless pass and come odds WIN on 2 and on 12, through both models (M5/M6 audit)', () => {
+    // The quick random runs never settled a winning passOdds on 2 or 12, nor comeOdds there, so
+    // the odds-by-number pays (6:1 on 2/12) were compared only in the slow run. Scripted dice pin
+    // them here deterministically; the slow run also bars every (odds type, number) win.
+    const start = PRESETS.craplessBubble.money.startingBankroll
+    const oddsBehind = (typeId: string, parentType: string, number: number, amount: number): Step =>
+      ({ kind: 'place', typeId, number: null, parent: key(parentType, number), amount }) as Step
+    for (const [d, point] of [
+      [1, 2],
+      [6, 12],
+    ] as const) {
+      const pass = sideBySide('craplessBubble', [
+        place('pass', 500),
+        roll(d, d), // the point is 2 (or 12)
+        oddsBehind('passOdds', 'pass', point, 500),
+        roll(d, d), // point made: the pass bet and its odds win together
+      ])
+      // The won pass stake stays up as a fresh come-out pass bet (afterWin: stay); the $5 odds
+      // won $30 at 6:1 [V], so the session is up $30 (pass win $5 + odds win $30 − the $5 re-bet).
+      expect(pass.engine.bets, `passOdds@${point}`).toMatchObject([
+        { typeId: 'pass', number: null, amount: 500 },
+      ])
+      expect(pass.engine.bankroll, `passOdds@${point}`).toBe(start + 3_000)
+      const come = sideBySide('craplessBubble', [
+        place('pass', 500),
+        roll(3, 3), // the pass point is 6, opening the come window
+        place('come', 500),
+        roll(d, d), // the come bet travels to 2 (or 12)
+        oddsBehind('comeOdds', 'come', point, 500),
+        roll(d, d), // the come bet and its odds win while the pass point stays open
+      ])
+      expect(come.engine.bets, `comeOdds@${point}`).toMatchObject([{ typeId: 'pass', number: 6 }])
+      // Come stake and odds returned with the $5 and $30 wins, $5 still riding on the pass.
+      expect(come.engine.bankroll, `comeOdds@${point}`).toBe(start + 3_000)
+    }
+  })
+
+  it('targeted: commission taken from the win, and capped at it, through both models (M5/M6 audit)', () => {
+    // Shoot To Win's buy vig comes off the win (rules spec §4.3); no random run counted it, and
+    // nothing exercised the cap at the win. vigPaid is deterministic here, and sideBySide has
+    // already checked the oracle agrees on it.
+    const stw = sideBySide('traditionalBubble', [
+      place('pass', 300),
+      roll(2, 2), // the point is 4
+      place('buy', 2_500, 4),
+      roll(2, 2), // the buy wins $50 at 2:1; 5% of the $25 stake comes off the win
+    ])
+    expect(stw.engine).toMatchObject({ vigPaid: 125 })
+    const variant = MACHINE_VARIANTS.find((machine) => machine.id === 'stw-vig-cap')
+    if (variant === undefined) throw new Error('stw-vig-cap is gone')
+    const capped = sideBySide(variant.input, [
+      place('pass', 300),
+      roll(2, 2), // the point is 4
+      place('buy', 100, 6),
+      roll(3, 3), // the $1 buy on 6 wins $1.20; the $5 minimum vig is capped at the $1.20 win
+    ])
+    expect(capped.engine).toMatchObject({ vigPaid: 120 })
   })
 
   it('a lay held OFF after a seven-out stays held when a 7 re-enables lays; only Set bets On ends the hold (§2.4; IB §3.2) — the oracle was fixed', () => {

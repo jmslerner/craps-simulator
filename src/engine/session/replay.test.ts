@@ -17,6 +17,7 @@ import {
   type ReplayFailure,
 } from './replay.ts'
 import {
+  MAX_BATCH_DEPTH,
   dispatchBetting,
   newSession,
   rollWindow,
@@ -81,6 +82,13 @@ function editRecord(
   change: (record: WindowRecord) => WindowRecord,
 ): WindowRecord[] {
   return records.map((record, i) => (i === index ? change(record) : record))
+}
+
+/** A deposit wrapped in `depth` nested batches, built iteratively so any depth works. */
+function nestedBatch(depth: number): Action {
+  let action: Action = { type: 'deposit', amount: cents(100) }
+  for (let i = 0; i < depth; i++) action = { type: 'batch', actions: [action] }
+  return action
 }
 
 describe('replay', () => {
@@ -215,6 +223,15 @@ describe('replay', () => {
       where: 'windows[1].actions[2]',
       reason: 'a roll among the betting actions',
     })
+    const deepBatch = editRecord(session.committed, 1, (r) => ({
+      ...r,
+      actions: [...r.actions, nestedBatch(MAX_BATCH_DEPTH + 1)],
+    }))
+    expect(failureOf(() => replay(session.header, deepBatch))).toEqual({
+      kind: 'malformed',
+      where: 'windows[1].actions[2]',
+      reason: `a batch nested deeper than ${MAX_BATCH_DEPTH}, which no log can hold`,
+    })
     const noRoll = editRecord(
       session.committed,
       3,
@@ -278,6 +295,23 @@ describe('resumeSession', () => {
       step: 0,
       rejection: { code: 'BET_NOT_FOUND', details: { betId: 'b99' } },
     })
+  })
+
+  it('refuses a pending batch nested too deep to save again, at any depth (M5/M6 audit)', () => {
+    const { session } = played()
+    const open = session.committed.length
+    // The audit's repro: 20,000 levels load, then serializeSession overflows the call stack. The
+    // cap refuses them on load with a structured failure instead, long before the stack is at risk.
+    expect(
+      failureOf(() => resumeSession(session.header, session.committed, [nestedBatch(20_000)])),
+    ).toEqual({
+      kind: 'malformed',
+      where: `windows[${open}].actions[0]`,
+      reason: `a batch nested deeper than ${MAX_BATCH_DEPTH}, which no log can hold`,
+    })
+    // At the cap it loads: load takes exactly what dispatchBetting logs and serializeSession saves.
+    const resumed = resumeSession(session.header, session.committed, [nestedBatch(MAX_BATCH_DEPTH)])
+    expect(resumed.state.ledger.deposits).toBe(session.state.ledger.deposits + 100)
   })
 
   it('carries a log checked under anyEngineVersion on as this version’s log', () => {

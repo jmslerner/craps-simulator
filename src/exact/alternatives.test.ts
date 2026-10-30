@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import { compileConfig, type MachineConfig } from '../engine/config/compile.ts'
 import { PRESETS, PRESET_IDS, type PresetId } from '../engine/config/presets/index.ts'
+import { pruneProvenance } from '../engine/config/provenance.ts'
+import type { MachineConfigInput } from '../engine/config/schema.ts'
 import { cents, type Cents } from '../engine/core/money.ts'
+import { Fraction } from '../engine/core/rational.ts'
 import type { Action } from '../engine/table/actions.ts'
 import { applyAction, validateAction } from '../engine/table/reducer.ts'
 import { newTable, type TableState } from '../engine/table/state.ts'
@@ -38,10 +41,45 @@ describe('suggestAlternatives', () => {
     expect(best?.spec).toEqual({ typeId: 'buy', number: 4 })
     expect(best?.edge.toString()).toBe('1/21')
     expect(best?.saving.toString()).toBe('2/105')
+    // The switch saves money per decision, not only rate: place loses 100/3¢, the buy 25¢.
+    expect(best?.lossPerDecision?.toString()).toBe('25')
+    expect(best?.savingPerDecision?.toString()).toBe(
+      Fraction.of(100, 3).sub(Fraction.of(25)).toString(),
+    )
     expect(best?.actions).toEqual([
       { type: 'setAmount', betId: state.bets[0]?.id, amount: 0 },
       { type: 'place', typeId: 'buy', number: 4, amount: 500 },
     ])
+  })
+
+  it("never calls an equal dollar loss a saving: the live '$1 vig, tie at $15' (rules spec §4.3)", () => {
+    // A live table whose buy vig is charged up front on every number (the 4/10 on-win override
+    // removed): at $15 the buy's edge is lower (6.250% against place 4's 6.667%) only because the
+    // vig inflates the divisor — both lose exactly $1.00 a decision, so there is nothing to save
+    // and no switch is offered. From $16 up the buy saves real money and is offered again.
+    const cfg = compileConfig(
+      (() => {
+        const input = structuredClone(PRESETS.traditionalLive345) as MachineConfigInput
+        const buy = input.catalog.buy
+        if (buy?.family !== 'numberVsSeven') throw new Error('no buy')
+        delete buy.commissionByNumber
+        input.provenance = pruneProvenance(input)
+        return input
+      })(),
+    )
+    const place4: BetSpec = { typeId: 'place', number: 4 }
+    const state = newTable(cfg, 'tie')
+    const at15 = suggestAlternatives(state, place4, cents(1_500), cfg)
+    expect(at15.find(({ spec }) => spec.typeId === 'buy')).toBeUndefined()
+    const place = analyzeBet(place4, cents(1_500), 'typical', cfg)
+    const buy = analyzeBet({ typeId: 'buy', number: 4 }, cents(1_500), 'typical', cfg)
+    expect(buy.edge.compare(place.edge)).toBe(-1)
+    expect(buy.lossPerDecision.toString()).toBe('100')
+    expect(place.lossPerDecision.toString()).toBe('100')
+    const at16 = suggestAlternatives(state, place4, cents(1_600), cfg)
+    const offered = at16.find(({ spec }) => spec.typeId === 'buy')
+    expect(offered?.comparability).toBe('sameEvent')
+    expect(offered?.savingPerDecision?.toString()).toBe(Fraction.of(20, 3).toString())
   })
 
   it('offers nothing cheaper with the same events for place 6, which beats buying it', () => {

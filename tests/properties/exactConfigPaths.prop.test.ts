@@ -83,4 +83,75 @@ describe('config-path invariance (quick subset)', () => {
       analysisFingerprint(analyzeBet(place6, config.limits.min, 'typical', config))
     expect(at(changed)).not.toBe(at(cfg))
   })
+
+  it('holds under a joint /variant + /rules change: the round pointers are in configPaths (M5/M6 audit)', () => {
+    // Re-cut craplessBubble as a traditional machine: /variant, /rules and the 2/3/11/12 entries
+    // of place, buy and the odds change together (a valid edit no single-value mutation can make).
+    // Every bet whose configPaths avoid all the changed pointers must analyse identically; the
+    // π-weighted bets whose chances DO move must now list /variant, so the invariance contract
+    // holds because they are excused, not because the change went unseen.
+    const input = PRESETS.craplessBubble as MachineConfigInput
+    const cfg = compileConfig(input)
+    const changedPointers = [
+      '/variant',
+      '/rules',
+      '/catalog/place',
+      '/catalog/buy',
+      '/catalog/passOdds',
+      '/catalog/comeOdds',
+    ]
+    const recut = mutated(input, (copy) => {
+      copy.variant = 'traditional'
+      copy.rules = {
+        naturals: [7, 11],
+        craps: [2, 3, 12],
+        points: [4, 5, 6, 8, 9, 10],
+        dontBar: 12,
+        allowPutBets: false,
+      }
+      for (const id of ['place', 'buy'] as const) {
+        const type = copy.catalog[id]
+        if (type?.family !== 'numberVsSeven') throw new Error(`no ${id}`)
+        type.numbers = [4, 5, 6, 8, 9, 10]
+        for (const key of ['2', '3', '11', '12']) delete type.pays[key]
+      }
+      for (const id of ['passOdds', 'comeOdds'] as const) {
+        const odds = copy.catalog[id]
+        if (odds?.family !== 'odds') throw new Error(`no ${id}`)
+        for (const key of ['2', '3', '11', '12']) {
+          delete odds.pays[key]
+          delete odds.limit.multiple[key]
+        }
+      }
+    })
+    if (recut === null) throw new Error('the re-cut machine does not compile')
+    let unchanged = 0
+    let excused = 0
+    for (const spec of catalogSpecs(cfg)) {
+      const paths = configPathsOf(spec, cfg)
+      const touched = changedPointers.some((pointer) =>
+        paths.some((path) => overlaps(pointer, path)),
+      )
+      if (touched) {
+        excused++
+        continue
+      }
+      const amount = firstAmounts(spec, cfg, 1)[0]
+      if (amount === undefined) continue
+      unchanged++
+      const before = analysisFingerprint(analyzeBet(spec, amount, 'typical', cfg))
+      const after = analysisFingerprint(analyzeBet(spec, amount, 'typical', recut))
+      expect(after, `${spec.typeId} ${String(spec.number)}`).toBe(before)
+    }
+    // One-roll bets and composites survive the re-cut; the π-weighted bets are excused.
+    expect(unchanged).toBeGreaterThan(5)
+    expect(excused).toBeGreaterThan(30)
+    // The excuse is real: come odds' chances move with the variant, and /variant is in their paths.
+    const come4 = { typeId: 'comeOdds', number: 4 } as const
+    expect(configPathsOf(come4, cfg)).toContain('/variant')
+    const pWinBefore = analyzeBet(come4, cfg.limits.min, 'typical', cfg).pWin
+    const pWinAfter = analyzeBet(come4, cfg.limits.min, 'typical', recut).pWin
+    expect(pWinBefore.toString()).toBe('136125679/459570487')
+    expect(pWinAfter.toString()).toBe('308779/1104264')
+  })
 })

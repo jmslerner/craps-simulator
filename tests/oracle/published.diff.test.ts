@@ -9,6 +9,7 @@ import { Fraction } from '../../src/engine/core/rational.ts'
 import { analyzeBet, combinedEdge, roundStats } from '../../src/exact/index.ts'
 import { analyze, handConstants, lineWithOdds } from './closedForm.ts'
 import { closedFormOf } from './closedFormOf.ts'
+import { dispatchAnalysis, dispatchVariant } from './dispatchChain.ts'
 import { factsFrom, incrementOf, typeFacts } from './machineFacts.ts'
 
 // Published exact values (plan §9 item 5), each through both the closed form (tests/oracle,
@@ -282,6 +283,35 @@ describe('odds (rules spec §3.1, §4.4)', () => {
     expectEdge(short, 'passOdds', 2, 200, exact(1, 14))
     expectEdge(short, 'passOdds', 12, 200, exact(1, 14))
     for (const n of [4, 5, 6, 8, 9, 10]) expectEdge(PRESETS.strictBubble, 'passOdds', n, 3_000, '0')
+  })
+
+  it('come odds short-paid at 11:2 cost 1/14 through the reducer too (rules spec §0.1)', () => {
+    // The closed form does not model odds returned unplayed, so the dispatch chain (the real
+    // reducer, solved densely) stands on the oracle side: both it and analyzeBet must give the
+    // published 1/14, with the returns left out of the amount risked.
+    const input = dispatchVariant(
+      machine('craplessBubble', (edited) => {
+        const odds = edited.catalog.comeOdds
+        if (odds?.family !== 'odds') throw new Error('no odds')
+        odds.pays = { ...odds.pays, '2': '11:2', '12': '11:2' }
+      }),
+    )
+    const cfg = compileConfig(input)
+    for (const n of [2, 12] as const) {
+      const reducer = dispatchAnalysis(
+        cfg,
+        {
+          typeId: 'comeOdds',
+          amount: 200,
+          parent: { typeId: 'come', amount: 200, number: n },
+          point: 6,
+        },
+        'lifetime',
+      )
+      expect(reducer.edge.toString(), `reducer comeOdds ${n}`).toBe(exact(1, 14))
+      const solver = analyzeBet({ typeId: 'comeOdds', number: n }, cents(200), 'typical', cfg)
+      expect(solver.edge.toString(), `analyzeBet comeOdds ${n}`).toBe(exact(1, 14))
+    }
   })
 
   it('odd-cent sweep: true odds are free exactly when the cents divide, and never favour the player', () => {

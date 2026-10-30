@@ -50,7 +50,7 @@ import { typicalStart } from './start.ts'
  * Odds at true odds have an edge of exactly 0, so any rounding up of a lay-odds payout shows here.
  */
 
-export type SanityCode = 'playerAdvantage' | 'highEdge' | 'unanalysable'
+export type SanityCode = 'playerAdvantage' | 'playerEven' | 'highEdge' | 'unanalysable'
 
 export interface SanityIssue {
   readonly severity: 'error' | 'warning'
@@ -68,6 +68,8 @@ export interface SanityIssue {
 export const HIGH_EDGE = Fraction.of(2, 5)
 
 export const PLAYER_ADVANTAGE = 'player advantage: almost certainly a data-entry error'
+
+export const PLAYER_EVEN = "player-even: almost certainly a 'for 1' pay typed as 'to 1'"
 
 /** At most this many stakes per sweep. */
 const SWEEP_LIMIT = 240
@@ -155,6 +157,22 @@ function issuesOf(spec: BetSpec, cfg: MachineConfig, paths: readonly string[]): 
         amount: unit,
         edge,
         message: `an edge of ${edge.formatPercent(2)}% is far above any real bet's: check its pays`,
+        paths,
+      })
+    }
+    // A bet that is exactly fair is almost always an Interblock "x for 1" pay entered "x to 1"
+    // (plan §0 #10: Any 7 at 5:1 and P = 1/6 is dead even). Only free odds are fair by design
+    // (rules spec §8.1 rank 1), so the odds family is exempt.
+    const nominal = edgeOf(measure(life, unit, cfg, 'exact'))
+    const family = cfg.catalog.get(spec.typeId)?.family
+    if (family !== 'odds' && (edge.isZero() || nominal.isZero())) {
+      issues.push({
+        severity: 'error',
+        code: 'playerEven',
+        spec,
+        amount: unit,
+        edge: edge.isZero() ? edge : nominal,
+        message: PLAYER_EVEN,
         paths,
       })
     }

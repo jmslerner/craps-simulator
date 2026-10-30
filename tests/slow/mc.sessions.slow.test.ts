@@ -27,6 +27,8 @@ import { flatSpec, flatStake } from '../properties/mc.ts'
 
 const RANDOM_RUNS: Record<PresetId, number> = {
   craplessBubble: 200,
+  // The high-limit preset shares craplessBubble's rules: the default machine keeps the deep run.
+  craplessBubbleHighLimit: 100,
   traditionalBubble: 100,
   strictBubble: 100,
   traditionalLive345: 100,

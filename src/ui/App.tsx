@@ -24,6 +24,7 @@ import {
 import { rollAnnouncement } from './components/copy.ts'
 import { NewGameDialog } from './components/NewGameDialog.tsx'
 import { NextStepBar } from './components/NextStepBar.tsx'
+import { NoticeBanner } from './components/NoticeBanner.tsx'
 import { ReasonStrip } from './components/ReasonStrip.tsx'
 import { RollHistoryPanel } from './components/RollHistoryPanel.tsx'
 import { SessionStrip } from './components/SessionStrip.tsx'
@@ -225,6 +226,7 @@ export function App({ stores = DEFAULT_STORES, boot = true }: AppProps) {
           <h1 className="app-brand">Bubble Craps Trainer</h1>
           <Topbar />
           <ReasonStrip />
+          <NoticeBanner />
           {approxNote && cfg !== null && (
             <div className="approx-note" role="note">
               <p>

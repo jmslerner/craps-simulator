@@ -229,6 +229,21 @@ const OFFER: Readonly<
       ['/catalog/hop55/afterWin', 'assumed'],
     ],
   },
+  // The high-limit machine shares craplessBubble's catalog object, so the same set and pays.
+  craplessBubbleHighLimit: {
+    field: FIELD_2_2,
+    hops: 'interblock',
+    ok: [
+      ['/catalog/field', 'verified'],
+      ['/catalog/field/pays', 'reported'],
+      ['/catalog/any7/pays', 'reported'],
+      ['/catalog/snakeEyes', 'verified'],
+      ['/catalog/hop13', 'verified'],
+      ['/catalog/hop13/pays', 'reported'],
+      ['/catalog/hop55', 'verified'],
+      ['/catalog/hop55/afterWin', 'assumed'],
+    ],
+  },
   traditionalBubble: {
     field: FIELD_2_2,
     hops: 'all',

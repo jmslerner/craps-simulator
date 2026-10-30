@@ -360,7 +360,10 @@ describe('seeded random sessions (quick subset)', () => {
   /** The action an intent stands for on this table. */
   function toAction(intent: Intent, state: TableState, cfg: MachineConfig): Action {
     const pick = <T>(list: readonly T[], n: number): T | undefined => list[n % list.length]
-    const money = (units: number, half = false): Cents => cents(units * 100 + (half ? 50 : 0))
+    // Amounts ride the machine's own denomination (the high-limit preset bets in $5 steps), with
+    // an off-grid half step now and then, to be refused.
+    const money = (units: number, half = false): Cents =>
+      cents(units * cfg.betIncrement + (half ? cfg.betIncrement / 2 : 0))
     switch (intent.kind) {
       case 'place': {
         const types = [...cfg.catalog.keys()].filter((id) => resolveType(cfg, id) !== null)
@@ -433,10 +436,11 @@ describe('seeded random sessions (quick subset)', () => {
       ),
       { seed: 20261028, numRuns: 120 },
     )
-    // The sessions must actually play, not just collect rejections. With this seed they make
-    // 2521 rolls, 401 bets and 368 settlements; the floors leave room for engine changes.
-    expect(rolls).toBeGreaterThan(1_200)
-    expect(bets).toBeGreaterThan(200)
-    expect(settled).toBeGreaterThan(180)
+    // The sessions must actually play, not just collect rejections. With this seed over the five
+    // presets they make 1162 rolls, 1141 bets and 1067 settlements (amounts ride each machine's
+    // denomination since the high-limit preset joined); the floors leave room for engine changes.
+    expect(rolls).toBeGreaterThan(600)
+    expect(bets).toBeGreaterThan(550)
+    expect(settled).toBeGreaterThan(500)
   })
 })

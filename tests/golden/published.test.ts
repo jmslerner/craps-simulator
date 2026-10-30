@@ -359,6 +359,45 @@ describe('odds (rules spec §3.1, §4.4)', () => {
     expect(edge(cfg, 'passOdds', 6, 500)).toBe('0')
   })
 
+  it('come odds short-paid at 11:2 cost the same 1/14: returns unplayed are no decisions (§0.1)', () => {
+    // Come odds are sometimes handed back unplayed (OFF on a come-out that decides the come bet,
+    // or returned at a point made). Those returns never had action, so they are left out of the
+    // amount risked, and every dollar that plays loses the same 1/14 as on pass odds.
+    const cfg = variant('craplessBubble', (input) => {
+      const odds = input.catalog.comeOdds
+      if (odds?.family !== 'odds') throw new Error('no odds')
+      odds.pays = { ...odds.pays, '2': '11:2', '12': '11:2' }
+    })
+    const odds12 = analyzeBet({ typeId: 'comeOdds', number: 12 }, cents(200), 'typical', cfg)
+    expect(odds12.edge.toString()).toBe(exact(1, 14))
+    expect(edge(cfg, 'comeOdds', 2, 200)).toBe(exact(1, 14))
+    // The unplayed returns still show as pushes of the first decision — they are real outcomes.
+    expect(odds12.pPush.isZero()).toBe(false)
+    // At true odds they stay free.
+    expect(edge(cfg, 'comeOdds', 6, 500)).toBe('0')
+  })
+
+  it('put bets (live, §3.1): 33.33% on 4/10, 20% on 5/9, 9.09% on 6/8, per decision', () => {
+    const live = preset('traditionalLive345')
+    const rows: [PointNumber, string, string][] = [
+      [4, exact(1, 3), exact(1, 12)],
+      [10, exact(1, 3), exact(1, 12)],
+      [5, exact(1, 5), exact(1, 18)],
+      [9, exact(1, 5), exact(1, 18)],
+      [6, exact(1, 11), exact(1, 36)],
+      [8, exact(1, 11), exact(1, 36)],
+    ]
+    for (const [n, he, perRoll] of rows) {
+      const put = analyzeBet({ typeId: 'pass', number: n }, cents(1_000), 'typical', live)
+      expect(put.edge.toString(), `put ${n}`).toBe(he)
+      // (6 − w)/36 a working roll, §3.1's HE_roll column.
+      expect(put.edgePerWorkingRoll.toString(), `put ${n}`).toBe(perRoll)
+      // $10 on the 4: one decision losing $10/3 (the audit's 33.33%), not a blend with later
+      // pass-line decisions.
+      if (n === 4) expect(put.lossPerDecision.toString()).toBe(exact(1_000, 3))
+    }
+  })
+
   it('odd-cent sweep: true odds are free exactly when the cents divide; otherwise the floor costs', () => {
     // A penny machine that takes bets in cents, so odds can be any whole number of cents.
     const cfg = variant('craplessBubble', (input) => {

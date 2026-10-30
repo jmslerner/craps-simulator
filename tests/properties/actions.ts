@@ -505,6 +505,13 @@ export interface Coverage {
   readonly placed: Map<string, number>
   /** Settlements (wins, losses, pushes), by type. */
   readonly settled: Map<string, number>
+  /**
+   * Settlements of bets on a number, as `place@6:win`: payouts differ by number
+   * (`payoutRoundingByNumber`, odds pays), so the per-type counts alone can miss one — the M5/M6
+   * audit found no run settled a winning crapless passOdds on 2 or 12. An odds bet counts on its
+   * parent's point.
+   */
+  readonly settledByNumber: Map<string, number>
   /** Decisions by kind: `win:stay`, `win:return`, `lose`, `push:bar`, `travel`, … */
   readonly decisions: Map<string, number>
   /** Accepted changes by kind: `add`, `press`, `cut`, `takeDown`, `roll:comeOut`, `global:true`, … */
@@ -521,8 +528,10 @@ export interface Coverage {
 /**
  * The commission events a run can reach (rules spec §4.3, §4.5), as `Coverage.machine` counts
  * them: up-front vig at placement and on an increase, re-collected from the win and from credit
- * when a winner stays up, a re-collection declined (the bet comes down), and refunds on a cut or
- * take-down and of what a declined win had paid.
+ * when a winner stays up, a re-collection declined (the bet comes down), refunds on a cut or
+ * take-down and of what a declined win had paid, and commission taken from the win itself
+ * (`timing: onWin`), with the case where the win caps it (the M5/M6 audit found no run counted
+ * either).
  */
 export const COMMISSION_EVENTS = {
   placement: 'vigCharged:placement:credit',
@@ -532,12 +541,15 @@ export const COMMISSION_EVENTS = {
   decline: 'vigDeclined',
   refund: 'vigRefunded:takeDown',
   declineRefund: 'vigRefunded:declined',
+  onWin: 'vigOnWin',
+  onWinCapped: 'vigOnWin:capped',
 } as const
 
 export function newCoverage(): Coverage {
   return {
     placed: new Map(),
     settled: new Map(),
+    settledByNumber: new Map(),
     decisions: new Map(),
     accepted: new Map(),
     rejected: new Map(),
@@ -597,6 +609,13 @@ function recordEvent(
     case 'betResolved': {
       const { trace } = event
       bump(coverage.settled, trace.typeId)
+      if (trace.number !== null) {
+        bump(coverage.settledByNumber, `${trace.typeId}@${trace.number}:${trace.outcome}`)
+      }
+      if (trace.vigOnWin > 0) {
+        bump(coverage.machine, COMMISSION_EVENTS.onWin)
+        if (trace.vigOnWin === trace.winPaid) bump(coverage.machine, COMMISSION_EVENTS.onWinCapped)
+      }
       const kind =
         trace.outcome === 'win'
           ? `win:${trace.stakeDisposition === 'stays' ? 'stay' : 'return'}`
@@ -634,6 +653,7 @@ export function describeCoverage(coverage: Coverage): Record<string, Record<stri
   return {
     placed: sorted(coverage.placed),
     settled: sorted(coverage.settled),
+    settledByNumber: sorted(coverage.settledByNumber),
     decisions: sorted(coverage.decisions),
     accepted: sorted(coverage.accepted),
     rejected: sorted(coverage.rejected),

@@ -53,8 +53,20 @@ import { startKey } from './start.ts'
  * that stays on the table after a win counts as returned and wagered again").
  */
 
-/** The analysis code's own version: part of every cache key, for caches that outlive a session. */
-export const EXACT_VERSION = 1
+/**
+ * The analysis code's own version: part of every cache key, for caches that outlive a session.
+ *
+ * History:
+ * - 2: M9 fix:exact (M5/M6 audit). `combinedEdge` with `'max'` odds clamps each number's odds to
+ *   what the table accepts (per-bet maximum, table maximum, increment), so it never prices odds
+ *   the machine refuses; the amount risked leaves out the stake of odds returned unplayed (push
+ *   `offReturned`, rules spec §0.1), so short-paid come odds price like pass odds (1/14 at 11:2);
+ *   a put bet's lifecycle ends at its first decision (rules spec §3.1); `catalogTable` adds put
+ *   rows where `/rules/allowPutBets` is set; `configPathsOf` adds the round pointers behind
+ *   π-weighted starts; `workingShare` follows the machine's after-roll re-enables.
+ * - 1: M6.
+ */
+export const EXACT_VERSION = 2
 
 /** `rounded`: as the machine pays. `exact`: no rounding anywhere, commission minimums kept. */
 export type PriceMode = 'rounded' | 'exact'
@@ -83,6 +95,13 @@ export interface Priced {
   readonly rearmed: Fraction
   /** E[decisions]: wins, losses and pushes. */
   readonly decisions: Fraction
+  /**
+   * E[settlements that return the bet unplayed] (push `offReturned`: odds OFF when their parent is
+   * decided, or returned at a point made). The stake of such a return was never at risk, so it is
+   * left out of the amount risked (rules spec §0.1): short-paid come odds must price like the same
+   * pay on pass odds (2/12 at 11:2 cost 1/14 on both).
+   */
+  readonly returnedUnplayed: Fraction
 }
 
 const MAX_CACHED = 4_000
@@ -193,12 +212,16 @@ export function price(
   let credited = Fraction.ZERO
   let rearmed = Fraction.ZERO
   let decisions = Fraction.ZERO
+  let returnedUnplayed = Fraction.ZERO
   for (const [index, label] of dist.labels.entries()) {
     const count = at(dist.counts, index)
     if (count.isZero()) continue
     switch (label.kind) {
       case 'settle': {
         decisions = decisions.add(count)
+        if (label.decision.kind === 'push' && label.decision.reason === 'offReturned') {
+          returnedUnplayed = returnedUnplayed.add(count)
+        }
         let cash = settlementCash(dist.spec, label.decision, amount, cfg, mode)
         if (dist.horizon === 'decision' && label.disposition === 'stays') {
           cash = cash.add(Fraction.of(amount))
@@ -213,7 +236,7 @@ export function price(
         break
     }
   }
-  return { amount, mode, credited, rearmed, decisions }
+  return { amount, mode, credited, rearmed, decisions, returnedUnplayed }
 }
 
 /**
@@ -284,7 +307,9 @@ export interface Measured {
   /**
    * E[amount risked] (glossary; plan §0 #22): the stake of every decision, pushes included, plus
    * commission paid up front, at placement and on re-collection. Commission taken from a win is not
-   * added: it is a smaller win, not more money risked.
+   * added: it is a smaller win, not more money risked. One exception (rules spec §0.1): a push that
+   * returns the bet unplayed (`offReturned`) is no decision of the bet — its stake never had
+   * action, so it joins neither the loss nor the divisor.
    */
   readonly risked: Fraction
   readonly decisions: Fraction
@@ -305,9 +330,10 @@ export function measure(
   const priced = price(dist, amount, cfg, mode)
   const placement = upfrontCharge(dist.spec, amount, cfg, mode)
   const paidIn = Fraction.of(amount).add(placement).add(priced.rearmed)
+  const played = priced.decisions.sub(priced.returnedUnplayed)
   return {
     loss: paidIn.sub(priced.credited),
-    risked: Fraction.of(amount).mul(priced.decisions).add(placement).add(priced.rearmed),
+    risked: Fraction.of(amount).mul(played).add(placement).add(priced.rearmed),
     decisions: priced.decisions,
     rolls: dist.rolls,
     workingRolls: dist.workingRolls,

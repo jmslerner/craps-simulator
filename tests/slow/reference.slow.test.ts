@@ -11,13 +11,15 @@ import {
 import { DIFF_MACHINES } from '../properties/machineVariants.ts'
 
 // The full reference differential (plan §9 item 2, §0 #17; M4d acceptance, M6 reconciliation):
-// 2,000 seeded sequences of 100 actions per machine, the four presets and the variants that turn
+// 2,000 seeded sequences of 100 actions per machine, the presets and the variants that turn
 // on the knobs no preset uses (tests/properties/machineVariants.ts), through the engine and the
 // reference table, compared after every action (tests/properties/differential.ts). The bar is 0
-// mismatches, every odds type placed at least 150 times, each commission event the machine has
-// reached at least 20 times, and refusal codes that differ only where the engine answers
-// CONTRACT_BET first. The quick subset is tests/oracle/reference.diff.test.ts. Each machine takes a
-// few seconds; the timeout leaves room for a machine short of memory.
+// mismatches, every odds type placed at least 150 times, every odds type settling a WIN on every
+// point number at least once (odds pay by number; the M5/M6 audit found passOdds wins on 2 and 12
+// never sampled), each commission event the machine has reached at least 20 times, and refusal
+// codes that differ only where the engine answers CONTRACT_BET first. The quick subset is
+// tests/oracle/reference.diff.test.ts, which also pins the audited blind spots with scripted dice.
+// Each machine takes a few seconds; the timeout leaves room for a machine short of memory.
 
 const RUNS = 2_000
 
@@ -30,6 +32,7 @@ describe.each(DIFF_MACHINES.map((machine) => [machine.id, machine] as const))(
       expect(report.actions).toBe(RUNS * 100)
       expectExercised(report, compileConfig(machine.input), {
         oddsPlaced: 150,
+        oddsNumberWins: 1,
         commission: machine.commission,
         commissionCount: 20,
       })

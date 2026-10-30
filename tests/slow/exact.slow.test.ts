@@ -4,16 +4,20 @@ import { compileConfig, type MachineConfig } from '../../src/engine/config/compi
 import { PRESETS, PRESET_IDS, type PresetId } from '../../src/engine/config/presets/index.ts'
 import type { MachineConfigInput } from '../../src/engine/config/schema.ts'
 import {
+  ExactError,
   analyzeBet,
   catalogSpecs,
   configPathsOf,
   renewalCost,
   standingCost,
+  type BetSpec,
   type Toggles,
 } from '../../src/exact/index.ts'
+import type { Cents } from '../../src/engine/core/money.ts'
 import {
   analysisFingerprint,
   firstAmounts,
+  hasStandingCost,
   mutated,
   mutationsOf,
   overlaps,
@@ -63,17 +67,40 @@ const VARIANTS: readonly MachineConfig[] = [
 
 const PRESET_CONFIGS = PRESET_IDS.map((id) => compileConfig(PRESETS[id]))
 
+/**
+ * A zero rate means the toggles keep the bet OFF for good: the renewal side must agree — the cycle
+ * never regenerates (`NEVER_RESOLVES`) or costs zero too (M5/M6 audit: the identity tests used to
+ * return early on a zero rate, which hid a lay the machine re-enables).
+ */
+function renewalAgreesItIsDead(
+  spec: BetSpec,
+  amount: Cents,
+  cfg: MachineConfig,
+  toggles: Toggles,
+): boolean {
+  try {
+    return renewalCost(spec, amount, cfg, toggles).isZero()
+  } catch (error) {
+    return error instanceof ExactError && error.code === 'NEVER_RESOLVES'
+  }
+}
+
 describe('standing-cost identity (full)', () => {
   it.each([...PRESET_CONFIGS, ...VARIANTS].map((cfg) => [cfg.id, cfg] as const))(
     'holds on %s for every bet, its first stakes and every toggle',
     (_, cfg) => {
       let checked = 0
       for (const spec of catalogSpecs(cfg)) {
+        if (!hasStandingCost(spec, cfg)) continue
         for (const amount of firstAmounts(spec, cfg, 4)) {
           for (const toggles of TOGGLES) {
             const cost = standingCost(spec, amount, cfg, toggles)
             if (cost.rate.isZero()) {
               expect(cost.perRoll.isZero()).toBe(true)
+              expect(
+                renewalAgreesItIsDead(spec, amount, cfg, toggles),
+                `${spec.typeId} ${String(spec.number)} ${amount} dead`,
+              ).toBe(true)
               continue
             }
             const renewal = renewalCost(spec, amount, cfg, toggles)
@@ -95,7 +122,9 @@ describe('standing-cost identity (full)', () => {
         standingCases([...PRESET_CONFIGS, ...VARIANTS]),
         ({ cfg, spec, amount, toggles }) => {
           const cost = standingCost(spec, amount, cfg, toggles)
-          if (cost.rate.isZero()) return cost.perRoll.isZero()
+          if (cost.rate.isZero()) {
+            return cost.perRoll.isZero() && renewalAgreesItIsDead(spec, amount, cfg, toggles)
+          }
           return cost.perRoll.equals(renewalCost(spec, amount, cfg, toggles))
         },
       ),

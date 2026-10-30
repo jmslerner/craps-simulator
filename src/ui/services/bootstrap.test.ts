@@ -1,5 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cents, hashJson } from '../../engine/index.ts'
+import {
+  PENDING_MIRROR_CORRUPT_KEY,
+  PENDING_MIRROR_KEY,
+  type MirrorStorage,
+} from '../../persistence/pendingMirror.ts'
 import { createSessionRepo } from '../../persistence/sessionRepo.ts'
 import { safeDelMany, safeKeys } from '../../persistence/storage.ts'
 import { createGameStore } from '../state/gameStore.ts'
@@ -38,6 +43,19 @@ const instantDice: DiceView = {
 async function wipe(): Promise<void> {
   const all = await safeKeys()
   if (all.ok && all.value.length > 0) await safeDelMany(all.value)
+  // The default mirror lands in jsdom's real localStorage; keep tests isolated.
+  localStorage.removeItem(PENDING_MIRROR_KEY)
+  localStorage.removeItem(PENDING_MIRROR_CORRUPT_KEY)
+}
+
+function mirrorStorage(): MirrorStorage & { readonly map: Map<string, string> } {
+  const map = new Map<string, string>()
+  return {
+    map,
+    getItem: (key) => map.get(key) ?? null,
+    setItem: (key, value) => void map.set(key, value),
+    removeItem: (key) => void map.delete(key),
+  }
 }
 
 beforeEach(wipe)
@@ -159,6 +177,73 @@ describe('wireAutosave', () => {
     await settle(60)
     stored = await repo.loadActive()
     expect(stored.kind === 'active' && stored.session.pending).toHaveLength(2) // stopped: unsaved
+  })
+
+  it('mirrors every betting action synchronously, before any debounce elapses', async () => {
+    const deps = freshDeps()
+    const mirror = mirrorStorage()
+    await bootGame({ ...deps, mirror })
+    const handle = wireAutosave({
+      store: deps.store,
+      repo,
+      debounceMs: 60_000, // the IndexedDB save never fires in this test
+      pageEvents: null,
+      documentLike: null,
+      mirror,
+    })
+    deps.store.getState().dispatch({ type: 'place', typeId: 'pass', amount: cents(500) })
+    const written = JSON.parse(mirror.map.get(PENDING_MIRROR_KEY)!) as { pending: unknown[] }
+    expect(written.pending).toHaveLength(1) // synchronous: no settle() needed
+    handle.stop()
+  })
+
+  it('an instant reload keeps a bet placed inside the debounce, through the mirror (plan §8)', async () => {
+    const deps = freshDeps()
+    const mirror = mirrorStorage()
+    await bootGame({ ...deps, mirror })
+    const handle = wireAutosave({
+      store: deps.store,
+      repo,
+      debounceMs: 60_000, // the async flush "dies with teardown": it never runs
+      pageEvents: null,
+      documentLike: null,
+      mirror,
+    })
+    deps.store
+      .getState()
+      .dispatch({ type: 'place', typeId: 'place', number: 6, amount: cents(600) })
+    const liveHash = hashJson(deps.store.getState().session!.state)
+    handle.stop() // the reload: the debounced save is simply gone
+
+    const next = { ...freshDeps(), settings: deps.settings, mirror }
+    const result = await bootGame(next)
+    expect(result.started).toBe('resumed')
+    const resumed = next.store.getState()
+    expect(hashJson(resumed.session!.state)).toBe(liveHash)
+    expect(
+      resumed.session!.pending.some(
+        (action) => action.type === 'place' && action.typeId === 'place',
+      ),
+    ).toBe(true)
+    // The repo caught up at boot, so a second reload no longer needs the (consumed) mirror.
+    expect(mirror.map.has(PENDING_MIRROR_KEY)).toBe(false)
+    const stored = await repo.loadActive()
+    expect(stored.kind === 'active' && hashJson(stored.session.state)).toBe(liveHash)
+  })
+
+  it('boots clean past a junk mirror: quarantined, never a throw, nothing restored', async () => {
+    const deps = freshDeps()
+    const mirror = mirrorStorage()
+    await bootGame({ ...deps, mirror })
+    const hash = hashJson(deps.store.getState().session!.state)
+    mirror.setItem(PENDING_MIRROR_KEY, '{definitely not json')
+
+    const next = { ...freshDeps(), settings: deps.settings, mirror }
+    const result = await bootGame(next)
+    expect(result.started).toBe('resumed')
+    expect(hashJson(next.store.getState().session!.state)).toBe(hash)
+    expect(mirror.map.has(PENDING_MIRROR_KEY)).toBe(false)
+    expect(mirror.map.has(PENDING_MIRROR_CORRUPT_KEY)).toBe(true)
   })
 })
 

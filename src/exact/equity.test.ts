@@ -1,13 +1,15 @@
 import { describe, expect, it } from 'vitest'
 import { compileConfig, type MachineConfig } from '../engine/config/compile.ts'
 import { PRESETS } from '../engine/config/presets/index.ts'
+import { pruneProvenance } from '../engine/config/provenance.ts'
+import type { MachineConfigInput } from '../engine/config/schema.ts'
 import { cents } from '../engine/core/money.ts'
 import { makeRoll } from '../engine/core/dice.ts'
-import { betId } from '../engine/bets/types.ts'
+import { betId, type BetInstance } from '../engine/bets/types.ts'
 import type { Action } from '../engine/table/actions.ts'
 import { applyAction } from '../engine/table/reducer.ts'
 import { heldOffOf, newTable, type TableState } from '../engine/table/state.ts'
-import { analyzeExisting, takeDownValue } from './equity.ts'
+import { analyzeExisting, startOfBet, takeDownValue } from './equity.ts'
 
 /** Plays `actions` from a new table, failing on any refusal. */
 function play(cfg: MachineConfig, actions: readonly Action[]): TableState {
@@ -66,6 +68,65 @@ describe('analyzeExisting', () => {
 
   it('refuses a bet that is not on the table', () => {
     expect(() => analyzeExisting(betId(7), newTable(crapless, 'x'), crapless)).toThrow(RangeError)
+  })
+
+  it('reads whether the bet was carried from an earlier window: Shoot To Win values them apart', () => {
+    // A variant where only CARRIED come odds go OFF on the come-out (newly placed ones play), and
+    // the odds on 4 are short-paid at 9:5: the new bet plays the come-out at a loss, the carried
+    // one is handed back, so their equities must differ and startOfBet must tell them apart.
+    const input = structuredClone(PRESETS.traditionalBubble) as MachineConfigInput
+    const comeOdds = input.catalog.comeOdds
+    if (comeOdds?.family !== 'odds' || input.comeOut.autoOff === null) throw new Error('no odds')
+    comeOdds.comeOutDefault = 'on'
+    comeOdds.pays = { ...comeOdds.pays, '4': '9:5' }
+    input.comeOut.autoOff = { ...input.comeOut.autoOff, newlyPlaced: [] }
+    input.provenance = pruneProvenance(input)
+    const cfg = compileConfig(input)
+    const bets = (placedAtRoll: number): BetInstance[] => [
+      {
+        id: betId(1),
+        typeId: 'come',
+        number: 4,
+        parentId: null,
+        amount: cents(1_000),
+        vigHeld: cents(0),
+        working: null,
+        progress: 0,
+        placedAtRoll: 0,
+      },
+      {
+        id: betId(2),
+        typeId: 'comeOdds',
+        number: 4,
+        parentId: betId(1),
+        amount: cents(1_000),
+        vigHeld: cents(0),
+        working: null,
+        progress: 0,
+        placedAtRoll,
+      },
+    ]
+    const base = newTable(cfg, 'equity-carried')
+    const tableWith = (placedAtRoll: number): TableState => ({
+      ...base,
+      round: {
+        phase: { kind: 'comeOut' },
+        rollIndex: 1,
+        hand: { index: 0, rolls: 1, pointsMadeMask: 0 },
+        sinceSeven: { rolls: 1, totalsMask: 0 },
+      },
+      bets: bets(placedAtRoll),
+      nextBetSeq: 3,
+    })
+    const fresh = tableWith(1)
+    const carried = tableWith(0)
+    expect(startOfBet(bets(1)[1] as BetInstance, fresh).carried).toBe(false)
+    expect(startOfBet(bets(0)[1] as BetInstance, carried).carried).toBe(true)
+    const newOdds = analyzeExisting(betId(2), fresh, cfg)
+    const carriedOdds = analyzeExisting(betId(2), carried, cfg)
+    expect(newOdds.equity.toString()).toBe('2655050/2817')
+    expect(carriedOdds.equity.toString()).toBe('2702000/2817')
+    expect(newOdds.equity.equals(carriedOdds.equity)).toBe(false)
   })
 })
 

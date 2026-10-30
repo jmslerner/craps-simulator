@@ -117,12 +117,20 @@ export function dispatchBetting(
   cfg: MachineConfig,
 ): BettingResult {
   checkConfig(session, cfg)
-  if (isRoll(action)) {
-    return { ok: false, rejection: reject('BAD_PARAMS', { field: 'type', reason: 'roll' }) }
-  }
-  // The table applies the copy the log keeps, so replaying the log gives this very result.
+  // The checks and the table both see the copy the log keeps, so replaying the log gives this very
+  // result: an action whose `toJSON` or getters yield something else cannot pass the checks as one
+  // action and log another (a roll smuggled past the old check undid a roll in the M5/M6 audit).
   const logged = plainCopy(action)
   if (logged === null) return { ok: false, rejection: reject('BAD_PARAMS', { field: 'action' }) }
+  if (isRoll(logged)) {
+    return { ok: false, rejection: reject('BAD_PARAMS', { field: 'type', reason: 'roll' }) }
+  }
+  if (batchDepthOf(logged) > MAX_BATCH_DEPTH) {
+    return {
+      ok: false,
+      rejection: reject('BAD_PARAMS', { field: 'actions', reason: 'depth', max: MAX_BATCH_DEPTH }),
+    }
+  }
   const result = applyAction(session.state, logged, cfg)
   if (!result.ok) return result
   if (sameTable(result.state, session.state)) return { ok: true, session, events: result.events }
@@ -159,12 +167,15 @@ export function clearWindow(session: WindowedSession, cfg: MachineConfig): Windo
  */
 export function rollWindow(session: WindowedSession, cfg: MachineConfig, dice?: Dice): RollResult {
   checkConfig(session, cfg)
-  const roll: RollAction = dice === undefined ? { type: 'roll' } : { type: 'roll', dice }
+  // The dice are read once into a plain copy that is both applied and logged, so a getter cannot
+  // show the table one roll and the log another (M5/M6 audit).
+  const roll: RollAction =
+    dice === undefined ? { type: 'roll' } : { type: 'roll', dice: { d1: dice.d1, d2: dice.d2 } }
   const result = applyAction(session.state, roll, cfg)
   if (!result.ok) return result
   const record: WindowRecord = {
     actions: session.pending,
-    roll: dice === undefined ? roll : { type: 'roll', dice: { d1: dice.d1, d2: dice.d2 } },
+    roll,
     hashAfter: hashJson(result.state),
   }
   const repeat = repeatable(session.pending)
@@ -238,6 +249,55 @@ function checkConfig(session: WindowedSession, cfg: MachineConfig): void {
 
 function isRoll(action: Action): boolean {
   return typeof action === 'object' && action !== null && action.type === 'roll'
+}
+
+/**
+ * The deepest `batch` nesting a logged action may carry. Nothing the trainer makes nests at all —
+ * the macros emit one flat batch — and the reducer flattens any depth with its own stack, but
+ * `JSON.stringify`, which both `plainCopy` and `serializeSession` stand on, recurses and dies on
+ * absurd depths. The cap keeps saving and loading aligned both ways: `dispatchBetting` refuses a
+ * deeper batch, so every session the engine can hold serializes, and replay refuses one on load
+ * (`replay.ts`), so a log that loads always saves again (M5/M6 audit: a crafted log 20,000 deep
+ * loaded, then `serializeSession` overflowed the call stack).
+ */
+export const MAX_BATCH_DEPTH = 64
+
+/**
+ * How deeply `batch` actions nest in `action`: 0 for anything else, 1 for a batch of plain actions.
+ * It walks with its own stack, so no input overflows the call stack, and it stops one past `max`,
+ * so a batch that contains itself ends the walk at `max + 1` instead of looping. (Like the
+ * reducer's own flatten, it re-walks a batch reached twice, so a deliberately shared tree can still
+ * be slow — but never deeper than `max + 1`.)
+ */
+export function batchDepthOf(action: unknown, max = MAX_BATCH_DEPTH): number {
+  if (!isBatchLike(action)) return 0
+  let deepest = 1
+  const stack: { readonly list: readonly unknown[]; next: number }[] = [
+    { list: action.actions, next: 0 },
+  ]
+  for (let top = stack.at(-1); top !== undefined; top = stack.at(-1)) {
+    if (top.next >= top.list.length) {
+      stack.pop()
+      continue
+    }
+    const inner = top.list[top.next]
+    top.next += 1
+    if (!isBatchLike(inner)) continue
+    stack.push({ list: inner.actions, next: 0 })
+    if (stack.length > deepest) deepest = stack.length
+    if (deepest > max) return deepest
+  }
+  return deepest
+}
+
+/** A batch holding an actions array, as far as the depth walk needs to know. */
+function isBatchLike(value: unknown): value is { readonly actions: readonly unknown[] } {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    (value as { readonly type?: unknown }).type === 'batch' &&
+    Array.isArray((value as { readonly actions?: unknown }).actions)
+  )
 }
 
 /**

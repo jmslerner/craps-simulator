@@ -334,6 +334,14 @@ export function describeMismatch(mismatch: Mismatch): string {
 export interface ExerciseBar {
   /** Each odds type the machine offers placed at least this often. */
   readonly oddsPlaced: number
+  /**
+   * Each odds type settled as a WIN on each of the machine's point numbers at least this often
+   * (0 skips the bar). Odds pay by number, so a per-type count alone can be met while a number is
+   * never sampled: the M5/M6 audit found crapless passOdds wins on 2 and 12 missing from the quick
+   * run; the quick subset pins them with scripted dice instead
+   * (tests/oracle/reference.diff.test.ts).
+   */
+  readonly oddsNumberWins: number
   /** These commission events (rules spec §4.3, §4.5), each at least `commissionCount` times. */
   readonly commission: readonly CommissionEvent[]
   readonly commissionCount: number
@@ -341,7 +349,7 @@ export interface ExerciseBar {
 
 export type CommissionEvent = keyof typeof COMMISSION_EVENTS
 
-const NO_BAR: ExerciseBar = { oddsPlaced: 1, commission: [], commissionCount: 1 }
+const NO_BAR: ExerciseBar = { oddsPlaced: 1, oddsNumberWins: 0, commission: [], commissionCount: 1 }
 
 /** What a set of runs must have exercised on `cfg` for the comparison to mean anything. */
 export function expectExercised(
@@ -359,6 +367,15 @@ export function expectExercised(
     (typeId) => count(coverage.placed, typeId) < bar.oddsPlaced,
   )
   expect(rareOdds, `odds types placed fewer than ${bar.oddsPlaced} times`).toEqual([])
+  if (bar.oddsNumberWins > 0) {
+    // Odds sit on their parent's point, so each type must win on every point the ruleset has.
+    const rareWins = oddsTypes(cfg).flatMap((typeId) =>
+      cfg.ruleset.points
+        .filter((n) => count(coverage.settledByNumber, `${typeId}@${n}:win`) < bar.oddsNumberWins)
+        .map((n) => `${typeId}@${n}`),
+    )
+    expect(rareWins, `odds wins by number fewer than ${bar.oddsNumberWins}`).toEqual([])
+  }
   const rareCommission = bar.commission.filter(
     (event) => count(coverage.machine, COMMISSION_EVENTS[event]) < bar.commissionCount,
   )

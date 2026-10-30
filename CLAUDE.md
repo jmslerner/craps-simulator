@@ -7,7 +7,7 @@ A browser app for practising electronic **bubble craps**, with a **live coach** 
 
 ## Commands
 - `npm run verify` runs `tsc -b`, `eslint .`, the Prettier check, `npm test`, the core coverage run (gated on `src/engine/**`: ≥90% lines, ≥85% branches), `vite build` and the bundle check. It runs neither `test:slow` nor `e2e`. A milestone is done only when verify is green, plus its own acceptance checks (UI milestones also need `npm run e2e`).
-- `npm test` runs the core, ui and physics Vitest projects; use `npx vitest run --project core` (or `ui`, `physics`) for one. `npm run test:slow` runs `tests/slow/**`: the reference differential, the closed-form and dispatch-chain oracles, and the exact, engine and session properties (Monte Carlo joins in M7, the coach audit in M9). It must stay under 5 minutes, and each slow suite keeps a quick subset of a few seconds in the core project.
+- `npm test` runs the core, ui and physics Vitest projects; use `npx vitest run --project core` (or `ui`, `physics`) for one. `npm run test:slow` runs `tests/slow/**`: the reference differential, the closed-form and dispatch-chain oracles, the exact, engine and session properties, and the M7 Monte Carlo (339 bets × 10⁵ decisions, 500 full-reducer sessions) — about two to three minutes on this machine (the coach audit joins in M9). It must stay under 5 minutes, and each slow suite keeps a quick subset of a few seconds in the core project.
 - `node tests/replay/record.ts` re-records the replay fixture (see the ENGINE_VERSION policy).
 - `npm run e2e` runs Playwright against a `vite build --mode e2e` preview.
 - `node scripts/<name>.ts` runs scripts with Node 24's native type stripping. Node is 24.13.1, so jsdom stays pinned at 29.1.1.
@@ -38,6 +38,8 @@ A browser app for practising electronic **bubble craps**, with a **live coach** 
 - Every researched machine fact becomes a scenario test plus a provenance entry.
 - Published exact values must match with exact rational equality, never `toBeCloseTo`. They are checked in `tests/golden/published.test.ts` and, through both oracles, in `tests/oracle/published.diff.test.ts`.
 - Randomized tests use pinned seeds (fast-check seed 20261028), so failures are reproducible. `Math.random` is banned in all of `tests/**`.
+- UI tests (the `ui` Vitest project, jsdom) live beside their components as `*.test.tsx` and render through `renderApp()`/`testStores()` from `src/ui/test/renderApp.tsx`: isolated stores per test, `meta` kept null so component tests never touch IndexedDB; engine-driving helpers live in `src/ui/test/game.ts`. Assert money through `formatCents` strings; never build a dollar string by arithmetic in a component or a test.
+- e2e specs drive the app only through `window.__CRAPS_TEST__` (`src/ui/services/testHooks.ts`), which exists only in `--mode e2e` builds, and wait by polling `storedHead()`/state, never by sleeping. The production bundle must contain no `__CRAPS_TEST__`: `scripts/check-bundle.ts` enforces it (`testHookOffences`, unit-tested in `tests/bundle/checkBundle.test.ts`); its `TEST_HOOK_MARKERS` and `e2eMachine`'s provenance note must change together. The e2e machine pins pass `afterWin` to `return` [A], so e2e dollar expectations differ from production presets ($631 vs $621).
 
 | Bug class | Caught by |
 |---|---|

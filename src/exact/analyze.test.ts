@@ -5,15 +5,19 @@ import { pruneProvenance, statusAt } from '../engine/config/provenance.ts'
 import type { MachineConfigInput } from '../engine/config/schema.ts'
 import { cents } from '../engine/core/money.ts'
 import { Fraction } from '../engine/core/rational.ts'
+import { legalBets } from '../engine/bets/legal.ts'
+import { betId, type BetInstance } from '../engine/bets/types.ts'
+import { newTable, type TableState } from '../engine/table/state.ts'
 import {
   analyzeBet,
   assumedPaths,
+  attainableOdds,
   combinedEdge,
   configPathsOf,
   efficientAmounts,
 } from './analyze.ts'
 import { catalogSpecs } from './catalog.ts'
-import { ExactError } from './chain.ts'
+import { ExactError, roundAt } from './chain.ts'
 
 const cfgOf = (id: PresetId) => compileConfig(PRESETS[id])
 
@@ -103,6 +107,30 @@ describe('configPathsOf and assumedPaths', () => {
     const cfg = cfgOf('craplessBubble')
     expect(assumedPaths({ typeId: 'place', number: 2 }, cfg)).toContain('/catalog/place/pays/2')
   })
+
+  it('adds the round pointers for π-weighted starts, and only those (M5/M6 audit)', () => {
+    const cfg = cfgOf('craplessBubble')
+    // π-weighted: number bets, hardways, come-type odds — their chances read the variant's round.
+    for (const spec of [
+      { typeId: 'place', number: 6 },
+      { typeId: 'hard', number: 6 },
+      { typeId: 'comeOdds', number: 4 },
+      { typeId: 'come', number: null },
+    ] as const) {
+      const paths = configPathsOf(spec, cfg)
+      for (const pointer of ['/variant', '/rules/naturals', '/rules/craps', '/rules/points']) {
+        expect(paths, `${spec.typeId} ${String(spec.number)}`).toContain(pointer)
+      }
+    }
+    // Fixed-phase starts stay as the family lists them: pass odds sit on one point, and a
+    // one-roll bet has no phase at all.
+    expect(configPathsOf({ typeId: 'passOdds', number: 4 }, cfg)).not.toContain('/variant')
+    expect(configPathsOf({ typeId: 'field', number: null }, cfg)).not.toContain('/variant')
+    // A put spec reads /rules/allowPutBets: it decides whether the lifecycle is one decision.
+    expect(configPathsOf({ typeId: 'pass', number: 4 }, cfgOf('traditionalLive345'))).toContain(
+      '/rules/allowPutBets',
+    )
+  })
 })
 
 describe('efficientAmounts', () => {
@@ -132,4 +160,85 @@ describe('combinedEdge', () => {
     )
     expect(single.edge.toString()).toBe(Fraction.of(373, 6930).div(Fraction.of(11, 6)).toString())
   })
+
+  it("prices only odds the machine accepts: a $300 crapless flat's odds cap at the $500 maximum", () => {
+    // The 2x cap would allow $600, but the per-bet maximum is $500, so the attainable combined
+    // edge is (300 × 373/6930) ÷ (300 + 500 × 30/36) = 373/16555, not 373/18480's scaling
+    // (M5/M6 audit: 2.2531% displayed, not 2.0184%).
+    const cfg = cfgOf('craplessBubble')
+    const flat300 = combinedEdge({ typeId: 'pass', number: null }, cents(30_000), cfg)
+    expect(flat300.odds.every(({ amount }) => amount === 50_000)).toBe(true)
+    expect(flat300.edge.toString()).toBe(Fraction.of(373, 16555).toString())
+    expect(flat300.edge.formatPercent(4)).toBe('2.2531')
+    const flat500 = combinedEdge({ typeId: 'pass', number: null }, cents(50_000), cfg)
+    expect(flat500.edge.toString()).toBe(Fraction.of(373, 12705).toString())
+    expect(flat500.edge.formatPercent(4)).toBe('2.9359')
+    // The flat's own dollar loss never changes with the odds.
+    expect(flat500.flatLoss.toString()).toBe(Fraction.of(50_000).mul(Fraction.of(373, 6930)).toString())
+  })
+
+  it('counts the loss of short-paid odds: Shoot To Win lay odds floored to the cent', () => {
+    // A $1 don't pass takes $2 lay odds on every point (2x, stake basis). On 5/9 they pay 2:3
+    // ($1.33, losing 1/3¢ to the floor with P = 3/5) and on 6/8 5:6 ($1.66, 2/3¢ at P = 6/11):
+    // oddsLoss = 2 × (1/9)(3/5)(1/3) + 2 × (5/36)(6/11)(2/3) = 8/55¢, and the combined edge is
+    // ((100 × 3/220) + 8/55) ÷ (100 + 200 × 2/3) = 249/38500.
+    const dontPass = combinedEdge(
+      { typeId: 'dontPass', number: null },
+      cents(100),
+      cfgOf('traditionalBubble'),
+    )
+    expect(dontPass.odds.every(({ amount }) => amount === 200)).toBe(true)
+    expect(dontPass.oddsLoss.toString()).toBe(Fraction.of(8, 55).toString())
+    expect(dontPass.oddsWagered.toString()).toBe(Fraction.of(400, 3).toString())
+    expect(dontPass.edge.toString()).toBe(Fraction.of(249, 38500).toString())
+  })
+
+  it.each(['craplessBubble', 'craplessBubbleHighLimit', 'traditionalLive345'] as const)(
+    'places exactly what a dry-run table accepts behind the flat on %s',
+    (id) => {
+      const cfg = cfgOf(id)
+      const oddsId = cfg.oddsFor.get('pass')
+      if (oddsId === undefined) throw new Error('no pass odds')
+      const flats = [
+        cfg.limits.byType.get('pass')?.min ?? cfg.limits.min,
+        30_000,
+        cfg.limits.byType.get('pass')?.max ?? cfg.limits.max,
+      ]
+      for (const flat of flats) {
+        for (const n of cfg.ruleset.points) {
+          const parent: BetInstance = {
+            id: betId(1),
+            typeId: 'pass',
+            number: n,
+            parentId: null,
+            amount: cents(flat),
+            vigHeld: cents(0),
+            working: null,
+            progress: 0,
+            placedAtRoll: 0,
+          }
+          const base = newTable(cfg, 'attainable-odds')
+          const state: TableState = {
+            ...base,
+            round: roundAt({ kind: 'point', point: n }),
+            bets: [parent],
+            nextBetSeq: 2,
+            ledger: {
+              ...base.ledger,
+              deposits: cents(1_000_000_000),
+              bankroll: cents(1_000_000_000),
+            },
+          }
+          const spot = legalBets(state, cfg).find(
+            (bet) => bet.typeId === oddsId && bet.parentId === parent.id,
+          )
+          if (spot === undefined) throw new Error(`no ${oddsId} spot on ${n}`)
+          const attainable = attainableOdds({ typeId: 'pass', number: null }, cents(flat), oddsId, n, cfg)
+          expect(attainable, `${id} $${flat / 100} flat on ${n}`).toBe(
+            spot.canAdd === null ? spot.maxAdd : 0,
+          )
+        }
+      }
+    },
+  )
 })

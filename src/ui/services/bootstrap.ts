@@ -1,20 +1,28 @@
 import type { StoreApi } from 'zustand/vanilla'
 import { DEFAULT_PRESET_ID, cents, compileConfig, replayHistory } from '../../engine/index.ts'
 import type { Cents, MachineConfig, PresetId, WindowedSession } from '../../engine/index.ts'
+import {
+  clearPendingMirror,
+  restorePendingMirror,
+  writePendingMirror,
+  type MirrorStorage,
+} from '../../persistence/pendingMirror.ts'
 import { sessionRepo, type SessionMeta, type SessionRepo } from '../../persistence/sessionRepo.ts'
 import { gameStore, type GameState } from '../state/gameStore.ts'
-import { gameConfig } from '../state/machineStore.ts'
+import { gameConfig, rememberedMachine } from '../state/machineStore.ts'
 import { settingsStore, type SettingsState } from '../state/settingsStore.ts'
 import { emptyHistory, historyFromWindows } from '../state/rollHistory.ts'
 import { newSessionSeed } from './seed.ts'
 
 /**
  * Boot and autosave (plan §8): resume the stored session or start a fresh one, and keep the open
- * betting window saved — debounced by 250 ms, flushed the moment the page hides. The roll itself
- * is persisted by `rollFlow` before any animation; this service only covers the betting actions
- * between rolls. In e2e builds the boot first reads the test URL parameters and installs
- * `window.__CRAPS_TEST__`; that module is loaded through a dynamic import behind a static mode
- * check, so production builds contain none of it.
+ * betting window saved — debounced by 250 ms, flushed the moment the page hides, and mirrored
+ * synchronously to localStorage on every change (`persistence/pendingMirror.ts`), so a betting
+ * action inside the debounce survives even an instant reload, whose teardown abandons the async
+ * IndexedDB flush. The roll itself is persisted by `rollFlow` before any animation; this service
+ * only covers the betting actions between rolls. In e2e builds the boot first reads the test URL
+ * parameters and installs `window.__CRAPS_TEST__`; that module is loaded through a dynamic import
+ * behind a static mode check, so production builds contain none of it.
  */
 
 export interface BootDeps {
@@ -24,6 +32,8 @@ export interface BootDeps {
   /** The page's query string; e2e boots read it, production ignores it. */
   readonly search?: string
   readonly now?: () => number
+  /** The synchronous mirror's storage; null disables it (tests), undefined uses localStorage. */
+  readonly mirror?: MirrorStorage | null
 }
 
 export interface BootResult {
@@ -49,7 +59,8 @@ export async function startNewGame(
   const settings = deps.settings ?? settingsStore
   const repo = deps.repo ?? sessionRepo
   const now = deps.now ?? (() => Date.now())
-  const presetId = options.presetId ?? DEFAULT_PRESET_ID
+  // Like the bankroll: an explicit machine is remembered, no machine plays the remembered one.
+  const presetId = options.presetId ?? rememberedMachine(settings.getState().machineId)
   const bankroll =
     options.bankroll !== undefined ? options.bankroll : settings.getState().startingBankroll
   // e2e builds play the e2e preset variant (M4 → M8 hand-off): the same machine with the pass
@@ -66,6 +77,11 @@ export async function startNewGame(
   if (options.bankroll !== undefined && options.bankroll !== null) {
     settings.getState().update({ startingBankroll: options.bankroll })
   }
+  if (options.presetId !== undefined) {
+    settings.getState().update({ machineId: options.presetId })
+  }
+  // Any mirrored tail belongs to the session this new game replaces.
+  clearPendingMirror(deps.mirror)
   store.getState().startGame(cfg, seed, { meta })
   const session = store.getState().session
   if (session !== null) await repo.startSession(meta, session)
@@ -105,8 +121,21 @@ export async function bootGame(deps: BootDeps = {}): Promise<BootResult> {
 
   const loaded = await repo.loadActive()
   if (loaded.kind === 'active') {
-    const { session, meta, notice, pendingReveal } = loaded
+    const { meta, notice, pendingReveal } = loaded
     const cfg = headerMachine(loaded.session)
+    // A betting action inside the autosave debounce survives an instant reload in the synchronous
+    // mirror (plan §8). It is restored only onto a clean resume (this engine, no divergence), and
+    // only when it cleanly extends the stored head; the repo then catches up at once.
+    let session = loaded.session
+    if (notice === null && !meta.divergent) {
+      const extended = restorePendingMirror(meta, session, cfg, deps.mirror)
+      if (extended !== null) {
+        session = extended
+        await repo.saveBetting(meta, session)
+      }
+    } else {
+      clearPendingMirror(deps.mirror)
+    }
     const history =
       meta.divergent || notice?.kind === 'divergence'
         ? emptyHistory(true)
@@ -163,6 +192,8 @@ export interface AutosaveDeps {
   /** Event target for the hide listeners; null skips them (tests). */
   readonly pageEvents?: Pick<Window, 'addEventListener' | 'removeEventListener'> | null
   readonly documentLike?: Pick<Document, 'visibilityState'> | null
+  /** The synchronous mirror's storage; null disables it (tests), undefined uses localStorage. */
+  readonly mirror?: MirrorStorage | null
 }
 
 /**
@@ -204,6 +235,10 @@ export function wireAutosave(deps: AutosaveDeps = {}): AutosaveHandle {
   const unsubscribe = store.subscribe((state, previous) => {
     if (state.session === previous.session) return
     if (state.view?.phase !== 'betting') return
+    // The synchronous mirror first — an instant reload keeps the tail — then the debounced save.
+    if (state.meta !== null && state.session !== null) {
+      writePendingMirror(state.meta, state.session, deps.mirror)
+    }
     schedule()
   })
 

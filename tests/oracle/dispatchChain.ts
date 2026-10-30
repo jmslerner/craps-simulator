@@ -188,6 +188,8 @@ export interface DispatchChain {
  *   re-collected from credit, plus a declined bet's stake and refund);
  * - `rearm`: commission re-collected because a winner stays up, from the win and from credit;
  * - `wagered`: the stake of the decision, when the roll decides the bet;
+ * - `returnedUnplayed`: that stake again when the decision only returned the bet unplayed (push
+ *   `offReturned`), which the amount risked leaves out (rules spec §0.1);
  * - `staysUp`: the stake left on the table when the `decision` horizon ends on a winner (or bar
  *   push) that stays up.
  */
@@ -259,7 +261,10 @@ export interface DispatchAnalysis {
    * counts as back, and a re-collection is the next decision's commission, not this one's.
    */
   readonly loss: Fraction
-  /** E[amount risked]: Σ stakes + commission paid up front (plan §0 amendment 22). */
+  /**
+   * E[amount risked]: Σ stakes + commission paid up front (plan §0 amendment 22), less the stakes
+   * of settlements that returned the bet unplayed (rules spec §0.1).
+   */
   readonly risked: Fraction
   readonly edge: Fraction
   /** E[net] ÷ stake: −loss ÷ stake. */
@@ -289,7 +294,10 @@ export function dispatchAnalysis(
     horizon === 'decision'
       ? Fraction.of(placementCost).sub(cashBack).sub(rearm).sub(staysUp)
       : Fraction.of(placementCost).sub(cashBack)
+  // A stake returned unplayed (push `offReturned`) never had action, so it joins no divisor
+  // (rules spec §0.1): short-paid come odds must price like the same pay on pass odds.
   const risked = wagered
+    .sub(reward('returnedUnplayed'))
     .add(Fraction.of(placementVig))
     .add(horizon === 'lifetime' ? rearm : Fraction.ZERO)
   const workingRolls = reward('workingRolls')
@@ -432,6 +440,12 @@ function rollStep(
     cash: Fraction.of(cash.get(betId) ?? 0),
     rearm: Fraction.of(rearm),
     wagered: Fraction.of(trace === null ? 0 : trace.stake),
+    // The stake of a settlement that returned the bet unplayed (rules spec §0.1).
+    returnedUnplayed: Fraction.of(
+      trace !== null && trace.outcome === 'push' && trace.pushReason === 'offReturned'
+        ? trace.stake
+        : 0,
+    ),
   }
   if (trace !== null && horizon === 'decision') {
     if (after !== undefined) rewards.staysUp = Fraction.of(after.amount)

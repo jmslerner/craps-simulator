@@ -4,7 +4,7 @@ import { PRESETS, PRESET_IDS, type PresetId } from '../engine/config/presets/ind
 import { pruneProvenance } from '../engine/config/provenance.ts'
 import type { MachineConfigInput, RoundingRule } from '../engine/config/schema.ts'
 import { distribution } from './price.ts'
-import { HIGH_EDGE, PLAYER_ADVANTAGE, sanityCheck, sweepAmounts } from './sanity.ts'
+import { HIGH_EDGE, PLAYER_ADVANTAGE, PLAYER_EVEN, sanityCheck, sweepAmounts } from './sanity.ts'
 import { typicalStart } from './start.ts'
 
 function variant(id: PresetId, edit: (input: MachineConfigInput) => void): MachineConfig {
@@ -67,15 +67,63 @@ describe('sanityCheck', () => {
   })
 
   it('catches a decision that favours the player inside a lifecycle that does not', () => {
-    // A buy paying 21:10 with its vig paid once: the lifecycle breaks even, but every decision
-    // after the first is player-favoured.
+    // A buy paying 21:10 with its vig paid once: the lifecycle breaks even (so it is also flagged
+    // player-even), but every decision after the first is player-favoured.
     const cfg = variant('craplessBubble', (input) => {
       const buy = input.catalog.buy
       if (buy?.family !== 'numberVsSeven' || buy.commission === undefined) throw new Error('no buy')
       buy.pays = { ...buy.pays, '4': '21:10' }
       buy.commission = { ...buy.commission, rearm: 'none' }
     })
-    expect(summary(cfg)).toEqual(['error playerAdvantage buy 4 100 -1/30'])
+    expect(summary(cfg)).toEqual([
+      'error playerAdvantage buy 4 100 -1/30',
+      'error playerEven buy 4 100 0',
+    ])
+  })
+
+  it("rejects a 'for 1' pay typed as 'to 1': Interblock's Any 7 at 5:1 is dead even (plan §0 #10)", () => {
+    // craplessBubble writes Any 7 "5 for 1" (4:1). Typed "5 to 1" its edge is exactly 0, which no
+    // real bet has, and which neither the below-zero nor the above-40% check sees.
+    const cfg = variant('craplessBubble', (input) => {
+      const seven = input.catalog.any7
+      if (seven?.family !== 'oneRoll') throw new Error('no any 7')
+      seven.pays = { '7': '5 to 1' }
+    })
+    const issues = sanityCheck(cfg)
+    expect(
+      issues.map(({ severity, code, spec, edge }) => [severity, code, spec.typeId, edge?.toString()]),
+    ).toEqual([['error', 'playerEven', 'any7', '0']])
+    expect(issues[0]?.message).toBe(PLAYER_EVEN)
+    expect(issues[0]?.paths).toContain('/catalog/any7/pays/7')
+  })
+
+  it('exempts free odds, which are even by design: every preset still passes', () => {
+    // Zero-edge odds must not be flagged (the it.each above already proves each preset is clean;
+    // this pins the reason: strict pass odds at true odds have an edge of exactly 0).
+    const strict = compileConfig(PRESETS.strictBubble)
+    const odds = sanityCheck(strict).filter(({ spec }) => spec.typeId.endsWith('Odds'))
+    expect(odds).toEqual([])
+  })
+
+  it('sweeps from where the commission minimum stops binding: an overpay the minimum masks', () => {
+    // Buy 4 at 43:20 breaks even at an exact 5% vig. With a $5 minimum and the vig FLOORED to $1,
+    // the minimum masks the overpay below $100 (vig $5 > 5%), the $500 maximum pays the vig
+    // exactly ($25), and only stakes just above $100 — the minimum-free sweep — show the player
+    // advantage: at $119 the vig floors to $5 against $5.95, an edge of −95/12400 = −19/2480.
+    const cfg = variant('craplessBubble', (input) => {
+      const buy = input.catalog.buy
+      if (buy?.family !== 'numberVsSeven' || buy.commission === undefined) throw new Error('no buy')
+      buy.pays = { ...buy.pays, '4': '43:20' }
+      buy.commission = {
+        ...buy.commission,
+        minimum: 500,
+        rounding: { mode: 'floor', increment: 100 },
+      }
+    })
+    expect(summary(cfg)).toEqual([
+      'error playerAdvantage buy 4 11900 -19/2480',
+      'error playerEven buy 4 10000 0',
+    ])
   })
 
   it('warns about an edge above 40%', () => {

@@ -29,7 +29,7 @@ The canonical rules for the Bubble Craps Trainer: what every bet does on every r
 | Term | Meaning |
 |---|---|
 | Pays `a:b` | Net win of a per b staked; the stake is returned. Store payouts as an exact "to 1" ratio. `x for 1` = (x−1):1. Examples: 30 for 1 = 29:1; 5 for 1 = 4:1. |
-| HE_res | Expected loss ÷ stake, per decision. Pushes count as decisions ("ties counted") unless marked otherwise. For upfront vig the divisor is stake + vig, unless marked "per stake". |
+| HE_res | Expected loss ÷ stake, per decision. Pushes count as decisions ("ties counted") unless marked otherwise. For upfront vig the divisor is stake + vig, unless marked "per stake". **Convention [M]:** a settlement that returns a bet unplayed (odds OFF when their parent is decided, or returned when the point is made — the engine's push `offReturned`) is not a decision of that bet: its stake was never at risk and joins no divisor. So come odds cost the same as pass odds at the same pay (2/12 at 11:2: 1/14 on both, §3.1, §8.1 rank 1), although come odds are sometimes handed back unplayed. The trainer's edges follow this convention. |
 | HE_roll | Expected loss per roll while the bet is working, per $1 staked: HE_res × P(the bet is decided on a roll). For one-roll bets HE_roll = HE_res. |
 | Lifecycle edge (plan §5.1) | Loss ÷ (sum of stakes over all decisions + all vig), for a bet left up until it loses. Equals HE_res when every decision is i.i.d. |
 | Hand | Every roll from the first come-out after a seven-out (or session start) through the next seven-out, inclusive. In side-bet rules, "shooter" means hand. |
@@ -418,6 +418,7 @@ Rate r = 1/20. w = ways for the number. Buy pays true odds 6/w to 1. Lay wins w/
 - On win (5% of stake), buy or lay: 1/240, 1/180, 1/144 (4/10, 5/9, 6/8); C buy 1/720, 1/360 (2/12, 3/11).
 - Buy upfront, per (stake + vig): 1/84, 5/378, 11/756 (4/10, 5/9, 6/8); C 1/108, 2/189 (2/12, 3/11).
 - Lay upfront, per (lay + vig): 1/164, 5/558, 11/900 (4/10, 5/9, 6/8).
+- **Convention [M]:** the trainer's "Per roll" (`edgePerWorkingRoll` in `analyzeBet` and the catalog, and `scripts/edges.ts`) always divides by the **stake alone**, as the glossary defines it, never by stake + vig. The upfront figures above translate: buy 1/80, 1/72, 11/720 (4/10, 5/9, 6/8); lay 1/160, 1/108, 11/864 (4/10, 5/9, 6/8). Coach copy quoting this section's per-(stake + vig) figures must convert, or cite the trainer's own numbers.
 
 **Place vs buy:**
 - 4/10, 2/12, 3/11: **buy** is better under every exact-5% mode.
@@ -729,6 +730,8 @@ The strategy lab (bots, progressions and Monte Carlo comparisons) is deferred pa
 ## 8. Coaching facts
 
 ### 8.1 Bets ranked by house edge (standard paytables) [M]
+
+Rows marked "vig upfront" quote HE per (stake + vig), §0.1's upfront-vig convention; the trainer's own edge and "Per roll" divide by the stake alone (§4.3 HE_roll convention note), so its figures for those rows read slightly higher per decision and per roll (rank 15's per-roll range 1.19–1.46% is 1.25–1.53% per stake).
 
 | Rank | Bet | HE_res | HE_roll | Where |
 |---|---|---|---|---|

@@ -17,6 +17,8 @@ import { checkSessionRuns, expectReplayMatches, expectSerializes } from '../repl
 
 const RUNS: Record<PresetId, number> = {
   craplessBubble: 1_000,
+  // The high-limit preset shares craplessBubble's rules: the default machine keeps the deep run.
+  craplessBubbleHighLimit: 250,
   traditionalBubble: 250,
   strictBubble: 250,
   traditionalLive345: 250,

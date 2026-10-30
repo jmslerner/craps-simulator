@@ -30,6 +30,17 @@ const extensions = {
   caseSensitive: true,
   message: 'Name the file: relative and root imports end in .ts, .tsx or an asset extension.',
 }
+// Node and Vite read specifiers as URLs, so a file: or data: URL and percent-escapes in a path
+// name files while evading the patterns, which match plain text (M5/M6 audit: a file:/// specifier
+// reached money.ts past the oracle rule). The architecture scanner decodes and bans these too.
+const fileUrls = {
+  regex: '^(?:file|data):',
+  message: 'URL specifiers evade the import rules: name repo files with relative paths.',
+}
+const percentEscapes = {
+  regex: '^[./].*%',
+  message: 'Percent-escapes in a path evade the import rules: write the file name plainly.',
+}
 
 const LIBRARIES = 'Core code must not depend on UI, rendering or storage libraries.'
 const libraryPaths = ['react', 'react-dom', 'three', 'zustand', 'idb-keyval'].map((name) => ({
@@ -89,8 +100,10 @@ function importRestrictions({ dir, bans = [], packages }, shipped) {
     const names = [...allowed, ...(shipped ? [] : ['node:*'])].join(', ')
     const message = `${dir} may import only its own files${names ? ` and ${names}` : ''}.`
     return {
+      // file: and data: URLs are caught by the catch-all pattern here.
       patterns: [
         extensions,
+        percentEscapes,
         { regex: '^(?:\\.\\.(?:/|$)|/)', message },
         { regex: `^(?![./]${others}${shipped ? '' : '|node:'})`, caseSensitive: true, message },
       ],
@@ -102,7 +115,15 @@ function importRestrictions({ dir, bans = [], packages }, shipped) {
   }
   return {
     paths: libraryPaths,
-    patterns: [extensions, libraryGroup, shells, layers, ...(shipped ? [nodeBuiltins] : [])],
+    patterns: [
+      extensions,
+      fileUrls,
+      percentEscapes,
+      libraryGroup,
+      shells,
+      layers,
+      ...(shipped ? [nodeBuiltins] : []),
+    ],
   }
 }
 
@@ -294,6 +315,8 @@ const inDir = (path) => `^(?:(?:\\.\\.?/)+|/)${path}(?:/|$)`
 const isFile = (path) => `^(?:(?:\\.\\.?/)+|/)${path}(?:\\?.*)?$`
 const oracleImports = [
   extensions,
+  fileUrls,
+  percentEscapes,
   ...['src/exact', ...RULE_DIRS].map((dir) => ({ regex: inDir(dir), message: ORACLE })),
   // The engine barrel, the rulesets (the engine's rule constants) and the helpers that drive it.
   { regex: isFile('src/engine(?:/|/index\\.ts)?'), message: ORACLE },
@@ -340,13 +363,20 @@ export default defineConfig([
   {
     // The core layers below repeat this pattern, because flat config replaces rule options.
     files: ['src/**/*.{ts,tsx}', 'tests/**/*.{ts,tsx}'],
-    rules: { 'no-restricted-imports': ['error', { patterns: [extensions] }] },
+    rules: {
+      'no-restricted-imports': ['error', { patterns: [extensions, fileUrls, percentEscapes] }],
+    },
   },
   ...LAYERS.flatMap(importBlocks),
   {
     // Applies to core tests and everything under tests/ too: randomized tests use pinned seeds.
+    // Dynamic code (eval, the Function constructor, code in a timer string) runs out of sight of
+    // the import, purity and Math rules, so it is banned here with them (M5/M6 audit).
     files: [...filesIn(CORE_DIRS), 'tests/**/*.{ts,tsx}'],
     rules: {
+      'no-eval': 'error',
+      'no-implied-eval': 'error',
+      'no-new-func': 'error',
       'no-restricted-properties': ['error', mathRandom],
       'no-restricted-syntax': ['error', ...mathValue([mathRandom]), ...hostValue],
     },
@@ -398,6 +428,8 @@ export default defineConfig([
         {
           patterns: [
             extensions,
+            fileUrls,
+            percentEscapes,
             { regex: inDir('src/exact'), message: 'The dispatch chain must not use the solver.' },
           ],
         },

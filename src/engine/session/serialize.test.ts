@@ -5,6 +5,7 @@ import { PRESETS, PRESET_IDS } from '../config/presets/index.ts'
 import { hashJson } from '../core/hash.ts'
 import { cents } from '../core/money.ts'
 import { betId } from '../bets/types.ts'
+import type { Action } from '../table/actions.ts'
 import { ENGINE_VERSION } from '../version.ts'
 import {
   SESSION_LOG_FORMAT,
@@ -16,7 +17,13 @@ import {
   toSessionLog,
   type LoadResult,
 } from './serialize.ts'
-import { dispatchBetting, newSession, rollWindow, type WindowedSession } from './window.ts'
+import {
+  MAX_BATCH_DEPTH,
+  dispatchBetting,
+  newSession,
+  rollWindow,
+  type WindowedSession,
+} from './window.ts'
 
 const crapless = compileConfig(PRESETS.craplessBubble)
 
@@ -168,6 +175,34 @@ describe('the session log', () => {
       kind: 'replay',
       failure: { kind: 'hash', window: 0 },
     })
+  })
+
+  it('refuses a log nested too deep to write back, as an error, never a throw (M5/M6 audit)', () => {
+    const base = session()
+    const nest = (depth: number): Action => {
+      let action: Action = { type: 'deposit', amount: cents(100) }
+      for (let i = 0; i < depth; i++) action = { type: 'batch', actions: [action] }
+      return action
+    }
+    const open = base.committed.length
+    const malformed = {
+      kind: 'replay',
+      failure: {
+        kind: 'malformed',
+        where: `windows[${open}].actions[0]`,
+        reason: `a batch nested deeper than ${MAX_BATCH_DEPTH}, which no log can hold`,
+      },
+    }
+    // One past the cap, through the JSON text.
+    const data = logData(base)
+    data.pending = [nest(MAX_BATCH_DEPTH + 1)]
+    const result = deserializeSession(JSON.stringify(data))
+    expect(result.ok ? null : result.error).toEqual(malformed)
+    // The audit's depth, as a crafted in-memory log: serializeSession could never write this, and
+    // loading it answers with the same failure instead of overflowing any call stack later.
+    const monster = { ...toSessionLog(base), pending: [nest(20_000)] }
+    const deep = sessionFromLog(monster)
+    expect(deep.ok ? null : deep.error).toEqual(malformed)
   })
 
   it('loads a log from another engine version only to check it, and then as this version’s', () => {

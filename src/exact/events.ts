@@ -55,6 +55,14 @@ export function sameEvents(
     progress: 0,
     placedAtRoll: from.carried ? 0 : 1,
   }))
+  // The machine's hold covers only the types in /afterSevenOut/newPlacedOff/types: a held start
+  // must not hold a bet the machine would leave ON (place 6 held and hard 6 not are different
+  // events at once; M5/M6 audit).
+  const holdable = cfg.working.afterSevenOut?.types ?? []
+  const heldOff =
+    from.held === true
+      ? bets.filter((bet) => holdable.includes(bet.typeId)).map(({ id }) => id)
+      : []
   const seen = new Set<string>()
   const queue: TableNode[] = []
   for (const { phase } of from.phases) {
@@ -62,11 +70,13 @@ export function sameEvents(
       phase: group.tracksRound ? phase : { kind: 'comeOut' },
       bets,
       globalOff: from.globalOff,
-      heldOff: from.held === true ? bets.map(({ id }) => id) : [],
+      heldOff,
     }
     checkTable(group, table, cfg)
     queue.push(table)
   }
+  // Two bets that are never decided would compare equal vacuously, so each must settle somewhere.
+  const settles = [false, false]
   while (queue.length > 0) {
     const table = queue.pop()
     if (table === undefined) break
@@ -77,13 +87,15 @@ export function sameEvents(
       const [first, second] = outcome.decisions
       if (first === undefined || second === undefined) return false
       if (signature(first) !== signature(second)) return false
+      if (isSettled(first)) settles[0] = true
+      if (isSettled(second)) settles[1] = true
       // Same kinds: both are decided together, or both stay up for the next roll.
       if (!isSettled(first) && outcome.next.bets.every((bet) => bet !== null)) {
         queue.push(outcome.next)
       }
     }
   }
-  return true
+  return settles[0] === true && settles[1] === true
 }
 
 /** The event a decision is: its kind, and where a travelling bet goes. */

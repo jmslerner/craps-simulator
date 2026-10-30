@@ -19,7 +19,16 @@ export { solveChain } from './solve.ts'
 export type { ChainSolution, RewardChain, Step } from './solve.ts'
 export { roundStats } from './roundStats.ts'
 export type { PhaseShare, RoundStats } from './roundStats.ts'
-export { afterTravel, everyPhase, pointPhases, startAt, startKey, typicalStart } from './start.ts'
+export {
+  afterTravel,
+  everyPhase,
+  isPutStart,
+  pointPhases,
+  roundWeightedStart,
+  startAt,
+  startKey,
+  typicalStart,
+} from './start.ts'
 export {
   EXACT_VERSION,
   analysisKey,
@@ -44,10 +53,12 @@ export {
 export {
   analyzeBet,
   assumedPaths,
+  attainableOdds,
   combinedEdge,
   configPathsOf,
   efficientAmounts,
   firstDecision,
+  lifecycleHorizon,
 } from './analyze.ts'
 export type { BetAnalysis, CombinedEdge, Lifecycle, PayoutLine } from './analyze.ts'
 export { analyzeExisting, startOfBet, takeDownValue } from './equity.ts'
@@ -63,7 +74,14 @@ export { suggestAlternatives } from './alternatives.ts'
 export type { Alternative, Comparability } from './alternatives.ts'
 export { derive } from './derive.ts'
 export type { DerivationStep } from './derive.ts'
-export { HIGH_EDGE, PLAYER_ADVANTAGE, checkBet, sanityCheck, sweepAmounts } from './sanity.ts'
+export {
+  HIGH_EDGE,
+  PLAYER_ADVANTAGE,
+  PLAYER_EVEN,
+  checkBet,
+  sanityCheck,
+  sweepAmounts,
+} from './sanity.ts'
 export type { SanityCode, SanityIssue } from './sanity.ts'
 export { fromWire, toWire } from './wire.ts'
 export type { Wire, WireFraction } from './wire.ts'

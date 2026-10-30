@@ -17,8 +17,17 @@ export function rejectionText(
   const { details } = rejection
   const label = labelOf(cfg, text(details, 'typeId'))
   switch (rejection.code) {
-    case 'NOT_OFFERED':
-      return `${label ?? 'That bet'} is not available on this machine.`
+    case 'NOT_OFFERED': {
+      // The machine can list a bet the trainer does not model yet (the side bets until M11):
+      // the engine refuses it as NOT_OFFERED, but "not available on this machine" would be wrong.
+      const typeId = text(details, 'typeId')
+      const listed =
+        typeId !== null &&
+        (cfg.catalog.has(typeId) || cfg.composites.has(typeId) || cfg.sideBets.has(typeId))
+      return listed
+        ? `The machine lists ${label ?? 'that bet'}, but the trainer does not model it yet.`
+        : `${label ?? 'That bet'} is not available on this machine.`
+    }
     case 'BAD_PARAMS':
       return `The machine cannot take that${label === null ? '' : ` ${label}`} bet as entered.`
     case 'WRONG_PHASE': {

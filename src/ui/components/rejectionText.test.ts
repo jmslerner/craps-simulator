@@ -65,6 +65,20 @@ describe('rejectionText', () => {
     expect(line).toContain('$4.00')
   })
 
+  it('tells a bet the machine lists but the trainer does not model from one it lacks', () => {
+    // Lucky Roller is on the machine (cfg.sideBets) but unmodelled until M11 (plan §0 #23).
+    const listed = rejectionText(
+      { code: 'NOT_OFFERED', details: { typeId: 'luckyRollerLow' } },
+      cfg,
+    )
+    expect(listed).toContain('Low Rolls')
+    expect(listed).toContain('does not model')
+    expect(listed).not.toContain('not available on this machine')
+    // A lay bet is not in the crapless config at all: that one the machine truly lacks.
+    const missing = rejectionText({ code: 'NOT_OFFERED', details: SAMPLES.NOT_OFFERED }, cfg)
+    expect(missing).toContain('is not available on this machine')
+  })
+
   it('names the bet with the machine label, not the type id', () => {
     const line = rejectionText({ code: 'CONTRACT_BET', details: SAMPLES.CONTRACT_BET }, cfg)
     expect(line).toContain('Pass Line')

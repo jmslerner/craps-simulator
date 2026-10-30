@@ -22,9 +22,11 @@ import type { DecisionExpectation, DecisionSample } from '../../src/sim/index.ts
 
 /**
  * Upper 0.1% points of the χ² distribution (α = 10⁻³), indexed by degrees of freedom; index 0 is
- * unused. Standard table values: each equals the Wilson–Hilferty approximation
- * k·(1 − 2/(9k) + z·√(2/(9k)))³ with z₀.₉₉₉ = 3.090232 to within 0.5%, and the same table gives
- * 66.62 at 35 degrees of freedom, the value plan §9 item 7 pins for the 36-cell dice check.
+ * unused. Standard table values, correct to 0.004%. The Wilson–Hilferty approximation
+ * k·(1 − 2/(9k) + z·√(2/(9k)))³ with z₀.₉₉₉ = 3.090232 reproduces them to within 0.5% only from
+ * about 10 degrees of freedom up (at df = 1 it is off by 3%), so the low-df entries are the table
+ * values, not the approximation. The same table gives 66.62 at 35 degrees of freedom, the value
+ * plan §9 item 7 pins for the 36-cell dice check.
  */
 export const CHI2_CRIT_P001: readonly number[] = [
   Number.NaN,

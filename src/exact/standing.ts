@@ -83,6 +83,10 @@ export function standingCost(
   const start = typicalStart(spec, cfg, toggles)
   switch (type.family) {
     case 'line': {
+      if (spec.number !== null) {
+        // A put bet is one decision, not a stream (rules spec §3.1): it has no standing policy.
+        throw new ExactError('BAD_SPEC', `${spec.typeId} on ${spec.number} is priced per decision`)
+      }
       const loss = decisionLoss(spec, start, amount, cfg)
       const rate = type.window === 'comeOut' ? stats.comeOutShare : stats.pointShare
       const policy = type.window === 'comeOut' ? 'comeOutDecisions' : 'pointRollDecisions'
@@ -129,15 +133,21 @@ export function workingShare(spec: BetSpec, cfg: MachineConfig, toggles: Toggles
   const group = groupFor(spec, cfg)
   const working = toggles.working ?? null
   const globalOff = toggles.globalOff ?? null
-  const works = (phase: Phase, carried: boolean): boolean | null => {
+  const tableAt = (phase: Phase, carried: boolean): TableNode | null => {
     try {
-      const table = startTable(group, spec, phase, { carried, working, globalOff }, cfg)
-      return at(workingOf(table, cfg), group.subject)
+      return startTable(group, spec, phase, { carried, working, globalOff }, cfg)
     } catch (error) {
       // A one-roll bet that comes back after every roll cannot be carried (its invariants).
       if (error instanceof ExactError && error.code === 'BAD_START') return null
       throw error
     }
+  }
+  const tables: TableNode[] = []
+  const works = (phase: Phase, carried: boolean): boolean | null => {
+    const table = tableAt(phase, carried)
+    if (table === null) return null
+    tables.push(table)
+    return at(workingOf(table, cfg), group.subject)
   }
   let share = Fraction.ZERO
   let uniform = true
@@ -147,9 +157,36 @@ export function workingShare(spec: BetSpec, cfg: MachineConfig, toggles: Toggles
     if (carried !== fresh) uniform = false
     if (carried === true) share = share.add(weight)
   }
-  if (uniform) return share
+  // The machine can change the toggles between rolls, which no per-phase reading sees: an
+  // `AFTER_ROLL` rule switches the bet itself (Interblock's lay re-enable: a lay under Set bets
+  // Off still costs about 19¢ a roll where /layAutoOn is set — M5/M6 audit), and a `nextRollOnly`
+  // scope resets a toggle after one roll. When any roll does, the share comes from the exact
+  // re-bet cycle, like a non-uniform one.
+  if (uniform && !togglesChange(group, tables, working, globalOff, cfg)) return share
   const cycle = rebetCycle(spec, cents(100), cfg, toggles)
   return cycle.workingRolls.div(cycle.rolls)
+}
+
+/**
+ * Whether any roll from `tables` leaves the subject's own setting or the button different from the
+ * toggles the bet started with: the machine switched one (`AFTER_ROLL`), or the toggle only lasted
+ * the roll. Every such rule acts on a transition any phase can roll (a 7, a point made), so one
+ * roll from each start phase sees it.
+ */
+function togglesChange(
+  group: Group,
+  tables: readonly TableNode[],
+  working: boolean | null,
+  globalOff: boolean | null,
+  cfg: MachineConfig,
+): boolean {
+  return tables.some((table) =>
+    rollOutcomes(group, table, workingOf(table, cfg), cfg).some((outcome) => {
+      const subject = at(outcome.next.bets, group.subject)
+      if (subject === null) return false
+      return subject.working !== working || outcome.next.globalOff !== globalOff
+    }),
+  )
 }
 
 /**

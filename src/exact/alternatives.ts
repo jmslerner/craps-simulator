@@ -39,6 +39,14 @@ export interface Alternative {
   readonly edge: Fraction
   /** The bet's edge less this one's: what switching saves per unit risked. */
   readonly saving: Fraction
+  /** The alternative's expected loss per decision at its stake, in cents; null for odds advice. */
+  readonly lossPerDecision: Fraction | null
+  /**
+   * The money switching saves, in cents per decision: the bet's loss per decision less this one's.
+   * Only for a same-stake switch (sameEvent, and restructures on the same number); null where the
+   * stakes differ (sizing, odds), where per-decision dollars are not comparable.
+   */
+  readonly savingPerDecision: Fraction | null
   /** What switching does on the table, accepted as one batch; empty for information only. */
   readonly actions: readonly Action[]
 }
@@ -60,14 +68,20 @@ export function suggestAlternatives(
   const found: Alternative[] = []
   for (const other of neighbours(spec, cfg)) {
     if (!legalAmounts(other, cfg, { from: amount, to: amount }).includes(amount)) continue
-    let edge: Fraction
+    let theirs: ReturnType<typeof analyzeBet>
     try {
-      edge = analyzeBet(other, amount, 'typical', cfg).edge
+      theirs = analyzeBet(other, amount, 'typical', cfg)
     } catch (error) {
       if (error instanceof ExactError) continue
       throw error
     }
+    const { edge } = theirs
     if (edge.compare(own.edge) >= 0) continue
+    // A lower edge whose dollar loss per decision is no lower saves nothing: an up-front vig
+    // inflates the divisor, so a $15 buy 4 shows 6.250% against place 4's 6.667% while both lose
+    // $1.00 a decision (rules spec §4.3, "tie at $15"). A same-stake switch must save money.
+    const savingPerDecision = own.lossPerDecision.sub(theirs.lossPerDecision)
+    if (savingPerDecision.isZero() || savingPerDecision.isNegative()) continue
     const same = sameEvents(spec, other, 'typical', cfg)
     found.push({
       comparability: same ? 'sameEvent' : 'restructure',
@@ -75,6 +89,8 @@ export function suggestAlternatives(
       amount,
       edge,
       saving: own.edge.sub(edge),
+      lossPerDecision: theirs.lossPerDecision,
+      savingPerDecision,
       actions: same ? switchTo(existing, other, amount) : [],
     })
   }
@@ -127,6 +143,8 @@ function withOdds(spec: BetSpec, edge: Fraction, cfg: MachineConfig): Alternativ
       amount: flat,
       edge: combined.edge,
       saving: edge.sub(combined.edge),
+      lossPerDecision: null,
+      savingPerDecision: null,
       actions: [],
     },
   ]
@@ -155,6 +173,9 @@ function sizing(
             amount: entry.amount,
             edge: entry.edge,
             saving: edge.sub(entry.edge),
+            lossPerDecision: analyzeBet(spec, entry.amount, 'typical', cfg).lossPerDecision,
+            // The stake changes, so per-decision dollars are not comparable.
+            savingPerDecision: null,
             actions: resize(existing, spec, entry.amount),
           },
         ],

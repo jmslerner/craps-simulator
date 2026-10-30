@@ -1,7 +1,23 @@
 import { useStore } from 'zustand'
 import { createStore, type StoreApi } from 'zustand/vanilla'
-import { DEFAULT_PRESET_ID, PRESETS, PRESET_IDS, cents, compileConfig } from '../../engine/index.ts'
-import type { Cents, MachineConfig, MachineConfigInput, PresetId } from '../../engine/index.ts'
+import {
+  DEFAULT_PRESET_ID,
+  PRESETS,
+  PRESET_IDS,
+  cents,
+  compileConfig,
+  isPresetId,
+  smallestBet,
+  statusAt,
+  typeLimits,
+} from '../../engine/index.ts'
+import type {
+  Cents,
+  MachineConfig,
+  MachineConfigInput,
+  PresetId,
+  ProvenanceStatus,
+} from '../../engine/index.ts'
 
 /**
  * The machines (plan §6): the built-in presets compiled once at module scope and shared. Compiling
@@ -88,3 +104,78 @@ export const selectNotModelled = (state: MachineState): readonly string[] =>
 /** The machine's own buy-in, what New game offers when settings remember nothing. */
 export const selectDefaultBankroll = (state: MachineState): Cents =>
   cents(COMPILED_PRESETS[state.selectedId].startingBankroll)
+
+// ---------------------------------------------------------------------------------------------
+// The machine picker's rows (New game dialog): each preset's variant and real stakes, computed
+// from the compiled config through `typeLimits` — never a typed-in dollar amount — with the
+// weakest provenance of the values shown, so the dialog can mark assumptions the way the rest of
+// the UI does.
+// ---------------------------------------------------------------------------------------------
+
+/** The stakes a machine posts, read from its line bet's limits and the table maximum. */
+export interface MachineStakes {
+  /** The machine's label for its line bet ("Pass Line"). */
+  readonly lineLabel: string
+  /** The smallest line bet the machine takes (`smallestBet` of its limits), in cents. */
+  readonly min: Cents
+  /** The largest line bet, in cents. */
+  readonly max: Cents
+  /** The most the whole layout holds, or null when the machine sets no table maximum. */
+  readonly tableMax: Cents | null
+  /** The minimum total of working bets a roll needs, or null (plan §4.6). */
+  readonly minTotal: Cents | null
+  /** The weakest provenance among the values shown: how sure the trainer is of these stakes. */
+  readonly provenance: ProvenanceStatus
+}
+
+export interface MachineSummary {
+  readonly id: PresetId
+  readonly name: string
+  readonly variant: 'crapless' | 'traditional'
+  readonly stakes: MachineStakes
+}
+
+const PROVENANCE_RANK: Readonly<Record<ProvenanceStatus, number>> = {
+  verified: 0,
+  reported: 1,
+  assumed: 2,
+}
+
+function weakest(statuses: readonly ProvenanceStatus[]): ProvenanceStatus {
+  return statuses.reduce((worst, status) =>
+    PROVENANCE_RANK[status] > PROVENANCE_RANK[worst] ? status : worst,
+  )
+}
+
+function stakesOf(cfg: MachineConfig): MachineStakes {
+  const line = typeLimits(cfg, 'pass')
+  const pointers = ['/limits/min', '/limits/max']
+  if (cfg.limits.tableMax !== null) pointers.push('/limits/tableMax')
+  if (cfg.limits.minTotal !== null) pointers.push('/limits/minTotal/amount')
+  return {
+    lineLabel: cfg.catalog.get('pass')?.label ?? 'Pass',
+    min: smallestBet(line),
+    max: cents(line.max),
+    tableMax: cfg.limits.tableMax,
+    minTotal: cfg.limits.minTotal === null ? null : cents(cfg.limits.minTotal.amount),
+    provenance: weakest(pointers.map((pointer) => statusAt(cfg.provenance, pointer))),
+  }
+}
+
+/** One row per preset, in preset order, computed once at module scope from the compiled configs. */
+export const MACHINE_SUMMARIES: readonly MachineSummary[] = Object.freeze(
+  PRESET_IDS.map((id) => {
+    const cfg = COMPILED_PRESETS[id]
+    return {
+      id,
+      name: cfg.name,
+      variant: cfg.ruleset.variant,
+      stakes: stakesOf(cfg),
+    }
+  }),
+)
+
+/** The remembered machine when it is still a preset of this build; the default otherwise. */
+export function rememberedMachine(machineId: string | null): PresetId {
+  return machineId !== null && isPresetId(machineId) ? machineId : DEFAULT_PRESET_ID
+}

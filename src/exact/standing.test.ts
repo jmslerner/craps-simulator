@@ -109,6 +109,46 @@ describe('standingCost', () => {
   })
 })
 
+describe('standingCost under the machine’s after-roll switches', () => {
+  it("prices Interblock's lay under Set bets Off from the re-bet cycle: /layAutoOn re-enables it", () => {
+    // The button holds the lay OFF, but the machine switches it back ON after any 7 or a point
+    // made, so it still resolves and still costs money (M5/M6 audit: about 19.1¢ a roll on a $40
+    // lay 4, not 0). The π formula must agree with the renewal identity exactly.
+    const strict = cfgOf('strictBubble')
+    const rows: [BetSpec['number'], number, string][] = [
+      [4, 4_000, '3873375/202748'],
+      [5, 3_000, '9061250/456183'],
+      [6, 2_400, '11558525/561456'],
+    ]
+    for (const [number, amount, perRoll] of rows) {
+      const spec: BetSpec = { typeId: 'lay', number }
+      const cost = standingCost(spec, cents(amount), strict, { globalOff: true })
+      expect(cost.perRoll.toString(), `lay ${String(number)}`).toBe(perRoll)
+      expect(cost.rate.isZero()).toBe(false)
+      expect(renewalCost(spec, cents(amount), strict, { globalOff: true }).toString()).toBe(perRoll)
+    }
+  })
+
+  it('still costs nothing for a bet the toggles keep OFF for good, which is never placed again', () => {
+    const cfg = cfgOf('craplessBubble')
+    const place6: BetSpec = { typeId: 'place', number: 6 }
+    const cost = standingCost(place6, cents(600), cfg, { working: false })
+    expect(cost.perRoll.isZero()).toBe(true)
+    expect(cost.rate.isZero()).toBe(true)
+    // The renewal identity's other side: the cycle never regenerates.
+    expect(() => renewalCost(place6, cents(600), cfg, { working: false })).toThrow(
+      'never placed again',
+    )
+  })
+
+  it('prices a put spec per decision, never as a stream', () => {
+    const live = cfgOf('traditionalLive345')
+    expect(() => standingCost({ typeId: 'pass', number: 4 }, cents(1_000), live)).toThrow(
+      'per decision',
+    )
+  })
+})
+
 describe('renewalCost', () => {
   it('equals the π formula (the identity of plan §9 item 6) on a few bets', () => {
     const cfg = cfgOf('traditionalBubble')

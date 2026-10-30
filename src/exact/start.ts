@@ -83,6 +83,46 @@ function typicalPhases(spec: BetSpec, cfg: MachineConfig): readonly WeightedPhas
   }
 }
 
+/**
+ * Whether `spec`'s typical placement is weighted by the round's long-run shares (π from
+ * `roundStats`): number bets and hardways that follow the round (`everyPhase`), come-type line
+ * bets (`pointPhases`) and the odds behind them (`afterTravel`). Those weights, and so every
+ * number derived from them, depend on `/variant` and the `/rules` lists that drive the round;
+ * `configPathsOf` adds those pointers for such bets (M5/M6 audit). A pass-type bet or its odds
+ * starts in one fixed phase, so it is not π-weighted.
+ */
+export function roundWeightedStart(spec: BetSpec, cfg: MachineConfig): boolean {
+  const resolved = resolveType(cfg, spec.typeId)
+  if (resolved === null) return false
+  const { type, family } = resolved
+  switch (type.family) {
+    case 'odds': {
+      const parent = cfg.catalog.get(type.parent)
+      return parent?.family === 'line' && parent.window === 'point'
+    }
+    case 'line':
+      return type.window === 'point'
+    case 'numberVsSeven':
+    case 'hardway':
+    case 'oneRoll':
+    case 'composite':
+      return family.projection === 'round'
+  }
+}
+
+/**
+ * Whether analysing `spec` from `start` prices a put bet: a new pass-type bet placed straight on a
+ * point, where the machine allows it (`/rules/allowPutBets`). A put's lifecycle ends at its first
+ * decision — a winner that stays goes back to the line as a new line bet, not a put (rules spec
+ * §3.1) — where a carried line bet on its point (equity of a bet that travelled there) is followed
+ * through the wins that leave it up.
+ */
+export function isPutStart(spec: BetSpec, start: StartContext, cfg: MachineConfig): boolean {
+  if (spec.number === null || start.carried || !cfg.input.rules.allowPutBets) return false
+  const type = cfg.catalog.get(spec.typeId)
+  return type?.family === 'line' && type.window === 'comeOut' && type.side === 'do'
+}
+
 /** The long-run share of every phase. */
 export function everyPhase(cfg: MachineConfig): readonly WeightedPhase[] {
   return roundStats(cfg).phases.map(({ phase, share }) => ({ phase, weight: share }))

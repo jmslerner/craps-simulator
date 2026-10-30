@@ -46,12 +46,21 @@ export function firstAmounts(spec: BetSpec, cfg: MachineConfig, count = 30): Cen
   return amounts
 }
 
+/** Whether `spec` has a standing cost: a put spec (a line bet on a number) is one decision. */
+export function hasStandingCost(spec: BetSpec, cfg: MachineConfig): boolean {
+  const family = cfg.catalog.get(spec.typeId)?.family
+  return !(family === 'line' && spec.number !== null)
+}
+
 /** A bet on one of `configs`, at one of its first legal stakes, with some toggles. */
 export function standingCases(configs: readonly MachineConfig[]): fc.Arbitrary<StandingCase> {
   return fc
     .constantFrom(...configs)
     .chain((cfg) =>
-      fc.record({ cfg: fc.constant(cfg), spec: fc.constantFrom(...catalogSpecs(cfg)) }),
+      fc.record({
+        cfg: fc.constant(cfg),
+        spec: fc.constantFrom(...catalogSpecs(cfg).filter((spec) => hasStandingCost(spec, cfg))),
+      }),
     )
     .chain(({ cfg, spec }) => {
       const amounts = firstAmounts(spec, cfg)
