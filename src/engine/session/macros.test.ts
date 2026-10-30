@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { compileConfig } from '../config/compile.ts'
+import { compileConfig, type MachineConfig } from '../config/compile.ts'
 import { PRESETS } from '../config/presets/index.ts'
 import type { PointNumber } from '../config/rulesets.ts'
 import type { DieFace } from '../core/dice.ts'
@@ -38,14 +38,20 @@ const setAmount = (bet: number, amount: number): Action => ({
 })
 const batch = (...actions: Action[]): Action[] => [{ type: 'batch', actions }]
 
-/** A crapless session played through the window: bets, then rolls of scripted dice. */
+/** A session played through the window: bets, then rolls of scripted dice. Crapless by default. */
 class Table {
-  session: WindowedSession = newSession(crapless, 'macros')
+  readonly cfg: MachineConfig
+  session: WindowedSession
   lastRoll: readonly GameEvent[] = []
+
+  constructor(cfg: MachineConfig = crapless) {
+    this.cfg = cfg
+    this.session = newSession(cfg, 'macros')
+  }
 
   bet(...actions: Action[]): this {
     for (const action of actions) {
-      const result = dispatchBetting(this.session, action, crapless)
+      const result = dispatchBetting(this.session, action, this.cfg)
       if (!result.ok) throw new Error(`refused ${JSON.stringify(result.rejection)}`)
       this.session = result.session
     }
@@ -53,7 +59,7 @@ class Table {
   }
 
   roll(d1: DieFace, d2: DieFace): this {
-    const result = rollWindow(this.session, crapless, { d1, d2 })
+    const result = rollWindow(this.session, this.cfg, { d1, d2 })
     if (!result.ok) throw new Error(`roll refused ${JSON.stringify(result.rejection)}`)
     this.session = result.session
     this.lastRoll = result.events
@@ -68,7 +74,7 @@ class Table {
   run(actions: readonly Action[]): this {
     expect(actions).toHaveLength(1)
     for (const action of actions) {
-      expect(validateAction(this.state, action, crapless)).toBeNull()
+      expect(validateAction(this.state, action, this.cfg)).toBeNull()
       this.bet(action)
     }
     return this
@@ -146,9 +152,34 @@ describe('doubleBets (Double Bet)', () => {
       .roll(3, 3)
       .bet(placeOn('place', 5, 39_000), placeOn('place', 6, 3_000), placeOn('place', 8, 3_000))
     expect(table.state.ledger.bankroll).toBe(4_000)
-    // Each $30 double fits the $40 of credit alone, but not both; place 5 cannot double at all.
+    // Each $30 double fits the $40 of credit alone, but not both, and place 5's $390 is short on
+    // its own: Double is all or nothing on credit, so nothing doubles.
     expect(validateAction(table.state, setAmount(3, 6_000), crapless)).toBeNull()
     expect(doubleBets(table.state, crapless)).toEqual([])
+  })
+
+  it('does nothing when one double alone is short of credit (all or nothing)', () => {
+    const table = new Table().bet(
+      place('pass', 500),
+      placeOn('place', 6, 24_000),
+      placeOn('place', 8, 24_000),
+    )
+    expect(table.state.ledger.bankroll).toBe(1_500)
+    // The $5 pass could double on its own, but each place needs $240 more: nothing is doubled,
+    // never just the pass (M5/M6 audit).
+    expect(doubleBets(table.state, crapless)).toEqual([])
+  })
+
+  it('does nothing when the table maximum cannot take a double (all or nothing)', () => {
+    const limited = structuredClone(PRESETS.craplessBubble)
+    limited.limits.tableMax = 50_000
+    const cfg = compileConfig(limited)
+    const table = new Table(cfg)
+      .bet({ type: 'deposit', amount: cents(10_000) })
+      .bet(place('pass', 25_000), place('field', 1_000))
+    // Doubling the pass alone would put $510 on a $500 table; the field alone would fit, but
+    // Double is all or nothing on the table maximum.
+    expect(doubleBets(table.state, cfg)).toEqual([])
   })
 })
 
@@ -204,6 +235,21 @@ describe('pressBet and winsOf (Press)', () => {
       [betId(3)]: 500,
       [betId(4)]: 2_000,
     })
+  })
+
+  it('subtracts a re-collection taken from credit, so Press never adds the vig back', () => {
+    const input = structuredClone(PRESETS.craplessBubble)
+    const buy = input.catalog.buy
+    if (buy?.family !== 'numberVsSeven' || buy.commission === undefined) throw new Error('no buy')
+    buy.commission = { ...buy.commission, rearm: 'recollectFromCredit' }
+    const cfg = compileConfig(input)
+    const table = new Table(cfg)
+      .bet(place('pass', 1_000))
+      .roll(3, 3)
+      .bet(placeOn('buy', 4, 2_500))
+      .roll(2, 2)
+    // Buy 4 $25 wins $50 and stays up; its $1.25 re-collection comes from credit, not the win.
+    expect(Object.fromEntries(winsOf(table.lastRoll))).toEqual({ [betId(2)]: 4_875 })
   })
 })
 

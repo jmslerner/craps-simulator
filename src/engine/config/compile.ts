@@ -455,10 +455,23 @@ function checkComposites(cfg: MachineConfigInput, add: Add): void {
         parts.push({ typeId, units, type: part })
       }
     })
-    if (parts.length === composite.parts.length) {
-      const partial = partialLoss(
-        parts.map(({ units, type }) => ({ units, match: type.match, pays: payTable(type.pays) })),
-      )
+    // The partial-loss check needs every part's pays to parse and at least one unit. Junk input (a
+    // bad ratio text, no parts) already carries its own issues, so the check stands aside for it
+    // rather than throwing out of validation (M5/M6 audit).
+    const tables: NetPart[] = []
+    let totalUnits = 0
+    for (const { units, type } of parts) {
+      const pays = tryPayTable(type.pays)
+      if (pays === null) break
+      tables.push({ units, match: type.match, pays })
+      totalUnits += units
+    }
+    if (
+      parts.length === composite.parts.length &&
+      tables.length === parts.length &&
+      totalUnits > 0
+    ) {
+      const partial = partialLoss(tables)
       if (partial !== null) {
         add(
           ['composites', id],
@@ -488,6 +501,15 @@ interface NetPart {
 
 function payTable(pays: Readonly<Record<string, string>>): ReadonlyMap<string, Ratio> {
   return new Map(Object.entries(pays).map(([key, text]) => [key, parseRatio(text)]))
+}
+
+/** `payTable`, or null when any ratio text does not parse: that text's own validation reports it. */
+function tryPayTable(pays: Readonly<Record<string, string>>): ReadonlyMap<string, Ratio> | null {
+  try {
+    return payTable(pays)
+  } catch {
+    return null
+  }
 }
 
 /**
@@ -919,6 +941,8 @@ export function compileConfig(input: unknown): MachineConfig {
   const result = MachineConfigSchema.safeParse(input)
   if (!result.success) throw new ConfigError(result.error.issues.map(toConfigIssue))
   const compiled = build(deepFreeze(result.data))
+  // The compiled config's own `input` also hits the memo, so `compileConfig(cfg.input)` is free.
+  memo.set(compiled.input, compiled)
   if (key !== null) memo.set(deepFreeze(key), compiled)
   return compiled
 }

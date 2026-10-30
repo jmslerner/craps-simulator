@@ -850,6 +850,11 @@ describe('compileConfig', () => {
     expect(compileConfig(twin)).toBe(fromTwin)
   })
 
+  it('memoizes the compiled config’s own input, so compileConfig(cfg.input) is the same object', () => {
+    const cfg = compileConfig(copy(craplessBubble))
+    expect(compileConfig(cfg.input)).toBe(cfg)
+  })
+
   it('never returns a stale config after the caller edits its input in place', () => {
     const mine = copy(craplessBubble)
     compileConfig(mine)
@@ -1033,6 +1038,24 @@ describe('compileConfig', () => {
 })
 
 describe('compiled composites (plan §0 #15)', () => {
+  it('reports a part whose pay ratio is junk as issues, never a raw throw (M5/M6 audit)', () => {
+    const cfg = structuredClone(craplessBubble)
+    const c = cfg.catalog.c
+    if (c?.family !== 'oneRoll') throw new Error('no c bet')
+    c.pays['2'] = '1:0'
+    expect(validateConfig(cfg).map((i) => i.path.join('.'))).toContain('catalog.c.pays.2')
+    expect(() => compileConfig(cfg)).toThrow(ConfigError)
+  })
+
+  it('reports a composite with no parts as issues, never a division by zero (M5/M6 audit)', () => {
+    const cfg = structuredClone(craplessBubble)
+    const horn = cfg.composites.horn
+    if (horn === undefined) throw new Error('no horn')
+    horn.parts = []
+    expect(validateConfig(cfg).length).toBeGreaterThan(0)
+    expect(() => compileConfig(cfg)).toThrow(ConfigError)
+  })
+
   /** A composite's wins as "key=num:den" and its pushes as "key=push", outcome order kept. */
   function nets(cfg: MachineConfig, id: string): string[] {
     const composite = cfg.composites.get(id)

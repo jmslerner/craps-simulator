@@ -1,9 +1,9 @@
 /**
  * Post-build guard, run by `npm run verify` after `vite build`.
  *
- * Fails when the production build contains the e2e test hooks (`__CRAPS_TEST__`, which may exist
- * only in `vite build --mode e2e` builds), or when the JavaScript loaded by index.html is over its
- * gzip budget.
+ * Fails when the production build contains the e2e test hooks — the `__CRAPS_TEST__` window hook
+ * or any trace of the testHooks module, which may exist only in `vite build --mode e2e` builds —
+ * or when the JavaScript loaded by index.html is over its gzip budget.
  *
  * TODO(M10a): enforce the rest of the §10 M10a budgets once those chunks exist:
  *   - the initial JS contains no three or Rapier code
@@ -11,13 +11,44 @@
  *   - the physics worker is at most 900 KB
  */
 import { existsSync, readFileSync, readdirSync } from 'node:fs'
-import { join, relative, sep } from 'node:path'
+import { basename, join, relative, sep } from 'node:path'
+import { pathToFileURL } from 'node:url'
 import { parseArgs } from 'node:util'
 import { gzipSync } from 'node:zlib'
 
 const TEST_HOOK = '__CRAPS_TEST__'
+/**
+ * Strings that betray `src/ui/services/testHooks.ts` in a bundle: the window hook's property name
+ * (minifiers keep property names) and the e2e preset's provenance note, a string literal unique to
+ * that module which survives minification even when the hook installer was tree-shaken away. The
+ * dice-script regex is NOT a usable marker: the engine's own `compile.ts` carries the same
+ * `([1-6])-([1-6])` literal for hop-bet config keys, legitimately, in every build.
+ */
+const TEST_HOOK_MARKERS: readonly string[] = [TEST_HOOK, 'e2e test preset:']
+/** A chunk split from the testHooks module keeps its name: `assets/testHooks-<hash>.js`. */
+const TEST_HOOK_FILE = /testhooks/i
 /** §10 M10a: initial JS at most 250 KB gzip. Checkable from M0, so enforced from M0. */
 const INITIAL_JS_BUDGET = 250_000
+
+/**
+ * The test-hook failures one bundle file contributes (plan §10 M8: the production bundle contains
+ * no `__CRAPS_TEST__` and no testHooks module): the file IS the testHooks chunk by name, or its
+ * content carries a marker. Pure over (name, content), so the unit test can feed it fixtures
+ * (`tests/bundle/checkBundle.test.ts`).
+ */
+export function testHookOffences(file: string, content: string | Buffer): string[] {
+  const offences: string[] = []
+  if (TEST_HOOK_FILE.test(basename(file))) {
+    offences.push(`${file} is a testHooks chunk; the module belongs only in --mode e2e builds`)
+  }
+  for (const marker of TEST_HOOK_MARKERS) {
+    if (content.includes(marker)) {
+      const what = marker === TEST_HOOK ? TEST_HOOK : `the testHooks marker "${marker}"`
+      offences.push(`${file} contains ${what}; test hooks belong only in --mode e2e builds`)
+    }
+  }
+  return offences
+}
 
 const USAGE = `Usage: node scripts/check-bundle.ts [--dir <build dir>]
 
@@ -51,9 +82,7 @@ function main(args: string[]): number {
   const failures: string[] = []
   const files = listFiles(dir)
   for (const file of files) {
-    if (readFileSync(join(dir, file)).includes(TEST_HOOK)) {
-      failures.push(`${file} contains ${TEST_HOOK}; test hooks belong only in --mode e2e builds`)
-    }
+    failures.push(...testHookOffences(file, readFileSync(join(dir, file))))
   }
 
   const initial = initialScripts(readFileSync(join(dir, 'index.html'), 'utf8'))
@@ -73,7 +102,7 @@ function main(args: string[]): number {
     return 1
   }
   console.log(
-    `check-bundle: ${dir} OK. No ${TEST_HOOK} in ${files.length} files; initial JS is ` +
+    `check-bundle: ${dir} OK. No test hooks in ${files.length} files; initial JS is ` +
       `${kb(initialBytes)} gzip of a ${kb(INITIAL_JS_BUDGET)} budget.`,
   )
   return 0
@@ -101,4 +130,9 @@ function kb(bytes: number): string {
   return `${(bytes / 1000).toFixed(1)} kB`
 }
 
-process.exitCode = main(process.argv.slice(2))
+// Runnable directly (`node scripts/check-bundle.ts`) and importable by its unit test without
+// running: only the entry file executes main.
+const entry = process.argv[1]
+if (entry !== undefined && import.meta.url === pathToFileURL(entry).href) {
+  process.exitCode = main(process.argv.slice(2))
+}

@@ -1,5 +1,5 @@
 import { ConfigError, compileConfig, type MachineConfig } from '../config/compile.ts'
-import type { ConfigIssue } from '../config/issues.ts'
+import { issue, type ConfigIssue } from '../config/issues.ts'
 import { hashJson } from '../core/hash.ts'
 import type { Rejection } from '../bets/types.ts'
 import type { Action } from '../table/actions.ts'
@@ -112,7 +112,13 @@ export function headerConfig(header: SessionHeader, options: ReplayOptions = {})
     cfg = compileConfig(header.config)
   } catch (error) {
     if (error instanceof ConfigError) fail({ kind: 'config', issues: error.issues })
-    throw error
+    // A malformed config can throw while its issues are still being gathered (e.g. a composite
+    // part's pay ratio). That is still a config failure, never a crash out of loading (M5/M6
+    // audit), so junk a session log carries cannot take the shell down.
+    fail({
+      kind: 'config',
+      issues: [issue([], error instanceof Error ? error.message : String(error))],
+    })
   }
   if (cfg.configHash !== configHash) {
     fail({ kind: 'configHash', logged: configHash, compiled: cfg.configHash })

@@ -32,9 +32,11 @@ export {
 } from './price.ts'
 export type { Distribution, Measured, PriceMode, Priced } from './price.ts'
 export {
+  commissionMinimumBinds,
   exactUnit,
   largestAmount,
   legalAmounts,
+  minimumFreeFrom,
   paysExactly,
   roundingPeriod,
   smallestAmount,

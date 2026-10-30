@@ -6,7 +6,7 @@ import { typeLimits } from '../bets/limits.ts'
 import type { BetId } from '../bets/types.ts'
 import type { Action } from '../table/actions.ts'
 import type { GameEvent } from '../table/events.ts'
-import { applyAction } from '../table/reducer.ts'
+import { applyAction, validateAction } from '../table/reducer.ts'
 import type { TableState } from '../table/state.ts'
 
 /**
@@ -45,8 +45,20 @@ export function doubleBets(state: TableState, cfg: MachineConfig): readonly Acti
   const spots = legalBets(state, cfg)
   const actions = state.bets.flatMap((bet): Action[] => {
     const spot = spots.find((s) => s.betId === bet.id)
-    if (spot === undefined || spot.canAdd !== null || spot.maxAdd < bet.amount) return []
-    return [{ type: 'setAmount', betId: bet.id, amount: cents(bet.amount * 2) }]
+    if (spot === undefined || spot.canAdd !== null) return []
+    const action: Action = { type: 'setAmount', betId: bet.id, amount: cents(bet.amount * 2) }
+    const refusal = validateAction(state, action, cfg)
+    // A double that only credit or the table maximum refuses stays in the batch, so the whole
+    // macro comes back empty (all or nothing); one the bet's own limits refuse leaves that bet as
+    // it is and the rest still double (M5/M6 audit).
+    if (
+      refusal !== null &&
+      refusal.code !== 'INSUFFICIENT_CREDIT' &&
+      refusal.code !== 'TABLE_MAX'
+    ) {
+      return []
+    }
+    return [action]
   })
   return asBatch(state, actions, cfg)
 }

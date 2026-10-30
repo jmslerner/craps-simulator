@@ -130,6 +130,21 @@ describe('the session log', () => {
     expect(issues((log) => (log.header = null))[0]).toMatch(/^header: /)
   })
 
+  it('loads a log whose config has a junk pay ratio as a config error, never a throw', () => {
+    const data = logData(session())
+    const header = data.header as {
+      config: { catalog: Record<string, { pays?: Record<string, string> }> }
+    }
+    const c = header.config.catalog.c
+    if (c?.pays === undefined) throw new Error('no c bet in the header config')
+    c.pays['2'] = '1:0'
+    const result = deserializeSession(JSON.stringify(data))
+    expect(result.ok ? null : result.error).toMatchObject({
+      kind: 'replay',
+      failure: { kind: 'config' },
+    })
+  })
+
   it('refuses a log that does not replay, saying where', () => {
     const data = logData(session())
     const edited = structuredClone(data)
