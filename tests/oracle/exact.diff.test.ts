@@ -48,9 +48,15 @@ describe('analyzeBet against the closed form (quick subset)', () => {
 })
 
 describe('analyzeBet against the dispatch chain (quick subset)', () => {
-  it.each(PRESET_IDS)('agrees on every bet %s offers at 101¢', (id) => {
-    const { checked, mismatches } = dispatchSweep(PRESETS[id], [101])
-    expect(mismatches.slice(0, 10)).toEqual([])
-    expect(checked).toBeGreaterThan(70)
-  })
+  it.each(PRESET_IDS)(
+    'agrees on every bet %s offers at 101¢',
+    (id) => {
+      const { checked, mismatches } = dispatchSweep(PRESETS[id], [101])
+      expect(mismatches.slice(0, 10)).toEqual([])
+      expect(checked).toBeGreaterThan(70)
+      // The same 30 s allowance as the real-tree scans: this 8 GB machine has stalled a preset past
+      // the 5 s default under a coverage run (a preset takes well under a second quiet).
+    },
+    30_000,
+  )
 })

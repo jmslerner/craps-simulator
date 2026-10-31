@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cents } from '../engine/index.ts'
 import { App } from './App.tsx'
+import { OUTCOME_MS } from './components/useRollOutcomes.ts'
 import { COMPILED_PRESETS } from './state/machineStore.ts'
 import { dice } from './test/game.ts'
 import { renderApp, testStores } from './test/renderApp.tsx'
@@ -171,6 +172,31 @@ describe('keyboard play (plan §6)', () => {
     expect(screen.getByRole('button', { name: 'Remove' })).toHaveAttribute('aria-pressed', 'false')
   })
 
+  it('leaves browser shortcuts and held-key repeats alone, then rolls on a plain R', () => {
+    const { game, settings } = renderApp()
+    fireEvent.keyDown(document.body, { key: '4' })
+    fireEvent.click(screen.getByRole('button', { name: /^Pass Line/ }))
+    expect(game.getState().view?.shown.bets).toHaveLength(1)
+    // Cmd+R / Ctrl+R / Alt+R reload or reach the browser: none of them may roll (final player audit).
+    fireEvent.keyDown(document.body, { key: 'r', metaKey: true })
+    fireEvent.keyDown(document.body, { key: 'r', ctrlKey: true })
+    fireEvent.keyDown(document.body, { key: 'r', altKey: true })
+    fireEvent.keyDown(document.body, { key: 'R', metaKey: true, shiftKey: true })
+    // Cmd+C, Ctrl+U, Cmd+X, Cmd+4: copy, view source, cut, switch tab — not Clear, Undo, Remove, chip.
+    fireEvent.keyDown(document.body, { key: 'c', metaKey: true })
+    fireEvent.keyDown(document.body, { key: 'u', ctrlKey: true })
+    fireEvent.keyDown(document.body, { key: 'x', metaKey: true })
+    fireEvent.keyDown(document.body, { key: '1', metaKey: true })
+    // A held R auto-repeats; only the first press counts.
+    fireEvent.keyDown(document.body, { key: 'r', repeat: true })
+    expect(game.getState().view?.phase).toBe('betting')
+    expect(game.getState().view?.shown.bets).toHaveLength(1)
+    expect(settings.getState().selectedChip).toBe(500)
+    expect(screen.getByRole('button', { name: 'Remove' })).toHaveAttribute('aria-pressed', 'false')
+    fireEvent.keyDown(document.body, { key: 'r' })
+    expect(game.getState().view?.phase).not.toBe('betting')
+  })
+
   it('ignores the keys while a dialog is open', () => {
     const { game } = renderApp()
     fireEvent.click(screen.getByRole('button', { name: '+ Add credit' }))
@@ -206,6 +232,55 @@ describe('the ROLL → SKIP path', () => {
     expect(view).toHaveAttribute('data-state', 'settled')
     expect(view).toHaveAttribute('data-dice', '3-3')
     expect(screen.getByTestId('round-chip')).toHaveTextContent('Point is 6')
+  })
+
+  it('marks the bets the roll decided once the dice land, never while they are in the air', async () => {
+    const { run } = renderApp()
+    run((state) => {
+      state.dispatch({ type: 'place', typeId: 'pass', amount: cents(500) })
+      state.dispatch({ type: 'place', typeId: 'field', amount: cents(500) })
+      state.enqueueDice([dice(4, 3)]) // a come-out 7: the pass line wins, the field loses
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'ROLL' }))
+    // The dice are in the air: no zone may give the roll away.
+    expect(document.querySelector('.zone-flash, .zone-float')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'SKIP' }))
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(50)
+    })
+    const pass = document.querySelector('[data-zone="line:pass"]')
+    const field = document.querySelector('[data-target="zone:field"]')
+    expect(pass?.querySelector('[data-outcome="win"]')).not.toBeNull()
+    expect(pass?.querySelector('[data-outcome-float="win"]')).toHaveTextContent('+$5.00')
+    expect(field?.querySelector('[data-outcome="lose"]')).not.toBeNull()
+    expect(field?.querySelector('[data-outcome-float="lose"]')).toHaveTextContent('−$5.00')
+    // Betting reopens after the hold; the marks finish on their own a little later.
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(700)
+    })
+    expect(pass?.querySelector('[data-outcome="win"]')).not.toBeNull()
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(OUTCOME_MS)
+    })
+    expect(document.querySelector('.zone-flash, .zone-float')).toBeNull()
+  })
+
+  it('keeps the win and lose marks still under reduced motion', async () => {
+    const { settings, run } = renderApp()
+    act(() => {
+      settings.getState().update({ reducedMotion: true })
+    })
+    run((state) => {
+      state.dispatch({ type: 'place', typeId: 'pass', amount: cents(500) })
+      state.enqueueDice([dice(4, 3)])
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'ROLL' }))
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(50)
+    })
+    const marks = document.querySelectorAll('[data-zone="line:pass"] .zone-flash, .zone-float')
+    expect(marks.length).toBeGreaterThan(0)
+    marks.forEach((mark) => expect(mark).toHaveClass('outcome-still'))
   })
 
   it('reduced motion reveals without an animation', async () => {

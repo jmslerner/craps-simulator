@@ -315,6 +315,8 @@ export function App({ stores = DEFAULT_STORES, boot = true }: AppProps) {
     const dialogOpen = dialog !== null || inspector !== null || summary !== null
     const onKey = (event: KeyboardEvent): void => {
       if (dialogOpen) return
+      // Browser and system shortcuts (Cmd/Ctrl+R reload, Cmd/Ctrl+C copy, Alt+…) are never game keys.
+      if (event.ctrlKey || event.metaKey || event.altKey) return
       const target = event.target
       if (
         target instanceof HTMLElement &&
@@ -328,10 +330,11 @@ export function App({ stores = DEFAULT_STORES, boot = true }: AppProps) {
           // A focused button handles Space itself.
           if (target instanceof HTMLElement && target.tagName === 'BUTTON') return
           event.preventDefault()
-          roll()
+          // A held key auto-repeats; one press is one roll.
+          if (!event.repeat) roll()
           return
         case 'r':
-          roll()
+          if (!event.repeat) roll()
           return
         case 'R': {
           const repeat = selectMacros(game).repeat[0]

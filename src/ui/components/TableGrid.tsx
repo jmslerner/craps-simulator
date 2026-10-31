@@ -23,6 +23,7 @@ import { selectSideBetSpots } from '../state/sideBetSpots.ts'
 import { spokenRatio } from './copy.ts'
 import { useGameState, useSettingsState, useStores, useUi, type SpotRef } from './context.tsx'
 import { PHONE_QUERY, useMediaQuery } from './useMediaQuery.ts'
+import { useRollOutcomes } from './useRollOutcomes.ts'
 import { ZoneButton, type ZoneSlot, type ZoneView } from './ZoneButton.tsx'
 
 /**
@@ -67,6 +68,8 @@ export function TableGrid() {
   const phone = useMediaQuery(PHONE_QUERY, false)
   const [activeTab, setActiveTab] = useState<TabId | null>(null)
   const [sheet, setSheet] = useState<TabId | null>(null)
+  // The just-revealed roll's win and lose marks, by zone (empty while the dice are in the air).
+  const outcomes = useRollOutcomes(cfg === null ? null : layoutSpec(cfg))
   // Every spot the layout can show: the main game's, then the side bets' (M11).
   const legal = useMemo(
     () =>
@@ -107,6 +110,7 @@ export function TableGrid() {
       onInspect={() => inspect(zone)}
       slot={slot}
       showPay={showPay}
+      outcome={outcomes.get(zone.key) ?? null}
     />
   )
 

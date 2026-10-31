@@ -9,6 +9,7 @@ import { Die } from '../dice2d/Die.tsx'
 import { badgeFor, ensureCatalog, subscribeAnalysis } from '../services/analysisClient.ts'
 import type { ZoneKind, ZoneSpec } from '../layout/layoutSpec.ts'
 import type { SideBetProgress } from '../layout/sideBetProgress.ts'
+import type { ZoneOutcome } from '../state/rollOutcomes.ts'
 import { useGameState, useSettingsState, useUi } from './context.tsx'
 import { useLongPress } from './useLongPress.ts'
 
@@ -43,7 +44,22 @@ import { useLongPress } from './useLongPress.ts'
  * prop or hop button, a side-bet box) for the CSS, and `showPay` false leaves the pay to the
  * section heading that already prints it ("16 for 1 • Hop bets • 16 for 1"). The coach's edge tag
  * is a small corner tag that never sits on the face.
+ *
+ * **Win and lose marks:** when the dice land, a zone the roll decided flashes (gold for a win, red
+ * for a loss, white for a push) and the amount floats off it, "+$7.00" rising or "−$5.00" swept
+ * down, from the engine's own settlements (`zoneOutcomes`). The marks are `aria-hidden` (the roll's
+ * announcement says the same), never catch a tap, and keep still under reduced motion.
  */
+
+/** A win paying at least this many times its stake gets the big-win mark. */
+const BIG_WIN_MULTIPLE = 10
+
+/** The amount a mark floats: "+$7.00" for a win, "−$5.00" for a loss, "Push" for a push. */
+export function outcomeText(outcome: ZoneOutcome): string {
+  if (outcome.kind === 'push') return 'Push'
+  const amount = formatCents(outcome.kind === 'win' ? outcome.net : (-outcome.net as Cents))
+  return outcome.kind === 'win' ? `+${amount}` : `−${amount}`
+}
 
 /** Where a zone sits on the felt, for its shape: see the module comment. */
 export type ZoneSlot = 'tab' | 'box' | 'band' | 'circle' | 'prop' | 'hop' | 'side' | 'sheet'
@@ -114,6 +130,7 @@ export function ZoneButton({
   onInspect,
   slot = 'band',
   showPay = true,
+  outcome = null,
 }: {
   view: ZoneView
   onTap(): void
@@ -122,6 +139,8 @@ export function ZoneButton({
   slot?: ZoneSlot
   /** False when the zone's section heading already prints its pay. */
   showPay?: boolean
+  /** What the just-revealed roll did on this zone; null when it did nothing here. */
+  outcome?: ZoneOutcome | null
 }) {
   const { zone, amount, oddsAmount, off, blocked, puck, progress, locked } = view
   const ui = useUi()
@@ -133,6 +152,7 @@ export function ZoneButton({
   const badge = useCoachBadge(zone)
   const coach = badge !== null && badgeVisibleIn(coachMode, badge.grade) ? badge : null
   const highlighted = ui.highlight === zone.target
+  const stillMotion = useSettingsState((state) => state.reducedMotion === true)
   const ref = useRef<HTMLButtonElement>(null)
 
   useEffect(() => {
@@ -267,7 +287,36 @@ export function ZoneButton({
           {puck === 'on' ? 'ON' : 'OFF'}
         </span>
       )}
+      {outcome !== null && <OutcomeMarks outcome={outcome} still={stillMotion} />}
     </button>
+  )
+}
+
+/**
+ * The flash and the floating amount for one revealed roll. Keyed by the roll, so the next roll's
+ * mark on the same zone starts its animation afresh.
+ */
+function OutcomeMarks({ outcome, still }: { outcome: ZoneOutcome; still: boolean }) {
+  const big =
+    outcome.kind === 'win' && outcome.stake > 0 && outcome.net >= outcome.stake * BIG_WIN_MULTIPLE
+  const motion = still ? ' outcome-still' : ''
+  return (
+    <>
+      <span
+        key={`flash-${outcome.rollIndex}`}
+        className={`zone-flash zone-flash-${outcome.kind}${motion}`}
+        data-outcome={outcome.kind}
+        aria-hidden="true"
+      />
+      <span
+        key={`float-${outcome.rollIndex}`}
+        className={`zone-float zone-float-${outcome.kind}${big ? ' zone-float-big' : ''}${motion}`}
+        data-outcome-float={outcome.kind}
+        aria-hidden="true"
+      >
+        {outcomeText(outcome)}
+      </span>
+    </>
   )
 }
 

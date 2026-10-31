@@ -244,11 +244,17 @@ describe('the chain itself', () => {
 // The quick subset: one odd-cent stake, where every rounding shows. tests/slow runs every stake of
 // plan §9 item 4 and an odd-cent sweep.
 describe('the reducer against the closed form, every offered bet (quick subset)', () => {
-  it.each(PRESET_IDS)('%s at 101¢', (id) => {
-    const { mismatches, checked } = checkAgainstClosedForm(PRESETS[id], [101])
-    expect(mismatches).toEqual([])
-    expect(checked).toBeGreaterThan(20)
-  })
+  it.each(PRESET_IDS)(
+    '%s at 101¢',
+    (id) => {
+      const { mismatches, checked } = checkAgainstClosedForm(PRESETS[id], [101])
+      expect(mismatches).toEqual([])
+      expect(checked).toBeGreaterThan(20)
+      // The same 30 s allowance as the real-tree scans: this 8 GB machine has stalled a preset past
+      // the 5 s default under a coverage run (a preset takes well under a second quiet).
+    },
+    30_000,
+  )
 })
 
 describe('random machines against the closed form (quick subset of tests/slow)', () => {

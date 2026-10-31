@@ -49,7 +49,9 @@ describe('sheetFromRows', () => {
         })
       })
     }
-  })
+    // Prices the whole catalog of all five machines: the same 30 s allowance as the real-tree
+    // scans, because this 8 GB machine has stalled it past the 5 s default in a full parallel run.
+  }, 30_000)
 
   it('sorts for itself: the sheet from config-ordered rows equals the sheet from sorted rows', () => {
     const rows = catalogTable(crapless)
