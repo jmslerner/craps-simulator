@@ -3,6 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "description": "Practice electronic bubble craps (crapless and traditional) with a live coach and a 3D dice dome.",
+  "main": "electron/main.cjs",
   "type": "module",
   "engines": {
     "node": "^24.13.0 || >=26"
@@ -10,6 +11,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "build:electron": "tsc -b && vite build --base ./",
     "preview": "vite preview",
     "typecheck": "tsc -b",
     "lint": "eslint .",
@@ -20,6 +22,10 @@
     "test:slow": "vitest run --project slow",
     "coverage": "vitest run --project core --coverage",
     "e2e": "playwright test",
+    "electron": "electron .",
+    "electron:dev": "ELECTRON_START_URL=http://localhost:5173 electron .",
+    "electron:build": "npm run build:electron && electron-builder",
+    "electron:package": "npm run build:electron && electron-builder --mac --publish never",
     "verify": "tsc -b && eslint . && npm run format:check && npm test && npm run coverage && vite build && node scripts/check-bundle.ts"
   },
   "dependencies": {
@@ -45,6 +51,8 @@
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
     "@vitejs/plugin-react": "6.1.2",
+    "electron": "38.0.0",
+    "electron-builder": "26.0.0",
     "@vitest/coverage-v8": "5.0.5",
     "eslint": "10.13.0",
     "eslint-plugin-react-hooks": "7.1.1",

@@ -1,0 +1,36 @@
+{
+  "appId": "com.jmslerner.bubble-craps-trainer",
+  "productName": "Bubble Craps Trainer",
+  "directories": {
+    "output": "release"
+  },
+  "files": [
+    "dist/**/*",
+    "electron/**/*",
+    "package.json",
+    "index.html"
+  ],
+  "extraMetadata": {
+    "main": "electron/main.cjs"
+  },
+  "mac": {
+    "target": [
+      "dmg",
+      "zip"
+    ],
+    "category": "public.app-category.games"
+  },
+  "win": {
+    "target": [
+      "portable",
+      "nsis"
+    ],
+    "artifactName": "${productName}-${version}-${arch}.${ext}"
+  },
+  "linux": {
+    "target": [
+      "AppImage"
+    ],
+    "artifactName": "${productName}-${version}-${arch}.${ext}"
+  }
+}

@@ -7,3 +7,6 @@ coverage
 dist-e2e
 test-results
 playwright-report
+
+# Built desktop app (electron-builder output): regenerated from source, too large for GitHub.
+release/
